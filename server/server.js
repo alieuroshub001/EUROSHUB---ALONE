@@ -5,7 +5,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const path = require('path');
-require('dotenv').config({ path: '../.env.local' });
+// Load environment variables
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: '../.env.local' });
+}
 
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
@@ -75,6 +78,20 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     onlineUsers: socketManager.getOnlineUsers().length,
     socketEnabled: true
+  });
+});
+
+// API Health check route
+app.get('/api/health', (req, res) => {
+  const socketManager = req.app.get('socketManager');
+  res.status(200).json({
+    success: true,
+    message: 'EuroHub PM API is running successfully',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    onlineUsers: socketManager.getOnlineUsers().length,
+    socketEnabled: true,
+    version: '1.0.0'
   });
 });
 

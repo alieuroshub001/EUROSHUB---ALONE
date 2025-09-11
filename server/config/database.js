@@ -2,14 +2,38 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    // Check for different possible environment variable names
+    const mongoUri = process.env.MONGODB_URI || 
+                     process.env.MONGO_URI || 
+                     process.env.DATABASE_URL ||
+                     process.env.MONGOLAB_URI ||
+                     process.env.MONGOHQ_URL;
+
+    if (!mongoUri) {
+      console.error('MongoDB connection string is missing. Please set one of the following environment variables:');
+      console.error('- MONGODB_URI');
+      console.error('- MONGO_URI');
+      console.error('- DATABASE_URL');
+      console.error('Current environment variables related to MongoDB:');
+      console.error('MONGODB_URI:', process.env.MONGODB_URI);
+      console.error('MONGO_URI:', process.env.MONGO_URI);
+      console.error('DATABASE_URL:', process.env.DATABASE_URL);
+      process.exit(1);
+    }
+
+    console.log('Attempting to connect to MongoDB...');
+    console.log('Connection string prefix:', mongoUri.substring(0, 20) + '...');
+
+    const conn = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log(`Database Name: ${conn.connection.name}`);
   } catch (error) {
     console.error('Database connection error:', error);
+    console.error('Make sure your MongoDB connection string is correct and the database is accessible');
     process.exit(1);
   }
 };
