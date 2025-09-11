@@ -21,16 +21,12 @@ const connectDB = async () => {
       process.exit(1);
     }
 
-    console.log('Attempting to connect to MongoDB...');
-    console.log('Connection string prefix:', mongoUri.substring(0, 20) + '...');
-
     const conn = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
-    console.log(`Database Name: ${conn.connection.name}`);
   } catch (error) {
     console.error('Database connection error:', error);
     console.error('Make sure your MongoDB connection string is correct and the database is accessible');

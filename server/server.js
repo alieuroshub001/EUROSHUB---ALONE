@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 // Load environment variables
 if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config({ path: '../.env.local' });
+  require('dotenv').config(); // Will load from server/.env
 }
 
 const connectDB = require('./config/database');
@@ -149,21 +149,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log(`✅ Socket.IO enabled for real-time communication`);
-  console.log(`✅ Health check available at: /api/health`);
-  console.log(`✅ API base URL: /api`);
-  console.log(`✅ Environment variables loaded:`, {
-    NODE_ENV: process.env.NODE_ENV,
-    PORT: PORT,
-    MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
-    JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET'
-  });
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`Socket.IO enabled for real-time communication`);
 }).on('error', (err) => {
-  console.error('❌ Server failed to start:', err);
+  console.error('Server failed to start:', err);
   process.exit(1);
 });
 
