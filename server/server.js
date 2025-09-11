@@ -149,11 +149,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
-server.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log(`Socket.IO enabled for real-time communication`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`✅ Socket.IO enabled for real-time communication`);
+  console.log(`✅ Health check available at: /api/health`);
+  console.log(`✅ API base URL: /api`);
+  console.log(`✅ Environment variables loaded:`, {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: PORT,
+    MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+    JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET'
+  });
+}).on('error', (err) => {
+  console.error('❌ Server failed to start:', err);
+  process.exit(1);
 });
 
 // Handle unhandled promise rejections
