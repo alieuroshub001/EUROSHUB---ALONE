@@ -1,0 +1,159 @@
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+require('dotenv').config({ path: '../.env.local' });
+
+const connectDB = require('./config/database');
+const authRoutes = require('./routes/auth');
+const SocketManager = require('./config/socket');
+
+const app = express();
+const server = http.createServer(app);
+
+// Connect to database
+connectDB();
+
+// Initialize Socket.IO
+const socketManager = new SocketManager(server);
+
+// Make socket manager available throughout the app
+app.set('socketManager', socketManager);
+
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs for auth routes
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later.'
+  },
+  skipSuccessfulRequests: true
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use(limiter);
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
+// Health check route
+app.get('/health', (req, res) => {
+  const socketManager = req.app.get('socketManager');
+  res.status(200).json({
+    success: true,
+    message: 'Server is running successfully',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    onlineUsers: socketManager.getOnlineUsers().length,
+    socketEnabled: true
+  });
+});
+
+// API routes
+app.use('/api/auth', authRoutes);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error stack:', err.stack);
+  
+  let error = { ...err };
+  error.message = err.message;
+
+  // Mongoose bad ObjectId
+  if (err.name === 'CastError') {
+    const message = 'Resource not found';
+    error = { message, statusCode: 404 };
+  }
+
+  // Mongoose duplicate key
+  if (err.code === 11000) {
+    const message = 'Duplicate field value entered';
+    error = { message, statusCode: 400 };
+  }
+
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const message = Object.values(err.errors).map(val => val.message).join(', ');
+    error = { message, statusCode: 400 };
+  }
+
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    const message = 'Invalid token';
+    error = { message, statusCode: 401 };
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    const message = 'Token expired';
+    error = { message, statusCode: 401 };
+  }
+
+  res.status(error.statusCode || 500).json({
+    success: false,
+    message: error.message || 'Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`Socket.IO enabled for real-time communication`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err, promise) => {
+  console.log(`Error: ${err.message}`);
+  // Close server & exit process
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+// Handle SIGTERM
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
+
+module.exports = app;

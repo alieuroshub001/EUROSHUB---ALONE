@@ -1,0 +1,42 @@
+# --- Node.js dependencies ---
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# --- Build outputs ---
+dist/
+.next/
+out/
+build/
+.cache/
+
+# --- Environment files ---
+.env
+.env.local
+.env.*.local
+.claude
+
+# --- Logs ---
+logs
+*.log
+*.log.*
+*.out
+*.out.*
+*.err
+*.err.*
+
+# --- OS / Editor junk ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# --- Coverage / Tests ---
+coverage/
+*.lcov
+
+# --- Misc ---
+*.pid
+*.seed
