@@ -51,9 +51,10 @@ export const authAPI = {
       }
       
       return response.data;
-    } catch (error: any) {
-      if (error.response?.data) {
-        throw error.response.data;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: LoginError } };
+      if (axiosError.response?.data) {
+        throw axiosError.response.data;
       }
       throw {
         success: false,

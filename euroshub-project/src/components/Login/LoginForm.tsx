@@ -58,19 +58,20 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           onSuccess();
         }
       }
-    } catch (err: any) {
-      if (err.errors && Array.isArray(err.errors)) {
+    } catch (err: unknown) {
+      const error = err as { errors?: Array<{ path?: string; msg: string }>; message?: string };
+      if (error.errors && Array.isArray(error.errors)) {
         // Handle field-specific validation errors
         const errors: Record<string, string> = {};
-        err.errors.forEach((error: any) => {
-          if (error.path) {
-            errors[error.path] = error.msg;
+        error.errors.forEach((validationError) => {
+          if (validationError.path) {
+            errors[validationError.path] = validationError.msg;
           }
         });
         setFieldErrors(errors);
       } else {
         // Handle general error
-        setError(err.message || 'Login failed. Please try again.');
+        setError(error.message || 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);
