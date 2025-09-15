@@ -12,6 +12,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
+const userManagementRoutes = require('./routes/userManagement');
+const profileRoutes = require('./routes/profile');
 const SocketManager = require('./config/socket');
 
 const app = express();
@@ -68,6 +70,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Serve static files (for avatar uploads)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Health check route
 app.get('/health', (req, res) => {
   const socketManager = req.app.get('socketManager');
@@ -97,6 +102,8 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/user-management', userManagementRoutes);
+app.use('/api/profile', profileRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

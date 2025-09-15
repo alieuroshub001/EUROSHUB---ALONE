@@ -1,0 +1,514 @@
+const User = require('../models/User');
+const crypto = require('crypto');
+const { validationResult } = require('express-validator');
+const emailService = require('../utils/emailService');
+const { getSocketUtils } = require('../utils/socketUtils');
+
+/**
+ * Get all users based on current user's permissions
+ */
+exports.getUsers = async (req, res) => {
+  try {
+    const currentUser = req.user;
+    const { page = 1, limit = 50, search, role, status } = req.query;
+
+    // Build query based on current user's permissions
+    let query = {};
+
+    // Role-based filtering
+    if (currentUser.role === 'hr') {
+      // HR can only see employees
+      query.role = 'employee';
+    } else if (currentUser.role === 'admin') {
+      // Admin cannot see superadmins
+      query.role = { $ne: 'superadmin' };
+    }
+    // Superadmin can see all users (no additional filter)
+
+    // Apply additional filters
+    if (role && role !== 'all') {
+      if (currentUser.role === 'hr' && role !== 'employee') {
+        return res.status(403).json({
+          success: false,
+          message: 'HR users can only view employees'
+        });
+      }
+      query.role = role;
+    }
+
+    if (status && status !== 'all') {
+      switch (status) {
+        case 'active':
+          query.isActive = true;
+          break;
+        case 'inactive':
+          query.isActive = false;
+          break;
+        case 'unverified':
+          query.isEmailVerified = false;
+          break;
+      }
+    }
+
+    // Search functionality
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { department: { $regex: search, $options: 'i' } },
+        { position: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const users = await User.find(query)
+      .select('-password -emailVerificationToken -passwordResetToken')
+      .populate('createdBy', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await User.countDocuments(query);
+
+    // Transform users for frontend
+    const transformedUsers = users.map(user => ({
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      department: user.department,
+      position: user.position,
+      avatar: user.avatar,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+      createdBy: user.createdBy
+    }));
+
+    res.status(200).json({
+      success: true,
+      users: transformedUsers,
+      pagination: {
+        current: page,
+        total: Math.ceil(total / limit),
+        count: users.length,
+        totalUsers: total
+      }
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching users'
+    });
+  }
+};
+
+/**
+ * Create a new user
+ */
+exports.createUser = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { firstName, lastName, email, role, phone, department, position } = req.body;
+    const currentUser = req.user;
+
+    // Check if current user can create this role
+    if (!currentUser.canCreate(role)) {
+      return res.status(403).json({
+        success: false,
+        message: `You don't have permission to create users with role: ${role}`
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already exists',
+        errors: [{ field: 'email', message: 'This email is already registered' }]
+      });
+    }
+
+    // Generate secure temporary password
+    const tempPassword = generateSecurePassword();
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
+    // Create user
+    const newUser = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      password: tempPassword,
+      role,
+      phone: phone?.trim() || undefined,
+      department: department?.trim() || undefined,
+      position: position?.trim() || undefined,
+      createdBy: currentUser._id,
+      emailVerificationToken,
+      isEmailVerified: false
+    });
+
+    // Send welcome email with credentials
+    let emailSent = false;
+    try {
+      await emailService.sendWelcomeEmail({
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        tempPassword,
+        role: newUser.role,
+        verificationToken: emailVerificationToken
+      });
+      emailSent = true;
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+    }
+
+    // Send real-time notification
+    try {
+      const socketUtils = getSocketUtils(req.app);
+      await socketUtils.notifyUserCreated(newUser, currentUser);
+    } catch (socketError) {
+      console.error('Socket notification failed:', socketError);
+    }
+
+    const responseData = {
+      success: true,
+      message: `User created successfully. ${emailSent ? 'Credentials sent to email.' : 'Failed to send email - please provide credentials manually.'}`,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        phone: newUser.phone,
+        department: newUser.department,
+        position: newUser.position,
+        isActive: newUser.isActive,
+        isEmailVerified: newUser.isEmailVerified,
+        createdAt: newUser.createdAt
+      },
+      emailSent
+    };
+
+    // Include temporary password if email failed
+    if (!emailSent) {
+      responseData.temporaryPassword = tempPassword;
+    }
+
+    res.status(201).json(responseData);
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during user creation'
+    });
+  }
+};
+
+/**
+ * Update an existing user
+ */
+exports.updateUser = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.body;
+    const currentUser = req.user;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Find target user
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check permissions
+    if (!canEditUser(currentUser, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions to edit this user'
+      });
+    }
+
+    // Prevent self-deletion through deactivation unless superadmin
+    if (targetUser._id.toString() === currentUser._id.toString() &&
+        req.body.isActive === false &&
+        currentUser.role !== 'superadmin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot deactivate your own account'
+      });
+    }
+
+    // Build update object
+    const updateData = {};
+    const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'department', 'position', 'isActive'];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Handle role updates (only superadmin can change roles)
+    if (req.body.role && req.body.role !== targetUser.role) {
+      if (currentUser.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only superadmin can change user roles'
+        });
+      }
+      if (!currentUser.canCreate(req.body.role)) {
+        return res.status(403).json({
+          success: false,
+          message: `You don't have permission to assign role: ${req.body.role}`
+        });
+      }
+      updateData.role = req.body.role;
+    }
+
+    // Check email uniqueness if email is being updated
+    if (updateData.email && updateData.email !== targetUser.email) {
+      const emailExists = await User.findOne({
+        email: updateData.email.toLowerCase(),
+        _id: { $ne: id }
+      });
+      if (emailExists) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already exists',
+          errors: [{ field: 'email', message: 'This email is already registered' }]
+        });
+      }
+      updateData.email = updateData.email.toLowerCase();
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password -emailVerificationToken -passwordResetToken');
+
+    // Send real-time notification
+    try {
+      const socketUtils = getSocketUtils(req.app);
+      await socketUtils.notifyUserUpdated(updatedUser, currentUser);
+    } catch (socketError) {
+      console.error('Socket notification failed:', socketError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      user: {
+        id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        department: updatedUser.department,
+        position: updatedUser.position,
+        isActive: updatedUser.isActive,
+        isEmailVerified: updatedUser.isEmailVerified,
+        lastLogin: updatedUser.lastLogin,
+        createdAt: updatedUser.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during user update'
+    });
+  }
+};
+
+/**
+ * Delete a user
+ */
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const currentUser = req.user;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Find target user
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check permissions
+    if (!canDeleteUser(currentUser, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions to delete this user'
+      });
+    }
+
+    // Prevent self-deletion
+    if (targetUser._id.toString() === currentUser._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own account'
+      });
+    }
+
+    // Delete user
+    await User.findByIdAndDelete(id);
+
+    // Send real-time notification
+    try {
+      const socketUtils = getSocketUtils(req.app);
+      await socketUtils.notifyUserDeleted(targetUser, currentUser);
+    } catch (socketError) {
+      console.error('Socket notification failed:', socketError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during user deletion'
+    });
+  }
+};
+
+/**
+ * Get user statistics
+ */
+exports.getUserStats = async (req, res) => {
+  try {
+    const currentUser = req.user;
+
+    // Build query based on permissions
+    let baseQuery = {};
+    if (currentUser.role === 'hr') {
+      baseQuery.role = 'employee';
+    } else if (currentUser.role === 'admin') {
+      baseQuery.role = { $ne: 'superadmin' };
+    }
+
+    const stats = await Promise.all([
+      User.countDocuments(baseQuery), // Total users
+      User.countDocuments({ ...baseQuery, isActive: true }), // Active users
+      User.countDocuments({ ...baseQuery, isEmailVerified: false }), // Unverified users
+      User.countDocuments({ ...baseQuery, role: { $in: ['admin', 'superadmin'] } }) // Admins
+    ]);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalUsers: stats[0],
+        activeUsers: stats[1],
+        unverifiedUsers: stats[2],
+        adminUsers: stats[3]
+      }
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching user statistics'
+    });
+  }
+};
+
+// Helper functions
+function generateSecurePassword(length = 12) {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+  let password = '';
+
+  // Ensure at least one character from each category
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*';
+
+  password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  password += uppercase[Math.floor(Math.random() * uppercase.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += special[Math.floor(Math.random() * special.length)];
+
+  // Fill the rest with random characters
+  for (let i = 4; i < length; i++) {
+    password += charset[Math.floor(Math.random() * charset.length)];
+  }
+
+  // Shuffle the password
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+function canEditUser(currentUser, targetUser) {
+  // Superadmin can edit anyone
+  if (currentUser.role === 'superadmin') return true;
+
+  // Cannot edit superadmin users
+  if (targetUser.role === 'superadmin') return false;
+
+  // Admin can edit non-superadmin users
+  if (currentUser.role === 'admin' && targetUser.role !== 'superadmin') return true;
+
+  // HR can only edit employees
+  if (currentUser.role === 'hr' && targetUser.role === 'employee') return true;
+
+  return false;
+}
+
+function canDeleteUser(currentUser, targetUser) {
+  // HR cannot delete anyone
+  if (currentUser.role === 'hr') return false;
+
+  // Superadmin can delete anyone (except self, handled separately)
+  if (currentUser.role === 'superadmin') return true;
+
+  // Admin can delete non-superadmin users
+  if (currentUser.role === 'admin' && targetUser.role !== 'superadmin') return true;
+
+  return false;
+}

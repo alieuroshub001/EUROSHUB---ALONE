@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'gmail',
     auth: {
       user: process.env.EMAIL_USERNAME,
@@ -18,11 +18,11 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Welcome to EuroShub - Account Created',
+    subject: 'Welcome to EurosHub - Account Created',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333; margin: 0;">Welcome to EuroShub</h1>
+          <h1 style="color: #333; margin: 0;">Welcome to EurosHub</h1>
         </div>
         
         <div style="padding: 30px; background-color: white;">
@@ -57,7 +57,7 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
         </div>
         
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p style="margin: 0;">© ${new Date().getFullYear()} EuroShub. All rights reserved.</p>
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
         </div>
       </div>
     `
@@ -74,7 +74,7 @@ const sendPasswordResetEmail = async ({ email, firstName, resetToken }) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'EuroShub - Password Reset Request',
+    subject: 'EurosHub - Password Reset Request',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
@@ -85,7 +85,7 @@ const sendPasswordResetEmail = async ({ email, firstName, resetToken }) => {
           <h2 style="color: #333;">Hello ${firstName},</h2>
           
           <p style="color: #666; line-height: 1.6;">
-            We received a request to reset your password for your EuroShub account. If you didn't make this request, you can safely ignore this email.
+            We received a request to reset your password for your EurosHub account. If you didn't make this request, you can safely ignore this email.
           </p>
           
           <div style="margin: 30px 0;">
@@ -110,7 +110,7 @@ const sendPasswordResetEmail = async ({ email, firstName, resetToken }) => {
         </div>
         
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p style="margin: 0;">© ${new Date().getFullYear()} EuroShub. All rights reserved.</p>
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
         </div>
       </div>
     `
@@ -125,7 +125,7 @@ const sendAccountDeactivationEmail = async ({ email, firstName, reason }) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'EuroShub - Account Status Update',
+    subject: 'EurosHub - Account Status Update',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
@@ -136,7 +136,7 @@ const sendAccountDeactivationEmail = async ({ email, firstName, reason }) => {
           <h2 style="color: #333;">Hello ${firstName},</h2>
           
           <p style="color: #666; line-height: 1.6;">
-            We're writing to inform you that your EuroShub account has been deactivated.
+            We're writing to inform you that your EurosHub account has been deactivated.
           </p>
           
           ${reason ? `
@@ -152,7 +152,7 @@ const sendAccountDeactivationEmail = async ({ email, firstName, reason }) => {
         </div>
         
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p style="margin: 0;">© ${new Date().getFullYear()} EuroShub. All rights reserved.</p>
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
         </div>
       </div>
     `

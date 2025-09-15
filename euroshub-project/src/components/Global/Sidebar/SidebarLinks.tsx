@@ -237,6 +237,15 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       description: 'HR overview'
     },
     {
+      title: 'Employee Management',
+      icon: Users,
+      path: '/hr/user-management',
+      description: 'Manage employees',
+      subItems: [
+        { title: 'All Employees', path: '/hr/user-management', icon: Users },
+      ]
+    },
+    {
       title: 'Profile',
       icon: User,
       path: '/hr/profile',

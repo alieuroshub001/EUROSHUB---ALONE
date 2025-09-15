@@ -1,18 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, User } from '@/lib/auth';
+import Sidebar from '@/components/Global/Sidebar/Sidebar';
+import Header from '@/components/Global/Header/Header';
+import NavigationProvider from '@/components/Global/Navigation/NavigationProvider';
+import LoadingSpinner from '@/components/Global/LoadingSpinner/LoadingSpinner';
+import { UserRole } from '@/components/Global/Sidebar/SidebarLinks';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  role: string;
-  title: string;
+  role: UserRole;
+  title?: string;
+  showBreadcrumb?: boolean;
+  breadcrumbs?: string[];
 }
 
-export default function DashboardLayout({ children, role, title }: DashboardLayoutProps) {
+export default function DashboardLayout({ 
+  children, 
+  role, 
+  title,
+  showBreadcrumb = true,
+  breadcrumbs = []
+}: DashboardLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -42,22 +56,16 @@ export default function DashboardLayout({ children, role, title }: DashboardLayo
     checkAuth();
   }, [role, router]);
 
-  const handleLogout = async () => {
-    try {
-      await authAPI.logout();
-      router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-      router.push('/');
-    }
-  };
+  const handleSidebarToggle = useCallback(() => {
+    // Mobile sidebar toggle is handled internally by Sidebar component
+  }, []);
+
+  const handleCollapseChange = useCallback((collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+  }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner isLoading={true} />;
   }
 
   if (!user) {
@@ -65,42 +73,32 @@ export default function DashboardLayout({ children, role, title }: DashboardLayo
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                EuroHub PM - {title}
-              </h1>
+    <NavigationProvider>
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar 
+          isOpen={true}
+          onToggle={handleSidebarToggle}
+          onCollapseChange={handleCollapseChange}
+        />
+        
+        <div className={`flex flex-col transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+        }`}>
+          <Header 
+            onSidebarToggle={handleSidebarToggle}
+            isCollapsed={sidebarCollapsed}
+            title={title}
+            showBreadcrumb={showBreadcrumb}
+            breadcrumbs={breadcrumbs}
+          />
+          
+          <main className="flex-1 p-4 lg:p-6">
+            <div className="max-w-7xl mx-auto">
+              {children}
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="text-sm text-gray-700">
-                  Welcome, {user.firstName} {user.lastName}
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </span>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
+          </main>
         </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {children}
-        </div>
-      </main>
-    </div>
+      </div>
+    </NavigationProvider>
   );
 }

@@ -7,6 +7,7 @@ export interface User {
   id: string;
   firstName: string;
   lastName: string;
+  name?: string; // Full name for header display
   email: string;
   role: 'superadmin' | 'admin' | 'hr' | 'employee' | 'client';
   phone?: string;
