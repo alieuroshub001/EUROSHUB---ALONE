@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface User {
   id: string;
@@ -22,7 +22,9 @@ export interface User {
 export interface LoginResponse {
   success: boolean;
   token: string;
-  user: User;
+  data: {
+    user: User;
+  };
   message?: string;
 }
 
@@ -93,7 +95,7 @@ export const authAPI = {
         }
       });
 
-      return response.data.user;
+      return response.data.data.user;
     } catch (error) {
       console.error('Get user error:', error);
       Cookies.remove('auth_token');

@@ -15,6 +15,10 @@ const authRoutes = require('./routes/auth');
 const userManagementRoutes = require('./routes/userManagement');
 const profileRoutes = require('./routes/profile');
 const passwordResetRoutes = require('./routes/passwordReset');
+const projectRoutes = require('./routes/projects');
+const boardRoutes = require('./routes/boards');
+const listRoutes = require('./routes/lists');
+const cardRoutes = require('./routes/cards');
 const SocketManager = require('./config/socket');
 
 const app = express();
@@ -106,6 +110,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/boards', boardRoutes);
+app.use('/api/lists', listRoutes);
+app.use('/api/cards', cardRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -13,7 +13,7 @@ const generateToken = (id) => {
 
 const sendTokenResponse = (user, statusCode, res) => {
   const token = generateToken(user._id);
-  
+
   const cookieOptions = {
     expires: new Date(Date.now() + (process.env.JWT_COOKIE_EXPIRE || 7) * 24 * 60 * 60 * 1000),
     httpOnly: true,
@@ -26,20 +26,22 @@ const sendTokenResponse = (user, statusCode, res) => {
     .json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        employeeId: user.employeeId,
-        phone: user.phone,
-        department: user.department,
-        position: user.position,
-        avatar: user.avatar,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        lastLogin: user.lastLogin
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          employeeId: user.employeeId,
+          phone: user.phone,
+          department: user.department,
+          position: user.position,
+          avatar: user.avatar,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
+          lastLogin: user.lastLogin
+        }
       }
     });
 };
@@ -428,25 +430,27 @@ exports.logout = (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    
+    const user = await User.findById(req.user._id);
+
     res.status(200).json({
       success: true,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        employeeId: user.employeeId,
-        phone: user.phone,
-        department: user.department,
-        position: user.position,
-        avatar: user.avatar,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          employeeId: user.employeeId,
+          phone: user.phone,
+          department: user.department,
+          position: user.position,
+          avatar: user.avatar,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt
+        }
       }
     });
   } catch (error) {

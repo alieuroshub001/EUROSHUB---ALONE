@@ -60,7 +60,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       
       if (response.success) {
         // Redirect to role-specific dashboard
-        const dashboardPath = getRoleDashboardPath(response.user.role);
+        const dashboardPath = getRoleDashboardPath(response.data.user.role);
         router.push(dashboardPath);
         
         if (onSuccess) {

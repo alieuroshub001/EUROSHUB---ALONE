@@ -172,6 +172,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       description: 'Project overview'
     },
     {
+      title: 'Project Management',
+      icon: Trello,
+      path: '/client/projects',
+      description: 'View assigned projects and boards'
+    },
+    {
       title: 'Profile',
       icon: User,
       path: '/client/profile',
@@ -221,6 +227,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/hr',
       description: 'HR overview'
+    },
+    {
+      title: 'Project Management',
+      icon: Trello,
+      path: '/hr/projects',
+      description: 'HR projects and task boards'
     },
     {
       title: 'Employee Management',

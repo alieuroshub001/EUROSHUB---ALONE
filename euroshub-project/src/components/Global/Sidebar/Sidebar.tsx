@@ -30,7 +30,7 @@ const Sidebar = memo<SidebarProps>(({
   const { user, logout: authLogout } = useAuth();
 
   const userRole: UserRole = (user?.role as UserRole) || 'employee';
-  const userName: string = user?.name || 'Loading...';
+  const userName: string = user ? `${user.firstName} ${user.lastName}` : 'Loading...';
   const userEmail: string = user?.email || '';
   const navigationLinks = getNavigationByRole(userRole);
   const roleInfo = getRoleInfo(userRole);

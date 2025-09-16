@@ -18,7 +18,7 @@ import {
   Clock,
   X
 } from 'lucide-react';
-import { getRoleInfo } from '../Sidebar/SidebarLinks';
+import { getRoleInfo, UserRole } from '../Sidebar/SidebarLinks';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Notification {
@@ -58,10 +58,10 @@ const Header = memo<HeaderProps>(({
   const { user, logout: authLogout } = useAuth();
   
   const userRole = user?.role || 'employee';
-  const userName = user?.name || 'Loading...';
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Loading...';
   const userEmail = user?.email || '';
   const userAvatar = user?.avatar || null;
-  const roleInfo = getRoleInfo(userRole);
+  const roleInfo = getRoleInfo(userRole as UserRole);
 
   // Update current time
   useEffect(() => {

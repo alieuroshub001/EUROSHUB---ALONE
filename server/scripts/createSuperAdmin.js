@@ -31,7 +31,8 @@ const createSuperAdmin = async () => {
       firstName: 'Ali',
       lastName: 'Rayyan',
       email: 'ali.rayyan001@gmail.com',
-      password: 'SuperAdmin@2025', // You should change this after first login
+      password: 'alirayyan',
+      employeeId: 'EH000000',
       role: 'superadmin',
       phone: '+1234567890',
       department: 'Administration',
@@ -46,9 +47,10 @@ const createSuperAdmin = async () => {
     
     console.log('🎉 Super admin created successfully!');
     console.log('📧 Email:', superAdmin.email);
-    console.log('🔑 Password: SuperAdmin@2025');
+    console.log('🔑 Password: alirayyan');
+    console.log('🆔 Employee ID:', superAdmin.employeeId);
     console.log('👤 Name:', superAdmin.firstName, superAdmin.lastName);
-    console.log('🆔 Role:', superAdmin.role);
+    console.log('🚀 Role:', superAdmin.role);
     console.log('📱 Phone:', superAdmin.phone);
     console.log('🏢 Department:', superAdmin.department);
     console.log('💼 Position:', superAdmin.position);
