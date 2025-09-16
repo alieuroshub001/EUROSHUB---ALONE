@@ -4,11 +4,13 @@ const {
   login,
   createUser,
   verifyEmail,
+  resendVerificationEmail,
   changePassword,
   forgotPassword,
   resetPassword,
   logout,
-  getMe
+  getMe,
+  requestPasswordReset
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
 const {
@@ -19,11 +21,22 @@ const {
   validateResetPassword
 } = require('../middleware/validation');
 
+// Additional validation for password reset request
+const { body } = require('express-validator');
+const validatePasswordResetRequest = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail()
+];
+
 // Public routes
 router.post('/login', validateLogin, login);
 router.post('/forgot-password', validateForgotPassword, forgotPassword);
 router.put('/reset-password/:token', validateResetPassword, resetPassword);
 router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerificationEmail);
+router.post('/request-password-reset', validatePasswordResetRequest, requestPasswordReset);
 
 // Protected routes
 router.get('/me', protect, getMe);

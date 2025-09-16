@@ -32,6 +32,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        employeeId: user.employeeId,
         phone: user.phone,
         department: user.department,
         position: user.position,
@@ -76,6 +77,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated. Please contact administrator'
+      });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+        requiresEmailVerification: true,
+        email: user.email
       });
     }
 
@@ -351,6 +361,59 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+exports.resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No user found with this email'
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified'
+      });
+    }
+
+    // Generate new verification token if doesn't exist
+    if (!user.emailVerificationToken) {
+      user.emailVerificationToken = crypto.randomBytes(32).toString('hex');
+      await user.save();
+    }
+
+    try {
+      await emailService.sendVerificationEmail({
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        verificationToken: user.emailVerificationToken
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification email sent successfully'
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email'
+      });
+    }
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during email verification resend'
+    });
+  }
+};
+
 exports.logout = (req, res) => {
   res.cookie('token', 'none', {
     expires: new Date(Date.now() + 10 * 1000),
@@ -375,6 +438,7 @@ exports.getMe = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        employeeId: user.employeeId,
         phone: user.phone,
         department: user.department,
         position: user.position,
@@ -390,6 +454,99 @@ exports.getMe = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error getting user profile'
+    });
+  }
+};
+
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+    const PasswordResetRequest = require('../models/PasswordResetRequest');
+
+    // Check if user exists
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address'
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is disabled. Please contact your administrator.'
+      });
+    }
+
+    // Check for existing pending request
+    const existingRequest = await PasswordResetRequest.findOne({
+      userEmail: email.toLowerCase(),
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return res.status(409).json({
+        success: false,
+        message: 'A password reset request is already pending for this account. Please wait for administrator approval.'
+      });
+    }
+
+    // Create new password reset request
+    const resetRequest = await PasswordResetRequest.create({
+      userEmail: user.email,
+      userId: user._id,
+      requestedBy: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      }
+    });
+
+    // Notify administrators via socket (optional)
+    try {
+      const socketUtils = getSocketUtils(req.app);
+      if (socketUtils && socketUtils.notifyPasswordResetRequest) {
+        await socketUtils.notifyPasswordResetRequest(resetRequest);
+      }
+    } catch (socketError) {
+      console.error('Socket notification failed:', socketError);
+    }
+
+    // Send notification email to admins (optional)
+    try {
+      if (emailService.notifyAdminsPasswordResetRequest) {
+        await emailService.notifyAdminsPasswordResetRequest({
+          userEmail: user.email,
+          userName: `${user.firstName} ${user.lastName}`,
+          userRole: user.role,
+          requestId: resetRequest._id
+        });
+      }
+    } catch (emailError) {
+      console.error('Admin notification email failed:', emailError);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Password reset request submitted successfully. Administrators will review and process your request.',
+      requestId: resetRequest._id
+    });
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during password reset request'
     });
   }
 };

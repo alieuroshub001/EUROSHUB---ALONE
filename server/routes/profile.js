@@ -54,6 +54,11 @@ const profileValidation = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
+  body('employeeId')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Employee ID cannot be more than 20 characters'),
   body('phone')
     .optional()
     .trim()

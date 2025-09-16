@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema({
     default: 'employee',
     required: true
   },
+  employeeId: {
+    type: String,
+    trim: true,
+    sparse: true,
+    maxlength: [20, 'Employee ID cannot be more than 20 characters']
+  },
   phone: {
     type: String,
     trim: true,

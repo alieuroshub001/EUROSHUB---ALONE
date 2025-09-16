@@ -12,6 +12,7 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
   const [formData, setFormData] = useState({
     firstName: profile.firstName,
     lastName: profile.lastName,
+    employeeId: profile.employeeId || '',
     phone: profile.phone || '',
     department: profile.department || '',
     position: profile.position || '',
@@ -21,11 +22,15 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Check if user has privilege to edit certain fields
+  const isPrivilegedUser = ['superadmin', 'admin', 'hr'].includes(profile.role);
+
   React.useEffect(() => {
     const checkChanges = () => {
       const hasChanged =
         formData.firstName !== profile.firstName ||
         formData.lastName !== profile.lastName ||
+        formData.employeeId !== (profile.employeeId || '') ||
         formData.phone !== (profile.phone || '') ||
         formData.department !== (profile.department || '') ||
         formData.position !== (profile.position || '');
@@ -93,8 +98,13 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
       if (formData.firstName !== profile.firstName) updateData.firstName = formData.firstName.trim();
       if (formData.lastName !== profile.lastName) updateData.lastName = formData.lastName.trim();
       if (formData.phone !== (profile.phone || '')) updateData.phone = formData.phone.trim() || undefined;
-      if (formData.department !== (profile.department || '')) updateData.department = formData.department.trim() || undefined;
-      if (formData.position !== (profile.position || '')) updateData.position = formData.position.trim() || undefined;
+
+      // Only include privileged fields if user has permission
+      if (isPrivilegedUser) {
+        if (formData.employeeId !== (profile.employeeId || '')) updateData.employeeId = formData.employeeId.trim() || undefined;
+        if (formData.department !== (profile.department || '')) updateData.department = formData.department.trim() || undefined;
+        if (formData.position !== (profile.position || '')) updateData.position = formData.position.trim() || undefined;
+      }
 
       await onUpdateProfile(updateData);
 
@@ -120,6 +130,7 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
     setFormData({
       firstName: profile.firstName,
       lastName: profile.lastName,
+      employeeId: profile.employeeId || '',
       phone: profile.phone || '',
       department: profile.department || '',
       position: profile.position || '',
@@ -229,16 +240,49 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
               placeholder="Enter phone number"
             />
           </div>
+
+          {/* Employee ID - Only visible to privileged users */}
+          {isPrivilegedUser && (
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Employee ID
+                <span className="text-xs text-blue-600 ml-2">(Admin/HR only)</span>
+              </label>
+              <input
+                type="text"
+                name="employeeId"
+                value={formData.employeeId}
+                onChange={handleInputChange}
+                onFocus={() => handleFocus('employeeId')}
+                onBlur={handleBlur}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                  focusedField === 'employeeId'
+                    ? 'border-blue-500 bg-blue-50 shadow-lg'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                placeholder="Enter employee ID"
+                maxLength={20}
+              />
+            </div>
+          )}
         </div>
 
         {/* Work Information */}
         <div className="bg-gray-50 rounded-xl p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4">Work Information</h4>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-md font-semibold text-gray-900">Work Information</h4>
+            {!isPrivilegedUser && (
+              <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                Read-only for employees
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Department
+                {!isPrivilegedUser && <span className="text-xs text-gray-500 ml-2">(Admin/HR only)</span>}
               </label>
               <input
                 type="text"
@@ -247,18 +291,22 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('department')}
                 onBlur={handleBlur}
+                disabled={!isPrivilegedUser}
                 className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
-                  focusedField === 'department'
+                  !isPrivilegedUser
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : focusedField === 'department'
                     ? 'border-blue-500 bg-blue-50 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                placeholder="e.g., Engineering, Marketing"
+                placeholder={isPrivilegedUser ? "e.g., Engineering, Marketing" : "Contact admin to update"}
               />
             </div>
 
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Position
+                {!isPrivilegedUser && <span className="text-xs text-gray-500 ml-2">(Admin/HR only)</span>}
               </label>
               <input
                 type="text"
@@ -267,15 +315,32 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('position')}
                 onBlur={handleBlur}
+                disabled={!isPrivilegedUser}
                 className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
-                  focusedField === 'position'
+                  !isPrivilegedUser
+                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    : focusedField === 'position'
                     ? 'border-blue-500 bg-blue-50 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                placeholder="e.g., Senior Developer"
+                placeholder={isPrivilegedUser ? "e.g., Senior Developer" : "Contact admin to update"}
               />
             </div>
           </div>
+
+          {!isPrivilegedUser && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-start">
+                <svg className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-blue-700">
+                  <p className="font-medium">Work Information Restrictions</p>
+                  <p>Only administrators and HR can update department and position information. Contact your HR department if these details need to be updated.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Account Information (Read-only) */}
@@ -290,6 +355,12 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
               <span className="text-blue-700 font-medium">Role:</span>
               <span className="ml-2 text-blue-900 capitalize">{profile.role}</span>
             </div>
+            {profile.employeeId && (
+              <div>
+                <span className="text-blue-700 font-medium">Employee ID:</span>
+                <span className="ml-2 text-blue-900">{profile.employeeId}</span>
+              </div>
+            )}
             <div>
               <span className="text-blue-700 font-medium">Status:</span>
               <span className={`ml-2 ${profile.isActive ? 'text-green-700' : 'text-red-700'}`}>

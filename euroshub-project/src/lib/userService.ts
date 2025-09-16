@@ -9,6 +9,7 @@ export interface CreateUserRequest {
   lastName: string;
   email: string;
   role: UserRole;
+  employeeId?: string;
   phone?: string;
   department?: string;
   position?: string;
@@ -20,6 +21,7 @@ export interface UpdateUserRequest {
   lastName?: string;
   email?: string;
   role?: UserRole;
+  employeeId?: string;
   phone?: string;
   department?: string;
   position?: string;
@@ -32,6 +34,7 @@ export interface User {
   lastName: string;
   email: string;
   role: UserRole;
+  employeeId?: string;
   phone?: string;
   department?: string;
   position?: string;

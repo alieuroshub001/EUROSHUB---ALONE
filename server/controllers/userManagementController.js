@@ -77,6 +77,7 @@ exports.getUsers = async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      employeeId: user.employeeId,
       phone: user.phone,
       department: user.department,
       position: user.position,
@@ -121,7 +122,7 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    const { firstName, lastName, email, role, phone, department, position } = req.body;
+    const { firstName, lastName, email, role, employeeId, phone, department, position } = req.body;
     const currentUser = req.user;
 
     // Check if current user can create this role
@@ -153,6 +154,7 @@ exports.createUser = async (req, res) => {
       email: email.toLowerCase().trim(),
       password: tempPassword,
       role,
+      employeeId: employeeId?.trim() || undefined,
       phone: phone?.trim() || undefined,
       department: department?.trim() || undefined,
       position: position?.trim() || undefined,

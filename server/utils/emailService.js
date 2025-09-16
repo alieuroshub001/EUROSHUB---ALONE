@@ -161,8 +161,225 @@ const sendAccountDeactivationEmail = async ({ email, firstName, reason }) => {
   await transporter.sendMail(mailOptions);
 };
 
+const sendVerificationEmail = async ({ email, firstName, lastName, verificationToken }) => {
+  const transporter = createTransporter();
+
+  const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'EurosHub - Verify Your Email Address',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+          <h1 style="color: #333; margin: 0;">Verify Your Email</h1>
+        </div>
+
+        <div style="padding: 30px; background-color: white;">
+          <h2 style="color: #333;">Hello ${firstName} ${lastName},</h2>
+
+          <p style="color: #666; line-height: 1.6;">
+            Please verify your email address to complete your account setup and gain access to EurosHub.
+          </p>
+
+          <div style="margin: 30px 0;">
+            <a href="${verificationUrl}" style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+
+          <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #0c5460; margin: 0 0 10px 0;">Important:</h4>
+            <p style="color: #0c5460; margin: 0; font-size: 14px;">
+              You must verify your email address before you can log in to your account. If you didn't request this verification, please ignore this email.
+            </p>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; font-size: 14px;">
+            If the button above doesn't work, you can copy and paste the following link into your browser:<br>
+            <a href="${verificationUrl}" style="color: #007bff; word-break: break-all;">${verificationUrl}</a>
+          </p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// Send password reset request notification to admins
+const notifyAdminsPasswordResetRequest = async ({ userEmail, userName, userRole, requestId }) => {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: process.env.ADMIN_EMAIL || 'admin@euroshub.com', // Configure admin emails
+    subject: 'EurosHub - New Password Reset Request',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+          <h1 style="color: #333; margin: 0;">Password Reset Request</h1>
+        </div>
+
+        <div style="padding: 30px; background-color: white;">
+          <h2 style="color: #333;">New Password Reset Request</h2>
+
+          <p style="color: #666; line-height: 1.6;">
+            A user has requested a password reset and requires administrator approval.
+          </p>
+
+          <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
+            <h4 style="color: #007bff; margin: 0 0 10px 0;">Request Details:</h4>
+            <p style="margin: 5px 0;"><strong>User:</strong> ${userName}</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${userEmail}</p>
+            <p style="margin: 5px 0;"><strong>Role:</strong> ${userRole}</p>
+            <p style="margin: 5px 0;"><strong>Request ID:</strong> ${requestId}</p>
+            <p style="margin: 5px 0;"><strong>Requested:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/password-reset"
+               style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Review Request
+            </a>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; font-size: 14px;">
+            Please review and process this request through the admin panel.
+          </p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// Send password reset success email to user
+const sendPasswordResetSuccess = async ({ email, firstName, lastName, newPassword, processorName }) => {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'EurosHub - Password Reset Approved',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #28a745; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">Password Reset Approved</h1>
+        </div>
+
+        <div style="padding: 30px; background-color: white;">
+          <h2 style="color: #333;">Hello ${firstName} ${lastName},</h2>
+
+          <p style="color: #666; line-height: 1.6;">
+            Your password reset request has been approved by ${processorName}. Your new credentials are below:
+          </p>
+
+          <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #155724; margin: 0 0 15px 0;">Your New Credentials:</h4>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 5px 0;"><strong>Temporary Password:</strong>
+              <code style="background-color: #f8f9fa; padding: 4px 8px; border-radius: 3px; font-family: monospace;">${newPassword}</code>
+            </p>
+          </div>
+
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #856404; margin: 0 0 10px 0;">Important Security Notice:</h4>
+            <ul style="color: #856404; margin: 0; padding-left: 20px;">
+              <li>You must change this password immediately after logging in</li>
+              <li>Do not share this password with anyone</li>
+              <li>Choose a strong password that you haven't used before</li>
+              <li>This temporary password will expire if not used within 30 days</li>
+            </ul>
+          </div>
+
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login"
+               style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Login to Your Account
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// Send password reset rejection email to user
+const sendPasswordResetRejected = async ({ email, firstName, lastName, reason, processorName }) => {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'EurosHub - Password Reset Request Denied',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #dc3545; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">Password Reset Request Denied</h1>
+        </div>
+
+        <div style="padding: 30px; background-color: white;">
+          <h2 style="color: #333;">Hello ${firstName} ${lastName},</h2>
+
+          <p style="color: #666; line-height: 1.6;">
+            Your password reset request has been reviewed and denied by ${processorName}.
+          </p>
+
+          <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #721c24; margin: 0 0 10px 0;">Reason for denial:</h4>
+            <p style="color: #721c24; margin: 0;">${reason}</p>
+          </div>
+
+          <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #0c5460; margin: 0 0 10px 0;">What you can do:</h4>
+            <ul style="color: #0c5460; margin: 0; padding-left: 20px;">
+              <li>Contact your system administrator directly</li>
+              <li>If you believe this was an error, you can submit a new request</li>
+              <li>Try to remember your current password and log in normally</li>
+            </ul>
+          </div>
+
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login"
+               style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Try Login Again
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+          <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
 module.exports = {
   sendWelcomeEmail,
   sendPasswordResetEmail,
-  sendAccountDeactivationEmail
+  sendAccountDeactivationEmail,
+  sendVerificationEmail,
+  notifyAdminsPasswordResetRequest,
+  sendPasswordResetSuccess,
+  sendPasswordResetRejected
 };

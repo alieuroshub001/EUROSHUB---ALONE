@@ -21,6 +21,7 @@ exports.getProfile = async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
+          employeeId: user.employeeId,
           phone: user.phone,
           department: user.department,
           position: user.position,
@@ -54,7 +55,7 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    const { firstName, lastName, phone, department, position } = req.body;
+    const { firstName, lastName, employeeId, phone, department, position } = req.body;
     const userId = req.user.id;
 
     // Find user
@@ -66,13 +67,30 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    // Role-based field restrictions
+    const userRole = req.user.role;
+    const isPrivilegedUser = ['superadmin', 'admin', 'hr'].includes(userRole);
+
     // Update only provided fields
     const updateData = {};
     if (firstName !== undefined) updateData.firstName = firstName.trim();
     if (lastName !== undefined) updateData.lastName = lastName.trim();
     if (phone !== undefined) updateData.phone = phone.trim() || undefined;
-    if (department !== undefined) updateData.department = department.trim() || undefined;
-    if (position !== undefined) updateData.position = position.trim() || undefined;
+
+    // Only privileged users (superadmin, admin, hr) can update these fields
+    if (isPrivilegedUser) {
+      if (employeeId !== undefined) updateData.employeeId = employeeId.trim() || undefined;
+      if (department !== undefined) updateData.department = department.trim() || undefined;
+      if (position !== undefined) updateData.position = position.trim() || undefined;
+    } else {
+      // Regular employees cannot update these fields
+      if (employeeId !== undefined || department !== undefined || position !== undefined) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not authorized to update employee ID, department, or position fields'
+        });
+      }
+    }
 
     // Update user
     const updatedUser = await User.findByIdAndUpdate(
@@ -90,6 +108,7 @@ exports.updateProfile = async (req, res) => {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           email: updatedUser.email,
+          employeeId: updatedUser.employeeId,
           phone: updatedUser.phone,
           department: updatedUser.department,
           position: updatedUser.position,

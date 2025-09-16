@@ -14,6 +14,7 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const userManagementRoutes = require('./routes/userManagement');
 const profileRoutes = require('./routes/profile');
+const passwordResetRoutes = require('./routes/passwordReset');
 const SocketManager = require('./config/socket');
 
 const app = express();
@@ -104,6 +105,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/password-reset', passwordResetRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -156,7 +158,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);

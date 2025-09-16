@@ -25,6 +25,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
     lastName: '',
     email: '',
     role: 'employee',
+    employeeId: '',
     phone: '',
     department: '',
     position: '',
@@ -71,7 +72,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
 
   useEffect(() => {
     const calculateProgress = () => {
-      const totalFields = 7; // firstName, lastName, email, role, phone, department, position
+      const totalFields = 8; // firstName, lastName, email, role, employeeId, phone, department, position
       const filledFields = Object.values(formData).filter(value => value && value.trim() !== '').length;
       return Math.round((filledFields / totalFields) * 100);
     };
@@ -91,6 +92,17 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
         ...prev,
         [name]: ''
       }));
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Prevent Enter key from submitting the form
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentStep < 3) {
+        handleNext();
+      }
+      // On step 3, do nothing - user must explicitly click the Create User button
     }
   };
 
@@ -127,9 +139,65 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
         break;
 
       case 2:
+        // Validate previous step first
+        if (!formData.firstName.trim()) {
+          newErrors.firstName = 'First name is required';
+        } else if (formData.firstName.trim().length < 2) {
+          newErrors.firstName = 'First name must be at least 2 characters';
+        }
+
+        if (!formData.lastName.trim()) {
+          newErrors.lastName = 'Last name is required';
+        } else if (formData.lastName.trim().length < 2) {
+          newErrors.lastName = 'Last name must be at least 2 characters';
+        }
+
+        if (!formData.email.trim()) {
+          newErrors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          newErrors.email = 'Please enter a valid email address';
+        }
+
         if (!formData.role) {
           newErrors.role = 'Role is required';
         }
+        break;
+
+      case 3:
+        // Validate all previous steps thoroughly before allowing user creation
+        if (!formData.firstName.trim()) {
+          newErrors.firstName = 'First name is required';
+          setCurrentStep(1);
+        } else if (formData.firstName.trim().length < 2) {
+          newErrors.firstName = 'First name must be at least 2 characters';
+          setCurrentStep(1);
+        }
+
+        if (!formData.lastName.trim()) {
+          newErrors.lastName = 'Last name is required';
+          setCurrentStep(1);
+        } else if (formData.lastName.trim().length < 2) {
+          newErrors.lastName = 'Last name must be at least 2 characters';
+          setCurrentStep(1);
+        }
+
+        if (!formData.email.trim()) {
+          newErrors.email = 'Email is required';
+          setCurrentStep(1);
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          newErrors.email = 'Please enter a valid email address';
+          setCurrentStep(1);
+        }
+
+        if (!formData.role) {
+          newErrors.role = 'Role is required';
+          setCurrentStep(2);
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+          newErrors.general = 'Please complete all required fields before creating the user';
+        }
+        // Step 3 fields are optional, so no specific validation needed
         break;
     }
 
@@ -147,10 +215,24 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateUser = async () => {
+    // Only allow user creation on the final step (Step 3)
+    if (currentStep !== 3) {
+      return;
+    }
 
-    if (!validateStep(currentStep)) return;
+    // Perform comprehensive validation before user creation
+    if (!validateStep(currentStep)) {
+      return; // Don't proceed if validation fails
+    }
+
+    // Additional safety check - ensure all required fields are present
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.role) {
+      setErrors({
+        general: 'Please complete all required fields before creating the user'
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -159,6 +241,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim().toLowerCase(),
+        employeeId: formData.employeeId?.trim() || undefined,
         phone: formData.phone?.trim() || undefined,
         department: formData.department?.trim() || undefined,
         position: formData.position?.trim() || undefined,
@@ -186,6 +269,12 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Prevent any form submission - we handle everything through button clicks
+    return false;
   };
 
   const getRoleInfo = (role: string) => {
@@ -243,6 +332,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
             onChange={handleInputChange}
             onFocus={() => handleFocus('firstName')}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
               errors.firstName
                 ? 'border-red-300 focus:border-red-500 bg-red-50'
@@ -273,6 +363,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
             onChange={handleInputChange}
             onFocus={() => handleFocus('lastName')}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
               errors.lastName
                 ? 'border-red-300 focus:border-red-500 bg-red-50'
@@ -304,6 +395,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
           onChange={handleInputChange}
           onFocus={() => handleFocus('email')}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
             errors.email
               ? 'border-red-300 focus:border-red-500 bg-red-50'
@@ -334,6 +426,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
           onChange={handleInputChange}
           onFocus={() => handleFocus('phone')}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
             focusedField === 'phone'
               ? 'border-blue-500 bg-blue-50 shadow-lg'
@@ -435,7 +528,31 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
       <div className="space-y-4">
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">
+            Employee ID
+            <span className="text-xs text-gray-500 ml-2">(Optional)</span>
+          </label>
+          <input
+            type="text"
+            name="employeeId"
+            value={formData.employeeId}
+            onChange={handleInputChange}
+            onFocus={() => handleFocus('employeeId')}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+              focusedField === 'employeeId'
+                ? 'border-blue-500 bg-blue-50 shadow-lg'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            placeholder="e.g., EMP001, DEV-2024-001"
+            maxLength={20}
+          />
+        </div>
+
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Department
+            <span className="text-xs text-gray-500 ml-2">(Optional)</span>
           </label>
           <input
             type="text"
@@ -444,6 +561,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
             onChange={handleInputChange}
             onFocus={() => handleFocus('department')}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
               focusedField === 'department'
                 ? 'border-blue-500 bg-blue-50 shadow-lg'
@@ -456,6 +574,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Position
+            <span className="text-xs text-gray-500 ml-2">(Optional)</span>
           </label>
           <input
             type="text"
@@ -464,6 +583,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
             onChange={handleInputChange}
             onFocus={() => handleFocus('position')}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
               focusedField === 'position'
                 ? 'border-blue-500 bg-blue-50 shadow-lg'
@@ -480,8 +600,9 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
           <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          User Summary
+          Review User Information
         </h4>
+        <p className="text-sm text-gray-600 mb-4">Please review all information below before creating the user account. Once created, the user will receive welcome credentials via email.</p>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-600">Name:</span>
@@ -498,8 +619,16 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
             <span className="ml-2 font-medium text-gray-900 capitalize">{formData.role}</span>
           </div>
           <div>
+            <span className="text-gray-600">Employee ID:</span>
+            <span className="ml-2 font-medium text-gray-900">{formData.employeeId || 'Not specified'}</span>
+          </div>
+          <div>
             <span className="text-gray-600">Department:</span>
             <span className="ml-2 font-medium text-gray-900">{formData.department || 'Not specified'}</span>
+          </div>
+          <div>
+            <span className="text-gray-600">Position:</span>
+            <span className="ml-2 font-medium text-gray-900">{formData.position || 'Not specified'}</span>
           </div>
         </div>
       </div>
@@ -603,7 +732,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
 
         {/* Form Content - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <form onSubmit={handleFormSubmit} className="flex flex-col h-full">
             <div className="flex-1 p-6">
               {errors.general && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center">
@@ -654,7 +783,8 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
                   </button>
                 ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleCreateUser}
                     disabled={loading}
                     className="px-8 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all duration-200 flex items-center transform hover:scale-105 disabled:scale-100"
                   >
@@ -671,7 +801,7 @@ export default function CreateUserModal({ currentUser, onClose, onCreateUser }: 
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Create User
+                        Create User Account
                       </>
                     )}
                   </button>

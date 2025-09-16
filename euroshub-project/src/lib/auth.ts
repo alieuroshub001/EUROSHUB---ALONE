@@ -30,6 +30,8 @@ export interface LoginError {
   success: false;
   message: string;
   errors?: Array<{ field: string; message: string }>;
+  requiresEmailVerification?: boolean;
+  email?: string;
 }
 
 export const authAPI = {
@@ -96,6 +98,49 @@ export const authAPI = {
       console.error('Get user error:', error);
       Cookies.remove('auth_token');
       return null;
+    }
+  },
+
+  resendVerificationEmail: async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/resend-verification`, {
+        email
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message: string } } };
+      throw {
+        success: false,
+        message: axiosError.response?.data?.message || 'Failed to resend verification email'
+      };
+    }
+  },
+
+  verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/auth/verify-email/${token}`);
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message: string } } };
+      throw {
+        success: false,
+        message: axiosError.response?.data?.message || 'Email verification failed'
+      };
+    }
+  },
+
+  requestPasswordReset: async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/request-password-reset`, {
+        email
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message: string } } };
+      throw {
+        success: false,
+        message: axiosError.response?.data?.message || 'Failed to request password reset'
+      };
     }
   }
 };

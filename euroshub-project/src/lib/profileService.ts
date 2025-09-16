@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 export interface ProfileUpdateRequest {
   firstName?: string;
   lastName?: string;
+  employeeId?: string;
   phone?: string;
   department?: string;
   position?: string;
@@ -23,6 +24,7 @@ export interface UserProfile {
   lastName: string;
   email: string;
   role: string;
+  employeeId?: string;
   phone?: string;
   department?: string;
   position?: string;

@@ -29,6 +29,11 @@ const createUserValidation = [
   body('role')
     .isIn(['superadmin', 'admin', 'hr', 'employee', 'client'])
     .withMessage('Please provide a valid role'),
+  body('employeeId')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Employee ID cannot be more than 20 characters'),
   body('phone')
     .optional()
     .trim()
