@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, memo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   Search,
   Bell,
@@ -10,13 +10,10 @@ import {
   LogOut,
   ChevronDown,
   Menu,
-  Sun,
-  Moon,
   Maximize2,
   Minimize2,
   RefreshCw,
   HelpCircle,
-  MessageCircle,
   Calendar,
   Clock,
   X
@@ -43,7 +40,6 @@ interface HeaderProps {
 
 const Header = memo<HeaderProps>(({
   onSidebarToggle = () => {},
-  isCollapsed = false,
   title = 'Dashboard',
   showBreadcrumb = true,
   breadcrumbs = []
@@ -58,9 +54,8 @@ const Header = memo<HeaderProps>(({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const pathname = usePathname();
-  const { user, logout: authLogout, isLoading } = useAuth();
+  const { user, logout: authLogout } = useAuth();
   
   const userRole = user?.role || 'employee';
   const userName = user?.name || 'Loading...';

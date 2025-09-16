@@ -22,7 +22,7 @@ export default function DeleteUserModal({ user, onClose, onDeleteUser }: DeleteU
     setLoading(true);
     try {
       await onDeleteUser(user.id);
-    } catch (error) {
+    } catch  {
       // Error handling is done in parent component
     } finally {
       setLoading(false);

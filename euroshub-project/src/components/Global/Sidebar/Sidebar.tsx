@@ -20,8 +20,6 @@ interface SidebarProps {
 }
 
 const Sidebar = memo<SidebarProps>(({ 
-  isOpen = true,
-  onToggle = () => {},
   onCollapseChange = () => {}
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
@@ -29,7 +27,7 @@ const Sidebar = memo<SidebarProps>(({
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout: authLogout, isLoading } = useAuth();
+  const { user, logout: authLogout } = useAuth();
 
   const userRole: UserRole = (user?.role as UserRole) || 'employee';
   const userName: string = user?.name || 'Loading...';
