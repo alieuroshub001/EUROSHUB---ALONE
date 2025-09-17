@@ -368,77 +368,77 @@ const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: activeBoard.color }}
-                />
-                <h1 className="text-2xl font-bold text-gray-900">{activeBoard.name}</h1>
-              </div>
-              <div className="flex -space-x-2">
-                {activeBoard.members?.slice(0, 5).map((member) => (
-                  <div
-                    key={member.id}
-                    className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
-                    title={member.name}
-                  >
-                    {member.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                ))}
-                {activeBoard.members && activeBoard.members.length > 5 && (
-                  <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
-                    +{activeBoard.members.length - 5}
-                  </div>
-                )}
-              </div>
+    <div>
+      {/* Board Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: activeBoard.color }}
+              />
+              <h2 className="text-xl font-bold text-gray-900">{activeBoard.name}</h2>
             </div>
-
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <Users size={16} />
-                <span>{activeBoard.members?.length || 0} members</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <Calendar size={16} />
-                <span>{activeBoard.columns?.flatMap(col => col.tasks || []).length || 0} tasks</span>
-              </div>
-
-              <select
-                value={activeBoard.id}
-                onChange={(e) => handleBoardChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {boards.map(board => (
-                  <option key={board.id} value={board.id}>{board.name}</option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => setShowCreateBoard(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={16} />
-                <span>New Board</span>
-              </button>
-
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                <MoreHorizontal size={20} />
-              </button>
+            <div className="flex -space-x-2">
+              {activeBoard.members?.slice(0, 5).map((member) => (
+                <div
+                  key={member.id}
+                  className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
+                  title={member.name}
+                >
+                  {member.name.split(' ').map(n => n[0]).join('')}
+                </div>
+              ))}
+              {activeBoard.members && activeBoard.members.length > 5 && (
+                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
+                  +{activeBoard.members.length - 5}
+                </div>
+              )}
             </div>
           </div>
 
-          {activeBoard.description && (
-            <p className="mt-2 text-gray-600">{activeBoard.description}</p>
-          )}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Users size={16} />
+              <span>{activeBoard.members?.length || 0} members</span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Calendar size={16} />
+              <span>{activeBoard.columns?.flatMap(col => col.tasks || []).length || 0} tasks</span>
+            </div>
+
+            <select
+              value={activeBoard.id}
+              onChange={(e) => handleBoardChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {boards.map(board => (
+                <option key={board.id} value={board.id}>{board.name}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setShowCreateBoard(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              <span>New Board</span>
+            </button>
+
+            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <MoreHorizontal size={20} />
+            </button>
+          </div>
         </div>
+
+        {activeBoard.description && (
+          <p className="mt-2 text-gray-600">{activeBoard.description}</p>
+        )}
       </div>
 
-      <div className="p-6">
+      {/* Kanban Board */}
+      <div className="p-6 bg-gray-50 rounded-b-lg">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}

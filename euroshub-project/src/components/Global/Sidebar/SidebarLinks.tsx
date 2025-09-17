@@ -8,6 +8,7 @@ import {
   HelpCircle,
   LogOut,
   User,
+  FolderKanban,
   LucideIcon
 } from 'lucide-react';
 
@@ -61,6 +62,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       ]
     },
     {
+      title: 'Project Management',
+      icon: FolderKanban,
+      path: '/superadmin/project-management',
+      description: 'Manage all projects and tasks'
+    },
+    {
       title: 'Profile',
       icon: User,
       path: '/superadmin/profile',
@@ -106,6 +113,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       subItems: [
         { title: 'All Users', path: '/admin/user-management', icon: Users },
       ]
+    },
+    {
+      title: 'Project Management',
+      icon: FolderKanban,
+      path: '/admin/project-management',
+      description: 'Manage company projects and tasks'
     },
     {
       title: 'Profile',
@@ -157,6 +170,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/client',
       description: 'Project overview'
+    },
+    {
+      title: 'Project Management',
+      icon: FolderKanban,
+      path: '/client/project-management',
+      description: 'View and track your projects'
     },
     {
       title: 'Profile',
@@ -219,6 +238,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       ]
     },
     {
+      title: 'Project Management',
+      icon: FolderKanban,
+      path: '/hr/project-management',
+      description: 'Oversee team projects and resource allocation'
+    },
+    {
       title: 'Profile',
       icon: User,
       path: '/hr/profile',
@@ -273,6 +298,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/employee',
       description: 'Personal overview'
+    },
+    {
+      title: 'Project Management',
+      icon: FolderKanban,
+      path: '/employee/project-management',
+      description: 'Manage assigned tasks and projects'
     },
     {
       title: 'Profile',

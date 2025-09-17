@@ -1,0 +1,535 @@
+const mongoose = require('mongoose');
+
+const checklistItemSchema = new mongoose.Schema({
+  text: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [500, 'Checklist item cannot be more than 500 characters']
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  },
+  completedAt: Date,
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+}, {
+  timestamps: true
+});
+
+const attachmentSchema = new mongoose.Schema({
+  filename: {
+    type: String,
+    required: true
+  },
+  originalName: {
+    type: String,
+    required: true
+  },
+  mimetype: {
+    type: String,
+    required: true
+  },
+  size: {
+    type: Number,
+    required: true
+  },
+  url: {
+    type: String,
+    required: true
+  },
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+const commentSchema = new mongoose.Schema({
+  text: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [2000, 'Comment cannot be more than 2000 characters']
+  },
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  mentions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  isEdited: {
+    type: Boolean,
+    default: false
+  },
+  editedAt: Date
+}, {
+  timestamps: true
+});
+
+const labelSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [50, 'Label name cannot be more than 50 characters']
+  },
+  color: {
+    type: String,
+    required: true,
+    match: [/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please provide a valid hex color']
+  }
+});
+
+const timeTrackingSchema = new mongoose.Schema({
+  estimated: {
+    type: Number,
+    min: [0, 'Estimated time cannot be negative'],
+    default: 0
+  },
+  spent: {
+    type: Number,
+    min: [0, 'Spent time cannot be negative'],
+    default: 0
+  },
+  remaining: {
+    type: Number,
+    min: [0, 'Remaining time cannot be negative']
+  },
+  entries: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    hours: {
+      type: Number,
+      required: true,
+      min: [0.1, 'Time entry must be at least 0.1 hours']
+    },
+    description: String,
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+});
+
+const cardSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Card title is required'],
+    trim: true,
+    maxlength: [200, 'Card title cannot be more than 200 characters']
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [5000, 'Card description cannot be more than 5000 characters']
+  },
+  list: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'List',
+    required: [true, 'List is required']
+  },
+  board: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Board',
+    required: [true, 'Board is required']
+  },
+  project: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: [true, 'Project is required']
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  assignedTo: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  watchers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  position: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  status: {
+    type: String,
+    enum: ['open', 'in_progress', 'review', 'blocked', 'completed'],
+    default: 'open'
+  },
+  dueDate: Date,
+  startDate: Date,
+  completedAt: Date,
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  labels: [labelSchema],
+  checklist: [checklistItemSchema],
+  attachments: [attachmentSchema],
+  comments: [commentSchema],
+  timeTracking: timeTrackingSchema,
+  customFields: [{
+    name: String,
+    value: mongoose.Schema.Types.Mixed,
+    type: {
+      type: String,
+      enum: ['text', 'number', 'date', 'boolean', 'select']
+    }
+  }],
+  isArchived: {
+    type: Boolean,
+    default: false
+  },
+  archivedAt: Date,
+  archivedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual for checking if card is overdue
+cardSchema.virtual('isOverdue').get(function() {
+  return this.dueDate && this.dueDate < new Date() && this.status !== 'completed';
+});
+
+// Virtual for checklist completion percentage
+cardSchema.virtual('checklistCompletion').get(function() {
+  if (!this.checklist || this.checklist.length === 0) return 100;
+  const completed = this.checklist.filter(item => item.completed).length;
+  return Math.round((completed / this.checklist.length) * 100);
+});
+
+// Virtual for total time spent
+cardSchema.virtual('totalTimeSpent').get(function() {
+  if (!this.timeTracking || !this.timeTracking.entries) return 0;
+  return this.timeTracking.entries.reduce((total, entry) => total + entry.hours, 0);
+});
+
+// Instance method to check if user has card access
+cardSchema.methods.hasAccess = async function(userId, userRole) {
+  const List = mongoose.model('List');
+  const list = await List.findById(this.list);
+
+  if (!list) return false;
+  return await list.hasAccess(userId, userRole);
+};
+
+// Instance method to check specific permissions
+cardSchema.methods.hasPermission = async function(userId, action) {
+  const List = mongoose.model('List');
+  const list = await List.findById(this.list);
+
+  if (!list) return false;
+  return await list.hasPermission(userId, action);
+};
+
+// Instance method to assign users
+cardSchema.methods.assignUsers = function(userIds, assignedBy) {
+  // Remove duplicates and add new assignments
+  const currentAssigned = this.assignedTo.map(id => id.toString());
+  const newAssignments = userIds.filter(id => !currentAssigned.includes(id.toString()));
+
+  this.assignedTo.push(...newAssignments);
+
+  // Add assignor and assignees as watchers if not already watching
+  const watcherIds = this.watchers.map(id => id.toString());
+  const newWatchers = [assignedBy, ...userIds].filter(id => !watcherIds.includes(id.toString()));
+  this.watchers.push(...newWatchers);
+
+  return this;
+};
+
+// Instance method to unassign users
+cardSchema.methods.unassignUsers = function(userIds) {
+  this.assignedTo = this.assignedTo.filter(id => !userIds.includes(id.toString()));
+  return this;
+};
+
+// Instance method to add comment
+cardSchema.methods.addComment = function(text, authorId, mentions = []) {
+  const comment = {
+    text,
+    author: authorId,
+    mentions
+  };
+
+  this.comments.push(comment);
+
+  // Add commenter and mentioned users as watchers
+  const watcherIds = this.watchers.map(id => id.toString());
+  const newWatchers = [authorId, ...mentions].filter(id => !watcherIds.includes(id.toString()));
+  this.watchers.push(...newWatchers);
+
+  return this;
+};
+
+// Instance method to update comment
+cardSchema.methods.updateComment = function(commentId, text, editorId) {
+  const comment = this.comments.id(commentId);
+  if (!comment) {
+    throw new Error('Comment not found');
+  }
+
+  // Only comment author can edit
+  if (comment.author.toString() !== editorId.toString()) {
+    throw new Error('Only comment author can edit the comment');
+  }
+
+  comment.text = text;
+  comment.isEdited = true;
+  comment.editedAt = new Date();
+
+  return this;
+};
+
+// Instance method to delete comment
+cardSchema.methods.deleteComment = function(commentId, deleterId, deleterRole) {
+  const comment = this.comments.id(commentId);
+  if (!comment) {
+    throw new Error('Comment not found');
+  }
+
+  // Only comment author or admin roles can delete
+  const canDelete = comment.author.toString() === deleterId.toString() ||
+                   ['superadmin', 'admin'].includes(deleterRole);
+
+  if (!canDelete) {
+    throw new Error('You can only delete your own comments');
+  }
+
+  comment.remove();
+  return this;
+};
+
+// Instance method to add time entry
+cardSchema.methods.addTimeEntry = function(userId, hours, description = '') {
+  if (!this.timeTracking) {
+    this.timeTracking = { entries: [] };
+  }
+
+  this.timeTracking.entries.push({
+    user: userId,
+    hours,
+    description,
+    date: new Date()
+  });
+
+  // Update spent time
+  this.timeTracking.spent = (this.timeTracking.spent || 0) + hours;
+
+  // Update remaining time if estimated time is set
+  if (this.timeTracking.estimated) {
+    this.timeTracking.remaining = Math.max(0, this.timeTracking.estimated - this.timeTracking.spent);
+  }
+
+  // Add user as watcher
+  const watcherIds = this.watchers.map(id => id.toString());
+  if (!watcherIds.includes(userId.toString())) {
+    this.watchers.push(userId);
+  }
+
+  return this;
+};
+
+// Instance method to move to list
+cardSchema.methods.moveToList = async function(targetListId, position) {
+  const List = mongoose.model('List');
+  const oldList = await List.findById(this.list);
+  const newList = await List.findById(targetListId);
+
+  if (!newList) {
+    throw new Error('Target list not found');
+  }
+
+  // Update old list metadata
+  if (oldList) {
+    await oldList.updateOne({
+      $inc: { 'metadata.cardCount': -1 }
+    });
+  }
+
+  // Update new list metadata
+  await newList.updateOne({
+    $inc: { 'metadata.cardCount': 1 }
+  });
+
+  // Update card
+  this.list = targetListId;
+  if (position !== undefined) {
+    this.position = position;
+  } else {
+    // Set to end of list
+    const lastCard = await this.constructor.findOne({ list: targetListId }).sort({ position: -1 });
+    this.position = lastCard ? lastCard.position + 1 : 1;
+  }
+
+  return this;
+};
+
+// Pre-save middleware to set position and update metadata
+cardSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    // Set position if not provided
+    if (this.position === 0) {
+      const maxPosition = await this.constructor.findOne(
+        { list: this.list },
+        {},
+        { sort: { position: -1 } }
+      );
+      this.position = maxPosition ? maxPosition.position + 1 : 1;
+    }
+
+    // Update metadata counts
+    const List = mongoose.model('List');
+    const Board = mongoose.model('Board');
+    const Project = mongoose.model('Project');
+
+    await List.findByIdAndUpdate(this.list, {
+      $inc: { 'metadata.cardCount': 1 }
+    });
+
+    await Board.findByIdAndUpdate(this.board, {
+      $inc: { 'metadata.totalCards': 1 }
+    });
+
+    await Project.findByIdAndUpdate(this.project, {
+      $inc: { 'metadata.totalTasks': 1 }
+    });
+
+    // Add creator as watcher
+    if (!this.watchers.includes(this.createdBy)) {
+      this.watchers.push(this.createdBy);
+    }
+  }
+
+  // Handle status changes
+  if (this.isModified('status')) {
+    if (this.status === 'completed' && !this.completedAt) {
+      this.completedAt = new Date();
+      this.completedBy = this.assignedTo.length > 0 ? this.assignedTo[0] : this.createdBy;
+
+      // Update completed tasks count
+      const Project = mongoose.model('Project');
+      const Board = mongoose.model('Board');
+      const List = mongoose.model('List');
+
+      await Project.findByIdAndUpdate(this.project, {
+        $inc: { 'metadata.completedTasks': 1 }
+      });
+
+      await Board.findByIdAndUpdate(this.board, {
+        $inc: { 'metadata.completedCards': 1 }
+      });
+
+      await List.findByIdAndUpdate(this.list, {
+        $inc: { 'metadata.completedCards': 1 }
+      });
+    } else if (this.status !== 'completed' && this.completedAt) {
+      // Moving from completed back to other status
+      this.completedAt = null;
+      this.completedBy = null;
+
+      // Decrease completed tasks count
+      const Project = mongoose.model('Project');
+      const Board = mongoose.model('Board');
+      const List = mongoose.model('List');
+
+      await Project.findByIdAndUpdate(this.project, {
+        $inc: { 'metadata.completedTasks': -1 }
+      });
+
+      await Board.findByIdAndUpdate(this.board, {
+        $inc: { 'metadata.completedCards': -1 }
+      });
+
+      await List.findByIdAndUpdate(this.list, {
+        $inc: { 'metadata.completedCards': -1 }
+      });
+    }
+  }
+
+  next();
+});
+
+// Pre-remove middleware to update metadata
+cardSchema.pre('remove', async function(next) {
+  const List = mongoose.model('List');
+  const Board = mongoose.model('Board');
+  const Project = mongoose.model('Project');
+
+  // Decrease counts
+  await List.findByIdAndUpdate(this.list, {
+    $inc: {
+      'metadata.cardCount': -1,
+      'metadata.completedCards': this.status === 'completed' ? -1 : 0
+    }
+  });
+
+  await Board.findByIdAndUpdate(this.board, {
+    $inc: {
+      'metadata.totalCards': -1,
+      'metadata.completedCards': this.status === 'completed' ? -1 : 0
+    }
+  });
+
+  await Project.findByIdAndUpdate(this.project, {
+    $inc: {
+      'metadata.totalTasks': -1,
+      'metadata.completedTasks': this.status === 'completed' ? -1 : 0
+    }
+  });
+
+  next();
+});
+
+// Indexes for performance
+cardSchema.index({ list: 1, position: 1 });
+cardSchema.index({ board: 1, status: 1 });
+cardSchema.index({ project: 1, assignedTo: 1 });
+cardSchema.index({ assignedTo: 1, dueDate: 1 });
+cardSchema.index({ dueDate: 1, status: 1 });
+cardSchema.index({ createdBy: 1 });
+cardSchema.index({ watchers: 1 });
+cardSchema.index({ isArchived: 1 });
+cardSchema.index({ 'labels.name': 1 });
+
+// Compound indexes
+cardSchema.index({
+  list: 1,
+  isArchived: 1,
+  position: 1
+});
+
+cardSchema.index({
+  assignedTo: 1,
+  status: 1,
+  dueDate: 1
+});
+
+module.exports = mongoose.model('Card', cardSchema);
