@@ -34,9 +34,18 @@ export const useAuth = () => {
 
   const checkAuth = useCallback(async () => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch('http://localhost:5001/api/auth/me', {
-        credentials: 'include'
+        credentials: 'include',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -56,7 +65,12 @@ export const useAuth = () => {
             loading: false
           });
         }
+      } else if (response.status === 429) {
+        console.warn('Rate limited, retrying in 2 seconds...');
+        setTimeout(() => checkAuth(), 2000);
+        return;
       } else {
+        console.log('Auth check failed with status:', response.status);
         setAuthState({
           user: null,
           isAuthenticated: false,
@@ -64,7 +78,18 @@ export const useAuth = () => {
         });
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error('Auth check timed out');
+        } else if (error.message.includes('fetch')) {
+          console.error('Network error during auth check:', error.message);
+        } else {
+          console.error('Auth check failed:', error.message);
+        }
+      } else {
+        console.error('Auth check failed with unknown error:', error);
+      }
+
       setAuthState({
         user: null,
         isAuthenticated: false,

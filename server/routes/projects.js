@@ -659,4 +659,125 @@ router.put('/:projectId/archive', protect, checkProjectAccess, checkProjectPermi
   }
 });
 
+/**
+ * @route   GET /api/projects/:projectId/boards
+ * @desc    Get project boards
+ * @access  Private
+ */
+router.get('/:projectId/boards', protect, checkProjectAccess, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { includeArchived = false } = req.query;
+
+    const Board = require('../models/Board');
+
+    let query = { project: projectId };
+    if (!includeArchived || includeArchived === 'false') {
+      query.isArchived = false;
+    }
+
+    const boards = await Board.find(query)
+      .populate('createdBy', 'firstName lastName avatar')
+      .populate({
+        path: 'lists',
+        match: { isArchived: false },
+        options: { sort: { position: 1 } }
+      })
+      .sort({ position: 1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: boards
+    });
+  } catch (error) {
+    console.error('Get project boards error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching project boards'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/projects/:projectId/boards
+ * @desc    Create new board for project
+ * @access  Private
+ */
+router.post('/:projectId/boards', protect, checkProjectAccess, checkProjectPermission('write'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const {
+      title,
+      description,
+      color,
+      isDefault,
+      settings,
+      createDefaultLists = true
+    } = req.body;
+
+    const Board = require('../models/Board');
+    const List = require('../models/List');
+    const Activity = require('../models/Activity');
+
+    // Validation
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Board title is required'
+      });
+    }
+
+    // Create board
+    const board = new Board({
+      title,
+      description: description || '',
+      project: projectId,
+      createdBy: req.user.id,
+      color: color || '#4F46E5',
+      isDefault: isDefault || false,
+      settings: settings || {}
+    });
+
+    await board.save();
+
+    // Create default lists if requested
+    if (createDefaultLists) {
+      await List.createDefaultLists(board._id, projectId, req.user.id);
+    }
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'board_created',
+      user: req.user.id,
+      project: projectId,
+      board: board._id,
+      metadata: {
+        entityName: board.title,
+        entityId: board._id
+      }
+    });
+
+    // Populate for response
+    await board.populate([
+      { path: 'createdBy', select: 'firstName lastName avatar' },
+      {
+        path: 'lists',
+        options: { sort: { position: 1 } }
+      }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: board,
+      message: 'Board created successfully'
+    });
+  } catch (error) {
+    console.error('Create project board error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating board'
+    });
+  }
+});
+
 module.exports = router;
