@@ -1,14 +1,13 @@
 'use client';
 
-import { 
-  LayoutDashboard, 
-  Users, 
+import {
+  LayoutDashboard,
+  Users,
   Settings,
   Shield,
   HelpCircle,
   LogOut,
   User,
-  Trello,
   LucideIcon
 } from 'lucide-react';
 
@@ -51,12 +50,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/superadmin',
       description: 'Overview and analytics'
-    },
-    {
-      title: 'Project Management',
-      icon: Trello,
-      path: '/superadmin/projects',
-      description: 'Kanban boards and task management'
     },
     {
       title: 'User Management',
@@ -104,12 +97,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/admin',
       description: 'Company overview'
-    },
-    {
-      title: 'Project Management',
-      icon: Trello,
-      path: '/admin/projects',
-      description: 'Kanban boards and task management'
     },
     {
       title: 'User Management',
@@ -172,12 +159,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       description: 'Project overview'
     },
     {
-      title: 'Project Management',
-      icon: Trello,
-      path: '/client/projects',
-      description: 'View assigned projects and boards'
-    },
-    {
       title: 'Profile',
       icon: User,
       path: '/client/profile',
@@ -227,12 +208,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/hr',
       description: 'HR overview'
-    },
-    {
-      title: 'Project Management',
-      icon: Trello,
-      path: '/hr/projects',
-      description: 'HR projects and task boards'
     },
     {
       title: 'Employee Management',
@@ -298,12 +273,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/employee',
       description: 'Personal overview'
-    },
-    {
-      title: 'Project Management',
-      icon: Trello,
-      path: '/employee/projects',
-      description: 'My tasks and project boards'
     },
     {
       title: 'Profile',
