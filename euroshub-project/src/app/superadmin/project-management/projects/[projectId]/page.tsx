@@ -9,7 +9,6 @@ import {
   DollarSign,
   Settings,
   Activity,
-  Board,
   MoreVertical,
   Edit,
   Archive,

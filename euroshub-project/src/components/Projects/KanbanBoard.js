@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, KeyboardSensor, closestCorners, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import { useState, useCallback } from 'react';
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, KeyboardSensor, closestCorners } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, MoreHorizontal, Users, Calendar } from 'lucide-react';
 import KanbanColumn from './KanbanColumn';
@@ -9,56 +9,8 @@ import TaskCard from './TaskCard';
 import CreateBoardModal from './CreateBoardModal';
 import CreateTaskModal from './CreateTaskModal';
 
-interface Member {
-  id: string;
-  name: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  priority: 'low' | 'medium' | 'high';
-  assignees?: Member[];
-  dueDate?: string;
-  tags?: string[];
-  comments: number;
-  attachments: number;
-}
-
-interface Column {
-  id: string;
-  title: string;
-  color: string;
-  tasks: Task[];
-}
-
-interface Board {
-  id: string;
-  name: string;
-  description?: string;
-  color: string;
-  members?: Member[];
-  columns: Column[];
-}
-
-interface BoardData {
-  name: string;
-  description?: string;
-  color: string;
-}
-
-interface TaskData {
-  title: string;
-  description?: string;
-  priority: 'low' | 'medium' | 'high';
-  assignees: string[];
-  dueDate?: string;
-  tags: string[];
-}
-
 // Mock data
-const mockBoards: Board[] = [
+const mockBoards = [
   {
     id: '1',
     name: 'Website Redesign Project',
@@ -193,7 +145,7 @@ const mockBoards: Board[] = [
   }
 ];
 
-const mockTeamMembers: Member[] = [
+const mockTeamMembers = [
   { id: '1', name: 'John Doe' },
   { id: '2', name: 'Jane Smith' },
   { id: '3', name: 'Mike Johnson' },
@@ -203,14 +155,13 @@ const mockTeamMembers: Member[] = [
   { id: '7', name: 'Bob Davis' }
 ];
 
-const KanbanBoard: React.FC = () => {
-  const [boards, setBoards] = useState<Board[]>(mockBoards);
-  const [activeBoard, setActiveBoard] = useState<Board | null>(mockBoards[0]);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [showCreateBoard, setShowCreateBoard] = useState<boolean>(false);
-
-  const [showCreateTask, setShowCreateTask] = useState<boolean>(false);
-  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+const KanbanBoard = () => {
+  const [boards, setBoards] = useState(mockBoards);
+  const [activeBoard, setActiveBoard] = useState(mockBoards[0]);
+  const [activeTask, setActiveTask] = useState(null);
+  const [showCreateBoard, setShowCreateBoard] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [selectedColumn, setSelectedColumn] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -223,41 +174,40 @@ const KanbanBoard: React.FC = () => {
     })
   );
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
+  const handleDragStart = useCallback((event) => {
     const { active } = event;
     if (!activeBoard) return;
     const task = activeBoard.columns
       .flatMap(column => column.tasks)
       .find(task => task.id === active.id);
-    setActiveTask(task || null);
+    setActiveTask(task);
   }, [activeBoard]);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
     setActiveTask(null);
 
     if (!over || !activeBoard) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const activeId = active.id;
+    const overId = over.id;
 
-    const sourceColumn = activeBoard.columns.find(col =>
+    const sourceColumn = activeBoard.columns.find(col => 
       col.tasks.some(task => task.id === activeId)
     );
-
-    const destColumn = activeBoard.columns.find(col =>
+    
+    const destColumn = activeBoard.columns.find(col => 
       col.id === overId || col.tasks.some(task => task.id === overId)
     );
 
     if (!sourceColumn || !destColumn || sourceColumn.id === destColumn.id) return;
 
     const task = sourceColumn.tasks.find(task => task.id === activeId);
-    if (!task) return;
-
+    
     const newSourceTasks = sourceColumn.tasks.filter(task => task.id !== activeId);
     const newDestTasks = [...destColumn.tasks, task];
 
-    const updatedBoard: Board = {
+    const updatedBoard = {
       ...activeBoard,
       columns: activeBoard.columns.map(col => {
         if (col.id === sourceColumn.id) {
@@ -271,17 +221,17 @@ const KanbanBoard: React.FC = () => {
     };
 
     setActiveBoard(updatedBoard);
-
+    
     // Update the board in the boards array
-    setBoards(prevBoards =>
-      prevBoards.map(board =>
+    setBoards(prevBoards => 
+      prevBoards.map(board => 
         board.id === activeBoard.id ? updatedBoard : board
       )
     );
   }, [activeBoard]);
 
-  const handleCreateBoard = useCallback((boardData: BoardData) => {
-    const newBoard: Board = {
+  const handleCreateBoard = useCallback((boardData) => {
+    const newBoard = {
       id: Date.now().toString(),
       ...boardData,
       members: [],
@@ -292,20 +242,20 @@ const KanbanBoard: React.FC = () => {
         { id: 'done', title: 'Done', color: '#10B981', tasks: [] }
       ]
     };
-
+    
     setBoards(prevBoards => [...prevBoards, newBoard]);
-
+    
     if (!activeBoard) {
       setActiveBoard(newBoard);
     }
-
+    
     setShowCreateBoard(false);
   }, [activeBoard]);
 
-  const handleCreateTask = useCallback((taskData: TaskData) => {
+  const handleCreateTask = useCallback((taskData) => {
     if (!activeBoard || !selectedColumn) return;
-
-    const newTask: Task = {
+    
+    const newTask = {
       id: Date.now().toString(),
       ...taskData,
       assignees: taskData.assignees.map(name => {
@@ -315,8 +265,8 @@ const KanbanBoard: React.FC = () => {
       comments: 0,
       attachments: 0
     };
-
-    const updatedBoard: Board = {
+    
+    const updatedBoard = {
       ...activeBoard,
       columns: activeBoard.columns.map(col => {
         if (col.id === selectedColumn) {
@@ -327,8 +277,8 @@ const KanbanBoard: React.FC = () => {
     };
 
     setActiveBoard(updatedBoard);
-    setBoards(prevBoards =>
-      prevBoards.map(board =>
+    setBoards(prevBoards => 
+      prevBoards.map(board => 
         board.id === activeBoard.id ? updatedBoard : board
       )
     );
@@ -336,12 +286,12 @@ const KanbanBoard: React.FC = () => {
     setSelectedColumn(null);
   }, [activeBoard, selectedColumn]);
 
-  const handleAddTask = useCallback((columnId: string) => {
+  const handleAddTask = useCallback((columnId) => {
     setSelectedColumn(columnId);
     setShowCreateTask(true);
   }, []);
 
-  const handleBoardChange = useCallback((boardId: string) => {
+  const handleBoardChange = useCallback((boardId) => {
     const selectedBoard = boards.find(b => b.id === boardId);
     if (selectedBoard) {
       setActiveBoard(selectedBoard);
@@ -369,77 +319,77 @@ const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div>
-      {/* Board Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: activeBoard.color }}
-              />
-              <h2 className="text-xl font-bold text-gray-900">{activeBoard.name}</h2>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div 
+                  className="w-4 h-4 rounded-full"
+                  style={{ backgroundColor: activeBoard.color }}
+                />
+                <h1 className="text-2xl font-bold text-gray-900">{activeBoard.name}</h1>
+              </div>
+              <div className="flex -space-x-2">
+                {activeBoard.members?.slice(0, 5).map((member) => (
+                  <div
+                    key={member.id}
+                    className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
+                    title={member.name}
+                  >
+                    {member.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                ))}
+                {activeBoard.members?.length > 5 && (
+                  <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
+                    +{activeBoard.members.length - 5}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex -space-x-2">
-              {activeBoard.members?.slice(0, 5).map((member) => (
-                <div
-                  key={member.id}
-                  className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
-                  title={member.name}
-                >
-                  {member.name.split(' ').map(n => n[0]).join('')}
-                </div>
-              ))}
-              {activeBoard.members && activeBoard.members.length > 5 && (
-                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
-                  +{activeBoard.members.length - 5}
-                </div>
-              )}
+
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Users size={16} />
+                <span>{activeBoard.members?.length || 0} members</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Calendar size={16} />
+                <span>{activeBoard.columns?.flatMap(col => col.tasks || []).length || 0} tasks</span>
+              </div>
+              
+              <select
+                value={activeBoard.id}
+                onChange={(e) => handleBoardChange(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {boards.map(board => (
+                  <option key={board.id} value={board.id}>{board.name}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setShowCreateBoard(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={16} />
+                <span>New Board</span>
+              </button>
+
+              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                <MoreHorizontal size={20} />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Users size={16} />
-              <span>{activeBoard.members?.length || 0} members</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Calendar size={16} />
-              <span>{activeBoard.columns?.flatMap(col => col.tasks || []).length || 0} tasks</span>
-            </div>
-
-            <select
-              value={activeBoard.id}
-              onChange={(e) => handleBoardChange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {boards.map(board => (
-                <option key={board.id} value={board.id}>{board.name}</option>
-              ))}
-            </select>
-
-            <button
-              onClick={() => setShowCreateBoard(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={16} />
-              <span>New Board</span>
-            </button>
-
-            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <MoreHorizontal size={20} />
-            </button>
-          </div>
+          {activeBoard.description && (
+            <p className="mt-2 text-gray-600">{activeBoard.description}</p>
+          )}
         </div>
-
-        {activeBoard.description && (
-          <p className="mt-2 text-gray-600">{activeBoard.description}</p>
-        )}
       </div>
 
-      {/* Kanban Board */}
-      <div className="p-6 bg-gray-50 rounded-b-lg">
+      <div className="p-6">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}

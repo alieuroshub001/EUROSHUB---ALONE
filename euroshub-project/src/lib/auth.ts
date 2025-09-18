@@ -48,11 +48,17 @@ export const authAPI = {
       
       if (response.data.success) {
         // Store token in cookie for persistence
-        Cookies.set('auth_token', response.data.token, {
+        console.log('Login: Setting token cookie:', response.data.token);
+        Cookies.set('token', response.data.token, {
           expires: 7, // 7 days
+          path: '/',
           sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production'
         });
+
+        // Verify the cookie was set
+        const savedToken = Cookies.get('token');
+        console.log('Login: Verified token in cookie:', savedToken);
       }
       
       return response.data;
@@ -73,19 +79,22 @@ export const authAPI = {
       await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
         withCredentials: true,
         headers: {
-          Authorization: `Bearer ${Cookies.get('auth_token')}`
+          Authorization: `Bearer ${Cookies.get('token')}`
         }
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      Cookies.remove('auth_token');
+      Cookies.remove('token');
     }
   },
 
   getMe: async (): Promise<User | null> => {
     try {
-      const token = Cookies.get('auth_token');
+      const token = Cookies.get('token');
+      console.log('getMe: Token from cookie:', token ? 'exists' : 'not found');
+      console.log('getMe: Token value:', token);
+
       if (!token) return null;
 
       const response = await axios.get(`${API_BASE_URL}/auth/me`, {
@@ -98,7 +107,7 @@ export const authAPI = {
       return response.data.data.user;
     } catch (error) {
       console.error('Get user error:', error);
-      Cookies.remove('auth_token');
+      Cookies.remove('token');
       return null;
     }
   },
@@ -148,7 +157,7 @@ export const authAPI = {
 };
 
 export const getAuthToken = (): string | undefined => {
-  return Cookies.get('auth_token');
+  return Cookies.get('token');
 };
 
 export const isAuthenticated = (): boolean => {

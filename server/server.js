@@ -21,6 +21,7 @@ const listRoutes = require('./routes/lists');
 const cardRoutes = require('./routes/cards');
 const activityRoutes = require('./routes/activities');
 const SocketManager = require('./config/socket');
+const ProjectSocketManager = require('./config/projectSocket');
 
 const app = express();
 const server = http.createServer(app);
@@ -31,8 +32,12 @@ connectDB();
 // Initialize Socket.IO
 const socketManager = new SocketManager(server);
 
+// Initialize Project Socket Manager
+const projectSocketManager = new ProjectSocketManager(socketManager);
+
 // Make socket manager available throughout the app
 app.set('socketManager', socketManager);
+app.set('projectSocketManager', projectSocketManager);
 
 // Security middleware
 app.use(helmet({

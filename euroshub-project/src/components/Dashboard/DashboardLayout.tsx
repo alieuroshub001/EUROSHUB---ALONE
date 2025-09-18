@@ -32,21 +32,27 @@ export default function DashboardLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log('DashboardLayout: Checking authentication...');
         const userData = await authAPI.getMe();
+        console.log('DashboardLayout: getMe result:', userData);
+
         if (!userData) {
+          console.log('DashboardLayout: No user data, redirecting to login');
           router.push('/');
           return;
         }
-        
+
         // Check if user has the required role
         if (userData.role !== role) {
+          console.log('DashboardLayout: Role mismatch. Expected:', role, 'Got:', userData.role);
           router.push('/');
           return;
         }
-        
+
+        console.log('DashboardLayout: Authentication successful for user:', userData.firstName);
         setUser(userData);
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error('DashboardLayout: Auth check failed:', error);
         router.push('/');
       } finally {
         setLoading(false);
