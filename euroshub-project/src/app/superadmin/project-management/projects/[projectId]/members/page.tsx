@@ -10,11 +10,8 @@ import {
   Users,
   Shield,
   Eye,
-  Trash2,
-  ChevronDown,
   Mail,
   Calendar,
-  MoreVertical,
   Edit3,
   UserMinus
 } from 'lucide-react';
@@ -28,7 +25,7 @@ interface RoleOption {
   value: ProjectRole;
   label: string;
   description: string;
-  icon: any;
+  icon: React.ComponentType<{ size?: number | string }>;
   color: string;
   permissions: string[];
 }
@@ -121,7 +118,7 @@ export default function ProjectMembers() {
         setMembers(projectData.members);
 
         // Filter out users who are already members
-        const memberUserIds = projectData.members.map(m => m.user._id);
+        const memberUserIds = projectData.members.filter(m => m.user).map(m => m.user!._id);
         const available = usersData.filter(user => !memberUserIds.includes(user.id));
         setAvailableUsers(available);
 
@@ -201,7 +198,7 @@ export default function ProjectMembers() {
       if (removedMember) {
         try {
           const allUsers = await userService.getUsers();
-          const userStillExists = allUsers.find(u => u.id === removedMember.user._id);
+          const userStillExists = removedMember.user ? allUsers.find(u => u.id === removedMember.user!._id) : null;
           if (userStillExists) {
             setAvailableUsers(prev => [...prev, userStillExists]);
           }
@@ -311,12 +308,12 @@ export default function ProjectMembers() {
         <div className="bg-white rounded-lg border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Team Members ({members.length})
+              Team Members ({members.filter(member => member.user).length})
             </h2>
           </div>
 
           <div className="divide-y divide-gray-200">
-            {members.map((member) => {
+            {members.filter(member => member.user).map((member) => {
               const roleInfo = getRoleInfo(member.role);
               const Icon = roleInfo.icon;
 
@@ -326,14 +323,14 @@ export default function ProjectMembers() {
                     <div className="flex items-center space-x-4">
                       {/* Avatar */}
                       <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium text-gray-600">
-                        {member.user.avatar ? (
+                        {member.user?.avatar ? (
                           <img
                             src={member.user.avatar}
-                            alt={`${member.user.firstName} ${member.user.lastName}`}
+                            alt={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                             className="w-full h-full rounded-full object-cover"
                           />
                         ) : (
-                          `${member.user.firstName[0]}${member.user.lastName[0]}`
+                          member.user ? `${member.user.firstName[0]}${member.user.lastName[0]}` : '?'
                         )}
                       </div>
 
@@ -341,7 +338,7 @@ export default function ProjectMembers() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3">
                           <h3 className="font-semibold text-gray-900">
-                            {member.user.firstName} {member.user.lastName}
+                            {member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                           </h3>
                           <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium border ${roleInfo.color}`}>
                             <Icon size={14} />
@@ -351,7 +348,7 @@ export default function ProjectMembers() {
                         <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
                           <div className="flex items-center space-x-1">
                             <Mail size={14} />
-                            <span>{member.user.email}</span>
+                            <span>{member.user?.email || 'No email'}</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Calendar size={14} />
@@ -552,7 +549,7 @@ export default function ProjectMembers() {
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900">Edit Member Role</h2>
                 <p className="text-gray-600 mt-1">
-                  Change role for {editingMember.user.firstName} {editingMember.user.lastName}
+                  Change role for {editingMember.user ? `${editingMember.user.firstName} ${editingMember.user.lastName}` : 'Unknown User'}
                 </p>
               </div>
 

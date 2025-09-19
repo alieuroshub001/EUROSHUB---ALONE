@@ -124,8 +124,14 @@ boardSchema.methods.hasAccess = async function(userId, userRole) {
   if (!project) return false;
 
   // Check if user is project owner or member
-  if (project.owner.toString() === userId.toString()) return true;
-  return project.members.some(m => m.user.toString() === userId.toString());
+  if (project.owner && project.owner.toString() === userId.toString()) return true;
+
+  // Check members array with null safety
+  if (!project.members || !Array.isArray(project.members)) {
+    return false;
+  }
+
+  return project.members.some(m => m && m.user && m.user.toString() === userId.toString());
 };
 
 // Instance method to check specific permissions

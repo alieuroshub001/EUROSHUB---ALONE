@@ -143,6 +143,14 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     leaveRoom(`board:${boardId}`);
   };
 
+  const disconnect = () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+    }
+  };
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -155,7 +163,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     joinProject,
     leaveProject,
     joinBoard,
-    leaveBoard
+    leaveBoard,
+    disconnect
   };
 };
 

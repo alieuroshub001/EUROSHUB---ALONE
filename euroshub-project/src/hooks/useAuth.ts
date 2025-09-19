@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { SocketContext } from '@/contexts/SocketContext';
 
 interface User {
   id: string;
@@ -31,6 +32,9 @@ export const useAuth = () => {
     isAuthenticated: false,
     loading: true
   });
+
+  // Get socket context for cleanup on logout
+  const socketContext = useContext(SocketContext);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -142,11 +146,27 @@ export const useAuth = () => {
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
+      // Disconnect socket if available
+      if (socketContext?.disconnect) {
+        socketContext.disconnect();
+      }
+
+      // Clear client-side storage
+      if (typeof window !== 'undefined') {
+        // Clear cookies
+        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        // Clear localStorage
+        localStorage.removeItem('token');
+      }
+
       setAuthState({
         user: null,
         isAuthenticated: false,
         loading: false
       });
+
+      // Redirect to login page
+      window.location.href = '/';
     }
   };
 

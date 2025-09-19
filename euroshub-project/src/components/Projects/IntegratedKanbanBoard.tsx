@@ -25,10 +25,10 @@ const convertBackendCard = (card: Card): any => ({
   title: card.title,
   description: card.description,
   priority: card.priority,
-  assignees: card.assignedTo.map(user => ({
-    id: user._id,
-    name: `${user.firstName} ${user.lastName}`,
-    avatar: user.avatar
+  assignees: card.assignedTo.filter(user => user).map(user => ({
+    id: user!._id,
+    name: `${user!.firstName} ${user!.lastName}`,
+    avatar: user!.avatar
   })),
   dueDate: card.dueDate,
   tags: card.labels.map(label => label.name),
@@ -109,17 +109,17 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
 
         // Set team members from project members
         const members = projectData.members.map(member => ({
-          id: member.user._id,
-          name: `${member.user.firstName} ${member.user.lastName}`,
-          avatar: member.user.avatar,
+          id: member.user!._id,
+          name: `${member.user!.firstName} ${member.user!.lastName}`,
+          avatar: member.user!.avatar,
           role: member.role
         }));
         setTeamMembers(members);
 
         // Load current user info
         try {
-          const { getMe } = await import('@/lib/auth');
-          const userInfo = await getMe();
+          const { authAPI } = await import('@/lib/auth');
+          const userInfo = await authAPI.getMe();
           if (userInfo) {
             setCurrentUser({
               id: userInfo.id,
@@ -526,9 +526,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           tasks: col.tasks.map((task: any) =>
             task.id === taskId
               ? { ...task, assignees: updatedAssignees.map(user => ({
-                  id: user._id,
-                  name: `${user.firstName} ${user.lastName}`,
-                  avatar: user.avatar
+                  id: user!._id,
+                  name: `${user!.firstName} ${user!.lastName}`,
+                  avatar: user!.avatar
                 }))}
               : task
           )
@@ -637,7 +637,6 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         </div>
 
         {/* Modals - Must be included in this return block */}
-        {console.log('Rendering modals (no active board), showCreateBoard:', showCreateBoard)}
         {showCreateBoard && (
           <CreateBoardModal
             onClose={() => {

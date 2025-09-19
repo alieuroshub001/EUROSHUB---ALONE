@@ -147,7 +147,7 @@ export interface TimeTracking {
 
 export interface CustomField {
   name: string;
-  value: any;
+  value: string | number | Date | boolean;
   type: 'text' | 'number' | 'date' | 'boolean' | 'select';
 }
 
@@ -193,7 +193,7 @@ export interface Activity {
   board?: Board;
   list?: List;
   card?: Card;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 

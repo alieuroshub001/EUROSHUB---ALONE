@@ -44,9 +44,47 @@ router.get('/projects/:projectId/boards', protect, checkProjectAccess, async (re
       })
       .sort({ position: 1, createdAt: -1 });
 
+    // Filter out null user references
+    const sanitizedBoards = boards.map(board => {
+      const boardObj = board.toObject();
+
+      // Handle null createdBy
+      if (!boardObj.createdBy) {
+        boardObj.createdBy = null;
+      }
+
+      // Handle lists with null user references
+      if (boardObj.lists) {
+        boardObj.lists = boardObj.lists.map(list => {
+          if (!list.createdBy) {
+            list.createdBy = null;
+          }
+
+          if (list.cards) {
+            list.cards = list.cards.map(card => {
+              if (!card.createdBy) {
+                card.createdBy = null;
+              }
+
+              // Filter out null assignedTo users
+              if (card.assignedTo) {
+                card.assignedTo = card.assignedTo.filter(user => user !== null);
+              }
+
+              return card;
+            });
+          }
+
+          return list;
+        });
+      }
+
+      return boardObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: boards
+      data: sanitizedBoards
     });
   } catch (error) {
     console.error('Get boards error:', error);
@@ -85,9 +123,43 @@ router.get('/:boardId', protect, checkBoardAccess, async (req, res) => {
       }
     ]);
 
+    // Sanitize board data
+    const boardObj = board.toObject();
+
+    // Handle null createdBy
+    if (!boardObj.createdBy) {
+      boardObj.createdBy = null;
+    }
+
+    // Handle lists with null user references
+    if (boardObj.lists) {
+      boardObj.lists = boardObj.lists.map(list => {
+        if (!list.createdBy) {
+          list.createdBy = null;
+        }
+
+        if (list.cards) {
+          list.cards = list.cards.map(card => {
+            if (!card.createdBy) {
+              card.createdBy = null;
+            }
+
+            // Filter out null assignedTo users
+            if (card.assignedTo) {
+              card.assignedTo = card.assignedTo.filter(user => user !== null);
+            }
+
+            return card;
+          });
+        }
+
+        return list;
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: board
+      data: boardObj
     });
   } catch (error) {
     console.error('Get board error:', error);
@@ -162,9 +234,15 @@ router.post('/projects/:projectId/boards', protect, checkProjectAccess, checkPro
       }
     ]);
 
+    // Sanitize board data
+    const boardObj = board.toObject();
+    if (!boardObj.createdBy) {
+      boardObj.createdBy = null;
+    }
+
     res.status(201).json({
       success: true,
-      data: board,
+      data: boardObj,
       message: 'Board created successfully'
     });
   } catch (error) {
@@ -506,9 +584,15 @@ router.post('/:boardId/duplicate', protect, checkBoardAccess, async (req, res) =
       }
     ]);
 
+    // Sanitize board data
+    const boardObj = newBoard.toObject();
+    if (!boardObj.createdBy) {
+      boardObj.createdBy = null;
+    }
+
     res.status(201).json({
       success: true,
-      data: newBoard,
+      data: boardObj,
       message: 'Board duplicated successfully'
     });
   } catch (error) {
@@ -529,9 +613,21 @@ router.get('/', protect, async (req, res) => {
   try {
     const boards = await Board.getAccessibleBoards(req.user.id, req.user.role);
 
+    // Sanitize boards data
+    const sanitizedBoards = boards.map(board => {
+      const boardObj = board.toObject();
+
+      // Handle null createdBy
+      if (!boardObj.createdBy) {
+        boardObj.createdBy = null;
+      }
+
+      return boardObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: boards
+      data: sanitizedBoards
     });
   } catch (error) {
     console.error('Get accessible boards error:', error);

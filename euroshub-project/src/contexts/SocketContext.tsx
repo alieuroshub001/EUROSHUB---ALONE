@@ -13,9 +13,13 @@ interface SocketContextType {
   leaveProject: (projectId: string) => void;
   joinBoard: (boardId: string) => void;
   leaveBoard: (boardId: string) => void;
+  disconnect: () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
+
+// Export the context for direct use
+export { SocketContext };
 
 export const useSocketContext = () => {
   const context = useContext(SocketContext);
@@ -43,7 +47,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     joinProject,
     leaveProject,
     joinBoard,
-    leaveBoard
+    leaveBoard,
+    disconnect
   } = useSocket({
     token,
     autoConnect: !!token // Only connect if token exists
@@ -88,7 +93,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     joinProject,
     leaveProject,
     joinBoard,
-    leaveBoard
+    leaveBoard,
+    disconnect
   };
 
   return (

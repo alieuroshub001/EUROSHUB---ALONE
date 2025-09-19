@@ -18,11 +18,26 @@ export default function EditProject() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    startDate: string;
+    endDate: string;
+    estimatedHours: number;
+    budget: {
+      amount: number;
+      currency: string;
+    };
+    client: string;
+    tags: string[];
+    visibility: 'private' | 'team' | 'company';
+  }>({
     title: '',
     description: '',
-    status: 'planning' as const,
-    priority: 'medium' as const,
+    status: 'planning',
+    priority: 'medium',
     startDate: '',
     endDate: '',
     estimatedHours: 0,
@@ -31,8 +46,8 @@ export default function EditProject() {
       currency: 'USD'
     },
     client: '',
-    tags: [] as string[],
-    visibility: 'team' as const
+    tags: [],
+    visibility: 'team'
   });
 
   const [newTag, setNewTag] = useState('');
@@ -46,7 +61,7 @@ export default function EditProject() {
         const projectData = await projectService.getProject(projectId);
 
         // Try to fetch clients, but don't fail the whole page if it doesn't work
-        let clientsData = [];
+        let clientsData: any[] = [];
         try {
           clientsData = await userService.getClients();
         } catch (clientError) {

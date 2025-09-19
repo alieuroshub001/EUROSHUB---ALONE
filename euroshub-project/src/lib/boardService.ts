@@ -14,7 +14,7 @@ export interface Board {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   isDefault: boolean;
   color: string;
   position: number;
@@ -47,7 +47,7 @@ export interface List {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   position: number;
   color: string;
   isDefault: boolean;
@@ -82,20 +82,20 @@ export interface Card {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   assignedTo: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
     email: string;
-  }>;
+  } | null>;
   watchers: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
-  }>;
+  } | null>;
   position: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'open' | 'in_progress' | 'review' | 'blocked' | 'completed';
@@ -106,7 +106,7 @@ export interface Card {
     _id: string;
     firstName: string;
     lastName: string;
-  };
+  } | null;
   labels: Array<{
     name: string;
     color: string;
@@ -133,7 +133,7 @@ export interface Card {
       firstName: string;
       lastName: string;
       avatar?: string;
-    };
+    } | null;
     mentions: string[];
     isEdited: boolean;
     editedAt?: string;
@@ -148,7 +148,7 @@ export interface Card {
         _id: string;
         firstName: string;
         lastName: string;
-      };
+      } | null;
       hours: number;
       description?: string;
       date: string;

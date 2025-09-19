@@ -17,14 +17,14 @@ export interface ProjectMember {
     lastName: string;
     avatar?: string;
     email: string;
-  };
+  } | null;
   role: ProjectRole;
   joinedAt: string;
   addedBy: {
     _id: string;
     firstName: string;
     lastName: string;
-  };
+  } | null;
 }
 
 export interface Project {
@@ -46,13 +46,13 @@ export interface Project {
     firstName: string;
     lastName: string;
     email: string;
-  };
+  } | null;
   owner: {
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   members: ProjectMember[];
   tags: string[];
   isArchived: boolean;

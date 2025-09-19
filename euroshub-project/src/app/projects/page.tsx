@@ -4,13 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Plus,
   Search,
-  Filter,
-  Users,
-  Calendar,
-  BarChart3,
   FolderOpen,
-  Settings,
-  Star,
   Grid3X3,
   List as ListIcon
 } from 'lucide-react';
@@ -18,7 +12,7 @@ import ProjectCard from '@/components/Projects/ProjectCard';
 import CreateProjectModal from '@/components/Projects/CreateProjectModal';
 import ProjectMemberManagement from '@/components/Projects/ProjectMemberManagement';
 import KanbanBoard from '@/components/Projects/KanbanBoard';
-import { Project, ProjectMember } from '@/types/project';
+import { Project, ProjectMember, User } from '@/types/project';
 import { apiCall } from '@/lib/api';
 
 interface ProjectFilters {
@@ -183,11 +177,7 @@ const ProjectManagement = () => {
 
   if (currentView === 'kanban' && selectedProject) {
     return (
-      <KanbanBoard
-        project={selectedProject}
-        onBack={() => setCurrentView('grid')}
-        onProjectUpdate={handleUpdateProject}
-      />
+      <KanbanBoard />
     );
   }
 
@@ -373,7 +363,7 @@ const ProjectManagement = () => {
               <ProjectCard
                 key={project._id}
                 project={project}
-                viewMode={currentView}
+                viewMode={currentView as 'grid' | 'list'}
                 onUpdate={handleUpdateProject}
                 onDelete={handleDeleteProject}
                 onManageMembers={handleManageMembers}
@@ -391,7 +381,19 @@ const ProjectManagement = () => {
       {showCreateModal && (
         <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateProject}
+          onSubmit={(projectData) => {
+            // Convert CreateProjectData to Partial<Project> format
+            const projectUpdate: Partial<Project> = {
+              title: projectData.title,
+              description: projectData.description,
+              startDate: projectData.startDate,
+              endDate: projectData.endDate,
+              priority: projectData.priority,
+              budget: projectData.budget,
+              client: projectData.client ? { _id: projectData.client } as User : undefined,
+            };
+            handleCreateProject(projectUpdate);
+          }}
         />
       )}
 

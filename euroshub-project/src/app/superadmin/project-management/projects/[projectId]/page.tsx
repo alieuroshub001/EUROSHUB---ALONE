@@ -6,16 +6,9 @@ import {
   ArrowLeft,
   Users,
   Calendar,
-  DollarSign,
-  Settings,
   Activity,
   MoreVertical,
-  Edit,
-  Archive,
-  Trash2,
-  Plus,
-  Star
-} from 'lucide-react';
+  Edit} from 'lucide-react';
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
 import IntegratedKanbanBoard from '../../../../../components/Projects/IntegratedKanbanBoard';
 import { projectService, Project } from '../../../../../lib/projectService';
@@ -231,7 +224,7 @@ export default function ProjectDetail() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Owner</label>
                   <input
                     type="text"
-                    value={`${project.owner.firstName} ${project.owner.lastName}`}
+                    value={project.owner ? `${project.owner.firstName} ${project.owner.lastName}` : 'Deleted User'}
                     readOnly
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
@@ -251,25 +244,25 @@ export default function ProjectDetail() {
                 </button>
               </div>
               <div className="space-y-3">
-                {project.members.slice(0, 5).map((member) => (
+                {project.members.slice(0, 5).filter(member => member.user).map((member) => (
                   <div key={member._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
-                        {member.user.avatar ? (
+                        {member.user?.avatar ? (
                           <img
                             src={member.user.avatar}
-                            alt={`${member.user.firstName} ${member.user.lastName}`}
+                            alt={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                             className="w-full h-full rounded-full object-cover"
                           />
                         ) : (
-                          `${member.user.firstName[0]}${member.user.lastName[0]}`
+                          member.user ? `${member.user.firstName[0]}${member.user.lastName[0]}` : '?'
                         )}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {member.user.firstName} {member.user.lastName}
+                          {member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                         </p>
-                        <p className="text-xs text-gray-500">{member.user.email}</p>
+                        <p className="text-xs text-gray-500">{member.user?.email || 'No email'}</p>
                       </div>
                     </div>
                     <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
@@ -482,22 +475,22 @@ export default function ProjectDetail() {
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Members</h3>
                   <div className="space-y-3">
-                    {project.members.map((member) => (
+                    {project.members.filter(member => member.user).map((member) => (
                       <div key={member._id} className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
-                          {member.user.avatar ? (
+                          {member.user?.avatar ? (
                             <img
                               src={member.user.avatar}
-                              alt={`${member.user.firstName} ${member.user.lastName}`}
+                              alt={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                               className="w-full h-full rounded-full object-cover"
                             />
                           ) : (
-                            `${member.user.firstName[0]}${member.user.lastName[0]}`
+                            member.user ? `${member.user.firstName[0]}${member.user.lastName[0]}` : '?'
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">
-                            {member.user.firstName} {member.user.lastName}
+                            {member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                           </p>
                           <p className="text-xs text-gray-500">{member.role.replace('_', ' ')}</p>
                         </div>

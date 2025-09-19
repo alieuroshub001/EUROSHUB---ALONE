@@ -90,17 +90,26 @@ export const authAPI = {
 
   logout: async (): Promise<void> => {
     try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
         withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${Cookies.get('token')}`
-        }
+        headers
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      Cookies.remove('token');
+      // Clear all client-side storage
+      Cookies.remove('token', { path: '/' });
       localStorage.removeItem('token');
+
+      // Force redirect to login page
+      window.location.href = '/';
     }
   },
 
@@ -112,7 +121,7 @@ export const authAPI = {
 
       // If no token in cookie, try localStorage
       if (!token) {
-        token = localStorage.getItem('token');
+        token = localStorage.getItem('token') || undefined;
         console.log('getMe: Token from localStorage:', token ? 'exists' : 'not found');
 
         // If found in localStorage, set it back to cookie

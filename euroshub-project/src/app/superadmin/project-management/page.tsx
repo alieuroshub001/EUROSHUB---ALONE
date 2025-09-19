@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   Plus,
   Search,
-  Filter,
   Grid3X3,
   List,
   Calendar,
+  Columns,
   Users,
   TrendingUp,
   Clock,
@@ -18,9 +18,7 @@ import {
   Eye,
   Edit,
   Trash2,
-  Archive,
-  Star
-} from 'lucide-react';
+  Archive} from 'lucide-react';
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
 import { projectService, Project, ProjectFilters, ProjectStatus, ProjectPriority } from '../../../lib/projectService';
 import { activityService, Activity } from '../../../lib/activityService';
@@ -33,6 +31,143 @@ interface ProjectCardProps {
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
 }
+
+interface KanbanCardProps extends ProjectCardProps {
+  onDragStart?: (project: Project) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
+}
+
+// Kanban Card Component
+const KanbanCard: React.FC<KanbanCardProps> = ({
+  project,
+  onView,
+  onEdit,
+  onDelete,
+  onArchive,
+  onDragStart,
+  onDragEnd,
+  isDragging = false
+}) => {
+  const getStatusColor = (status: ProjectStatus) => {
+    switch (status) {
+      case 'active': return 'border-green-400';
+      case 'planning': return 'border-blue-400';
+      case 'on_hold': return 'border-yellow-400';
+      case 'completed': return 'border-purple-400';
+      case 'cancelled': return 'border-red-400';
+      default: return 'border-gray-400';
+    }
+  };
+
+  const getPriorityColor = (priority: ProjectPriority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500';
+      case 'high': return 'bg-orange-500';
+      case 'medium': return 'bg-yellow-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  return (
+    <div
+      className={`bg-white rounded-lg shadow-sm border-l-4 ${getStatusColor(project.status)} p-4 mb-3 hover:shadow-md transition-all cursor-grab active:cursor-grabbing group ${
+        isDragging ? 'opacity-50 rotate-2 scale-105' : ''
+      }`}
+      draggable="true"
+      onDragStart={(e) => {
+        onDragStart?.(project);
+      }}
+      onDragEnd={() => {
+        onDragEnd?.();
+      }}
+    >
+      {/* Priority indicator */}
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-3 h-3 rounded-full ${getPriorityColor(project.priority)}`}></div>
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(project._id);
+            }}
+            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+            title="View project"
+          >
+            <Eye size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Project Title */}
+      <h3
+        className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm cursor-pointer"
+        onClick={() => onView(project._id)}
+      >
+        {project.title}
+      </h3>
+
+      {/* Project Description */}
+      {project.description && (
+        <p className="text-gray-600 text-xs line-clamp-2 mb-3">
+          {project.description}
+        </p>
+      )}
+
+      {/* Project Meta */}
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <Users size={12} />
+            <span>{project.members.filter(m => m.user).length}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Calendar size={12} />
+            <span>{project.metadata.totalTasks}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Team Members Avatars */}
+      {project.members.filter(m => m.user).length > 0 && (
+        <div className="flex -space-x-2 mb-2">
+          {project.members.filter(m => m.user).slice(0, 3).map((member) => (
+            <div
+              key={member._id}
+              className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600"
+              title={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
+            >
+              {member.user?.avatar ? (
+                <img
+                  src={member.user.avatar}
+                  alt={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                member.user ? `${member.user.firstName[0]}${member.user.lastName[0]}` : '?'
+              )}
+            </div>
+          ))}
+          {project.members.filter(m => m.user).length > 3 && (
+            <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+              +{project.members.filter(m => m.user).length - 3}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Due Date */}
+      {project.endDate && (
+        <div className={`text-xs px-2 py-1 rounded ${
+          project.isOverdue ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+        }`}>
+          Due: {new Date(project.endDate).toLocaleDateString()}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
   project,
@@ -106,26 +241,26 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         </div>
 
         <div className="flex -space-x-2">
-          {project.members.slice(0, 3).map((member) => (
+          {project.members.slice(0, 3).filter(member => member.user).map((member) => (
             <div
               key={member._id}
               className="w-8 h-8 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600"
-              title={`${member.user.firstName} ${member.user.lastName}`}
+              title={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
             >
-              {member.user.avatar ? (
+              {member.user?.avatar ? (
                 <img
                   src={member.user.avatar}
-                  alt={`${member.user.firstName} ${member.user.lastName}`}
+                  alt={member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Unknown User'}
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                `${member.user.firstName[0]}${member.user.lastName[0]}`
+                member.user ? `${member.user.firstName[0]}${member.user.lastName[0]}` : '?'
               )}
             </div>
           ))}
-          {project.members.length > 3 && (
+          {project.members.filter(member => member.user).length > 3 && (
             <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-              +{project.members.length - 3}
+              +{project.members.filter(member => member.user).length - 3}
             </div>
           )}
         </div>
@@ -191,12 +326,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
 
 export default function SuperAdminProjectManagement() {
   const router = useRouter();
-  const { user } = useAuth();
+  useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<ProjectFilters>({
     page: 1,
@@ -204,6 +339,10 @@ export default function SuperAdminProjectManagement() {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
+
+  // Drag and drop state
+  const [draggedProject, setDraggedProject] = useState<Project | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ProjectStatus | null>(null);
 
   useEffect(() => {
     loadData();
@@ -233,7 +372,7 @@ export default function SuperAdminProjectManagement() {
     setFilters(prev => ({ ...prev, search: searchTerm, page: 1 }));
   };
 
-  const handleFilterChange = (key: keyof ProjectFilters, value: any) => {
+  const handleFilterChange = (key: keyof ProjectFilters, value: string | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
@@ -267,6 +406,57 @@ export default function SuperAdminProjectManagement() {
 
   const handleCreateProject = () => {
     router.push('/superadmin/project-management/create');
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (project: Project) => {
+    setDraggedProject(project);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedProject(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: ProjectStatus) => {
+    e.preventDefault();
+    setDragOverColumn(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: ProjectStatus) => {
+    e.preventDefault();
+
+    if (!draggedProject || draggedProject.status === newStatus) {
+      setDraggedProject(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    try {
+      // Update project status
+      await projectService.updateProject(draggedProject._id, { status: newStatus });
+
+      // Update local state immediately for better UX
+      setProjects(prevProjects =>
+        prevProjects.map(project =>
+          project._id === draggedProject._id
+            ? { ...project, status: newStatus }
+            : project
+        )
+      );
+
+      // Reload data to get updated metadata
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update project status');
+    }
+
+    setDraggedProject(null);
+    setDragOverColumn(null);
   };
 
   const content = (
@@ -328,9 +518,9 @@ export default function SuperAdminProjectManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className={viewMode === 'kanban' ? 'w-full' : 'grid grid-cols-1 lg:grid-cols-4 gap-8'}>
         {/* Main Content */}
-        <div className="lg:col-span-3">
+        <div className={viewMode === 'kanban' ? 'w-full' : 'lg:col-span-3'}>
           {/* Filters and Search */}
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -411,6 +601,7 @@ export default function SuperAdminProjectManagement() {
                       ? 'bg-blue-100 text-blue-600'
                       : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
+                  title="Grid View"
                 >
                   <Grid3X3 size={20} />
                 </button>
@@ -421,8 +612,20 @@ export default function SuperAdminProjectManagement() {
                       ? 'bg-blue-100 text-blue-600'
                       : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
+                  title="List View"
                 >
                   <List size={20} />
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={`p-2 rounded-lg transition-colors ${
+                    viewMode === 'kanban'
+                      ? 'bg-blue-100 text-blue-600'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Kanban View"
+                >
+                  <Columns size={20} />
                 </button>
               </div>
             </div>
@@ -445,6 +648,218 @@ export default function SuperAdminProjectManagement() {
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Projects</h2>
               <p className="text-gray-600">Please wait while we load your projects...</p>
+            </div>
+          ) : viewMode === 'kanban' ? (
+            <div className="flex space-x-6 overflow-x-auto pb-6">
+              {/* Planning Column */}
+              <div className="flex-shrink-0 w-80">
+                <div
+                  className={`bg-gray-100 rounded-lg p-4 transition-all ${
+                    dragOverColumn === 'planning' ? 'bg-blue-100 border-2 border-dashed border-blue-400' : ''
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'planning')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'planning')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700 flex items-center">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                      Planning
+                    </h3>
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {projects.filter(p => p.status === 'planning').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-screen overflow-y-auto">
+                    {projects.filter(p => p.status === 'planning').map((project) => (
+                      <KanbanCard
+                        key={project._id}
+                        project={project}
+                        onView={handleViewProject}
+                        onEdit={handleEditProject}
+                        onDelete={handleDeleteProject}
+                        onArchive={handleArchiveProject}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggedProject?._id === project._id}
+                      />
+                    ))}
+                    {projects.filter(p => p.status === 'planning').length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No projects in planning</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Column */}
+              <div className="flex-shrink-0 w-80">
+                <div
+                  className={`bg-gray-100 rounded-lg p-4 transition-all ${
+                    dragOverColumn === 'active' ? 'bg-green-100 border-2 border-dashed border-green-400' : ''
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'active')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'active')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700 flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                      Active
+                    </h3>
+                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {projects.filter(p => p.status === 'active').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-screen overflow-y-auto">
+                    {projects.filter(p => p.status === 'active').map((project) => (
+                      <KanbanCard
+                        key={project._id}
+                        project={project}
+                        onView={handleViewProject}
+                        onEdit={handleEditProject}
+                        onDelete={handleDeleteProject}
+                        onArchive={handleArchiveProject}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggedProject?._id === project._id}
+                      />
+                    ))}
+                    {projects.filter(p => p.status === 'active').length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No active projects</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* On Hold Column */}
+              <div className="flex-shrink-0 w-80">
+                <div
+                  className={`bg-gray-100 rounded-lg p-4 transition-all ${
+                    dragOverColumn === 'on_hold' ? 'bg-yellow-100 border-2 border-dashed border-yellow-400' : ''
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'on_hold')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'on_hold')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700 flex items-center">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                      On Hold
+                    </h3>
+                    <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {projects.filter(p => p.status === 'on_hold').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-screen overflow-y-auto">
+                    {projects.filter(p => p.status === 'on_hold').map((project) => (
+                      <KanbanCard
+                        key={project._id}
+                        project={project}
+                        onView={handleViewProject}
+                        onEdit={handleEditProject}
+                        onDelete={handleDeleteProject}
+                        onArchive={handleArchiveProject}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggedProject?._id === project._id}
+                      />
+                    ))}
+                    {projects.filter(p => p.status === 'on_hold').length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No projects on hold</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Completed Column */}
+              <div className="flex-shrink-0 w-80">
+                <div
+                  className={`bg-gray-100 rounded-lg p-4 transition-all ${
+                    dragOverColumn === 'completed' ? 'bg-purple-100 border-2 border-dashed border-purple-400' : ''
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'completed')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'completed')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700 flex items-center">
+                      <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                      Completed
+                    </h3>
+                    <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {projects.filter(p => p.status === 'completed').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-screen overflow-y-auto">
+                    {projects.filter(p => p.status === 'completed').map((project) => (
+                      <KanbanCard
+                        key={project._id}
+                        project={project}
+                        onView={handleViewProject}
+                        onEdit={handleEditProject}
+                        onDelete={handleDeleteProject}
+                        onArchive={handleArchiveProject}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggedProject?._id === project._id}
+                      />
+                    ))}
+                    {projects.filter(p => p.status === 'completed').length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No completed projects</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancelled Column */}
+              <div className="flex-shrink-0 w-80">
+                <div
+                  className={`bg-gray-100 rounded-lg p-4 transition-all ${
+                    dragOverColumn === 'cancelled' ? 'bg-red-100 border-2 border-dashed border-red-400' : ''
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'cancelled')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'cancelled')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700 flex items-center">
+                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                      Cancelled
+                    </h3>
+                    <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {projects.filter(p => p.status === 'cancelled').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-screen overflow-y-auto">
+                    {projects.filter(p => p.status === 'cancelled').map((project) => (
+                      <KanbanCard
+                        key={project._id}
+                        project={project}
+                        onView={handleViewProject}
+                        onEdit={handleEditProject}
+                        onDelete={handleDeleteProject}
+                        onArchive={handleArchiveProject}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggedProject?._id === project._id}
+                      />
+                    ))}
+                    {projects.filter(p => p.status === 'cancelled').length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No cancelled projects</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className={viewMode === 'grid'
@@ -488,7 +903,8 @@ export default function SuperAdminProjectManagement() {
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar - Hidden in Kanban view */}
+        {viewMode !== 'kanban' && (
         <div className="space-y-6">
           {/* Recent Activity */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -518,7 +934,8 @@ export default function SuperAdminProjectManagement() {
             </div>
           </div>
         </div>
-      </div>
+        )}
+      </div>      
     </>
   );
 

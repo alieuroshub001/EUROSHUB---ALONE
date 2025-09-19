@@ -7,16 +7,11 @@ const authenticateToken = async (req, res, next) => {
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
-      console.log('Auth middleware: Token from Bearer header:', token);
     } else if (req.cookies.token) {
       token = req.cookies.token;
-      console.log('Auth middleware: Token from cookie:', token);
     }
 
-    console.log('Auth middleware: Final token:', token);
-
     if (!token) {
-      console.log('Auth middleware: No token provided');
       return res.status(401).json({
         success: false,
         message: 'Not authorized to access this resource'
@@ -43,7 +38,6 @@ const authenticateToken = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
     res.status(401).json({
       success: false,
       message: 'Not authorized to access this resource'

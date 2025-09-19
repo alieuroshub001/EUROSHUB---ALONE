@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, DollarSign, Users, Tag, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, Tag, AlertCircle } from 'lucide-react';
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
-import { projectService, CreateProjectRequest, ProjectPriority } from '../../../../lib/projectService';
-import { userService } from '../../../../lib/userService';
+import { projectService, CreateProjectRequest } from '../../../../lib/projectService';
 
 export default function CreateProject() {
   const router = useRouter();

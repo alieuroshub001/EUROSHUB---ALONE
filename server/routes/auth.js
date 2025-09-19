@@ -40,7 +40,7 @@ router.post('/request-password-reset', validatePasswordResetRequest, requestPass
 
 // Protected routes
 router.get('/me', protect, getMe);
-router.post('/logout', protect, logout);
+router.post('/logout', logout); // Logout should not require authentication
 router.put('/change-password', protect, validateChangePassword, changePassword);
 
 // Admin/HR routes for creating users

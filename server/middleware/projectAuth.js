@@ -358,11 +358,19 @@ const validateMemberRole = (req, res, next) => {
  * Helper function to get user's project role
  */
 const getUserProjectRole = (project, userId) => {
-  if (project.owner.toString() === userId.toString()) {
+  // Check if owner exists and matches user
+  if (project.owner && project.owner.toString() === userId.toString()) {
     return 'owner';
   }
 
-  const member = project.members.find(m => m.user.toString() === userId.toString());
+  // Check members array with null safety
+  if (!project.members || !Array.isArray(project.members)) {
+    return null;
+  }
+
+  const member = project.members.find(m =>
+    m && m.user && m.user.toString() === userId.toString()
+  );
   return member ? member.role : null;
 };
 
