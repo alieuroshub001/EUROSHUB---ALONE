@@ -32,9 +32,18 @@ interface Column {
 interface KanbanColumnProps {
   column: Column;
   onAddTask: (columnId: string) => void;
+  onEditTask?: (taskId: string, taskData: any) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onAssignUser?: (taskId: string, userIds: string[]) => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({
+  column,
+  onAddTask,
+  onEditTask,
+  onDeleteTask,
+  onAssignUser
+}) => {
   const { setNodeRef } = useDroppable({
     id: column.id,
   });
@@ -77,7 +86,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onEdit={onEditTask}
+              onDelete={onDeleteTask}
+              onAssign={onAssignUser}
+            />
           ))}
         </SortableContext>
 

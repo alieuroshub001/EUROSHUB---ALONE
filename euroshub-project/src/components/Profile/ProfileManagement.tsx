@@ -45,16 +45,12 @@ export default function ProfileManagement({ currentUser }: ProfileManagementProp
     }
   };
 
-  const handleAvatarUpdate = (avatarUrl: string) => {
-    if (profile) {
-      setProfile({ ...profile, avatar: avatarUrl });
-    }
+  const handleAvatarUpdate = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
   };
 
-  const handleAvatarDelete = () => {
-    if (profile) {
-      setProfile({ ...profile, avatar: undefined });
-    }
+  const handleAvatarDelete = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
   };
 
   if (loading) {

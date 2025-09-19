@@ -195,9 +195,145 @@ export default function ProjectDetail() {
 
       case 'settings':
         return (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Settings</h3>
-            <p className="text-gray-600">Project settings and configuration options will be available here.</p>
+          <div className="space-y-6">
+            {/* Project Information */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Project ID</label>
+                  <input
+                    type="text"
+                    value={project._id}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Created</label>
+                  <input
+                    type="text"
+                    value={new Date(project.createdAt).toLocaleDateString()}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Updated</label>
+                  <input
+                    type="text"
+                    value={new Date(project.updatedAt).toLocaleDateString()}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Owner</label>
+                  <input
+                    type="text"
+                    value={`${project.owner.firstName} ${project.owner.lastName}`}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Team Members Management */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Team Members</h3>
+                <button
+                  onClick={() => router.push(`/superadmin/project-management/projects/${projectId}/members`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Manage Members
+                </button>
+              </div>
+              <div className="space-y-3">
+                {project.members.slice(0, 5).map((member) => (
+                  <div key={member._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
+                        {member.user.avatar ? (
+                          <img
+                            src={member.user.avatar}
+                            alt={`${member.user.firstName} ${member.user.lastName}`}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          `${member.user.firstName[0]}${member.user.lastName[0]}`
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {member.user.firstName} {member.user.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">{member.user.email}</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                      {member.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+                {project.members.length > 5 && (
+                  <p className="text-sm text-gray-500 text-center">
+                    and {project.members.length - 5} more members...
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Project Statistics */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Statistics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-600">Total Boards</p>
+                  <p className="text-2xl font-bold text-blue-900">{project.metadata.totalBoards}</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm font-medium text-green-600">Completion Rate</p>
+                  <p className="text-2xl font-bold text-green-900">{project.completionPercentage}%</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <p className="text-sm font-medium text-purple-600">Active Members</p>
+                  <p className="text-2xl font-bold text-purple-900">{project.members.length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="bg-white rounded-lg border border-red-200 p-6">
+              <h3 className="text-lg font-semibold text-red-900 mb-6">Danger Zone</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-yellow-900">Archive Project</h4>
+                    <p className="text-sm text-yellow-700">Archive this project to hide it from active projects</p>
+                  </div>
+                  <button
+                    onClick={handleArchiveProject}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                  >
+                    Archive
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 border border-red-200 bg-red-50 rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-red-900">Delete Project</h4>
+                    <p className="text-sm text-red-700">Permanently delete this project and all its data</p>
+                  </div>
+                  <button
+                    onClick={handleDeleteProject}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         );
 

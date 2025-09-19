@@ -653,4 +653,153 @@ router.put('/:listId/cards/reorder', protect, checkListAccess, async (req, res) 
   }
 });
 
+/**
+ * @route   GET /api/lists/:listId/cards
+ * @desc    Get list cards
+ * @access  Private
+ */
+router.get('/:listId/cards', protect, checkListAccess, async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { includeArchived = false, assignedTo, priority, status } = req.query;
+
+    let query = { list: listId };
+    if (!includeArchived || includeArchived === 'false') {
+      query.isArchived = false;
+    }
+
+    // Add filters
+    if (assignedTo) query.assignedTo = assignedTo;
+    if (priority) query.priority = priority;
+    if (status) query.status = status;
+
+    const cards = await Card.find(query)
+      .populate('assignedTo', 'firstName lastName avatar email')
+      .populate('createdBy', 'firstName lastName avatar')
+      .populate('watchers', 'firstName lastName avatar')
+      .populate('comments.author', 'firstName lastName avatar')
+      .sort({ position: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: cards
+    });
+  } catch (error) {
+    console.error('Get cards error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching cards'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/lists/:listId/cards
+ * @desc    Create new card
+ * @access  Private
+ */
+router.post('/:listId/cards', protect, checkListAccess, async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const list = req.list;
+    const {
+      title,
+      description,
+      assignedTo,
+      priority,
+      dueDate,
+      startDate,
+      labels,
+      position,
+      customFields
+    } = req.body;
+
+    // Check if user has permission to create cards
+    const hasPermission = await list.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to create cards in this list'
+      });
+    }
+
+    // Validation
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Card title is required'
+      });
+    }
+
+    // Validate assigned users if provided
+    if (assignedTo && assignedTo.length > 0) {
+      const User = require('../models/User');
+      const users = await User.find({ _id: { $in: assignedTo } });
+      if (users.length !== assignedTo.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more assigned users not found'
+        });
+      }
+    }
+
+    // Create card
+    const card = new Card({
+      title,
+      description: description || '',
+      list: listId,
+      board: list.board,
+      project: list.project,
+      createdBy: req.user.id,
+      assignedTo: assignedTo || [],
+      priority: priority || 'medium',
+      dueDate: dueDate ? new Date(dueDate) : null,
+      startDate: startDate ? new Date(startDate) : null,
+      labels: labels || [],
+      position: position || 0,
+      customFields: customFields || []
+    });
+
+    await card.save();
+
+    // Assign users and add watchers
+    if (assignedTo && assignedTo.length > 0) {
+      card.assignUsers(assignedTo, req.user.id);
+      await card.save();
+    }
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_created',
+      user: req.user.id,
+      project: list.project,
+      board: list.board,
+      list: listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id
+      }
+    });
+
+    // Populate for response
+    await card.populate([
+      { path: 'assignedTo', select: 'firstName lastName avatar' },
+      { path: 'createdBy', select: 'firstName lastName avatar' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: card,
+      message: 'Card created successfully'
+    });
+  } catch (error) {
+    console.error('Create card error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating card'
+    });
+  }
+});
+
 module.exports = router;

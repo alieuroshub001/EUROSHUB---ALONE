@@ -31,7 +31,16 @@ router.get('/projects/:projectId/boards', protect, checkProjectAccess, async (re
       .populate({
         path: 'lists',
         match: { isArchived: false },
-        options: { sort: { position: 1 } }
+        options: { sort: { position: 1 } },
+        populate: {
+          path: 'cards',
+          match: { isArchived: false },
+          options: { sort: { position: 1 } },
+          populate: [
+            { path: 'assignedTo', select: 'firstName lastName avatar email' },
+            { path: 'createdBy', select: 'firstName lastName avatar' }
+          ]
+        }
       })
       .sort({ position: 1, createdAt: -1 });
 

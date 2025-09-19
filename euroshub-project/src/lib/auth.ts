@@ -49,16 +49,30 @@ export const authAPI = {
       if (response.data.success) {
         // Store token in cookie for persistence
         console.log('Login: Setting token cookie:', response.data.token);
-        Cookies.set('token', response.data.token, {
+
+        // Try different cookie configurations
+        const cookieOptions = {
           expires: 7, // 7 days
           path: '/',
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production'
-        });
+          sameSite: 'lax' as const,
+          secure: false // Always false for localhost development
+        };
+
+        console.log('Login: Cookie options:', cookieOptions);
+        Cookies.set('token', response.data.token, cookieOptions);
+
+        // Wait a moment for cookie to be set
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         // Verify the cookie was set
         const savedToken = Cookies.get('token');
         console.log('Login: Verified token in cookie:', savedToken);
+
+        // If cookie still not set, try alternative storage
+        if (!savedToken) {
+          console.warn('Login: Cookie not set, trying localStorage as fallback');
+          localStorage.setItem('token', response.data.token);
+        }
       }
       
       return response.data;
@@ -86,28 +100,67 @@ export const authAPI = {
       console.error('Logout error:', error);
     } finally {
       Cookies.remove('token');
+      localStorage.removeItem('token');
     }
   },
 
   getMe: async (): Promise<User | null> => {
     try {
-      const token = Cookies.get('token');
+      let token = Cookies.get('token');
       console.log('getMe: Token from cookie:', token ? 'exists' : 'not found');
       console.log('getMe: Token value:', token);
 
-      if (!token) return null;
+      // If no token in cookie, try localStorage
+      if (!token) {
+        token = localStorage.getItem('token');
+        console.log('getMe: Token from localStorage:', token ? 'exists' : 'not found');
+
+        // If found in localStorage, set it back to cookie
+        if (token) {
+          console.log('getMe: Restoring token to cookie from localStorage');
+          Cookies.set('token', token, {
+            expires: 7,
+            path: '/',
+            sameSite: 'lax' as const,
+            secure: false
+          });
+        }
+      }
+
+      if (!token) {
+        console.log('getMe: No token found in cookie or localStorage, returning null');
+        return null;
+      }
+
+      console.log('getMe: Making request to', `${API_BASE_URL}/auth/me`);
 
       const response = await axios.get(`${API_BASE_URL}/auth/me`, {
         withCredentials: true,
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      return response.data.data.user;
+      console.log('getMe: Response status:', response.status);
+      console.log('getMe: Response data:', response.data);
+
+      if (response.data && response.data.data && response.data.data.user) {
+        console.log('getMe: User found:', response.data.data.user.email);
+        return response.data.data.user;
+      } else {
+        console.log('getMe: Invalid response structure:', response.data);
+        return null;
+      }
     } catch (error) {
       console.error('Get user error:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('getMe: Response status:', error.response?.status);
+        console.error('getMe: Response data:', error.response?.data);
+        console.error('getMe: Request URL:', error.config?.url);
+      }
       Cookies.remove('token');
+      localStorage.removeItem('token');
       return null;
     }
   },
@@ -157,7 +210,11 @@ export const authAPI = {
 };
 
 export const getAuthToken = (): string | undefined => {
-  return Cookies.get('token');
+  const cookieToken = Cookies.get('token');
+  if (cookieToken) return cookieToken;
+
+  const localToken = localStorage.getItem('token');
+  return localToken || undefined;
 };
 
 export const isAuthenticated = (): boolean => {

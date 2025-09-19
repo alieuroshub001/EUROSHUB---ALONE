@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
+const { deleteFile } = require('../config/cloudinary');
 
 // Get current user profile
 exports.getProfile = async (req, res) => {
@@ -217,9 +218,34 @@ exports.uploadAvatar = async (req, res) => {
       });
     }
 
-    // In a real app, you'd upload to cloud storage (AWS S3, Cloudinary, etc.)
-    // For now, we'll just store the filename
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    // Get current user to check for existing avatar
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete old avatar from Cloudinary if it exists
+    if (currentUser.avatar) {
+      try {
+        // Extract public_id from the old avatar URL
+        const oldAvatarUrl = currentUser.avatar;
+        if (oldAvatarUrl.includes('cloudinary.com')) {
+          const urlParts = oldAvatarUrl.split('/');
+          const publicIdWithExtension = urlParts[urlParts.length - 1];
+          const publicId = publicIdWithExtension.split('.')[0];
+          await deleteFile(`euroshub/avatars/${publicId}`);
+        }
+      } catch (deleteError) {
+        console.warn('Failed to delete old avatar from Cloudinary:', deleteError);
+        // Continue with upload even if deletion fails
+      }
+    }
+
+    // The new avatar URL from Cloudinary
+    const avatarUrl = req.file.path;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -231,7 +257,22 @@ exports.uploadAvatar = async (req, res) => {
       success: true,
       message: 'Avatar uploaded successfully',
       data: {
-        avatarUrl: updatedUser.avatar
+        user: {
+          id: updatedUser._id,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          email: updatedUser.email,
+          employeeId: updatedUser.employeeId,
+          phone: updatedUser.phone,
+          department: updatedUser.department,
+          position: updatedUser.position,
+          role: updatedUser.role,
+          isActive: updatedUser.isActive,
+          isEmailVerified: updatedUser.isEmailVerified,
+          lastLogin: updatedUser.lastLogin,
+          createdAt: updatedUser.createdAt,
+          avatar: updatedUser.avatar
+        }
       }
     });
   } catch (error) {
@@ -248,6 +289,30 @@ exports.deleteAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Get current user to access avatar URL
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete avatar from Cloudinary if it exists
+    if (currentUser.avatar && currentUser.avatar.includes('cloudinary.com')) {
+      try {
+        // Extract public_id from the avatar URL
+        const avatarUrl = currentUser.avatar;
+        const urlParts = avatarUrl.split('/');
+        const publicIdWithExtension = urlParts[urlParts.length - 1];
+        const publicId = publicIdWithExtension.split('.')[0];
+        await deleteFile(`euroshub/avatars/${publicId}`);
+      } catch (deleteError) {
+        console.warn('Failed to delete avatar from Cloudinary:', deleteError);
+        // Continue with database update even if cloud deletion fails
+      }
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { avatar: null },
@@ -256,7 +321,25 @@ exports.deleteAvatar = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Avatar deleted successfully'
+      message: 'Avatar deleted successfully',
+      data: {
+        user: {
+          id: updatedUser._id,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          email: updatedUser.email,
+          employeeId: updatedUser.employeeId,
+          phone: updatedUser.phone,
+          department: updatedUser.department,
+          position: updatedUser.position,
+          role: updatedUser.role,
+          isActive: updatedUser.isActive,
+          isEmailVerified: updatedUser.isEmailVerified,
+          lastLogin: updatedUser.lastLogin,
+          createdAt: updatedUser.createdAt,
+          avatar: updatedUser.avatar
+        }
+      }
     });
   } catch (error) {
     console.error('Delete avatar error:', error);

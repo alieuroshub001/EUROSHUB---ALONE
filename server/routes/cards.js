@@ -9,46 +9,7 @@ const {
   checkListAccess,
   checkCardAccess
 } = require('../middleware/projectAuth');
-
-/**
- * @route   GET /api/lists/:listId/cards
- * @desc    Get list cards
- * @access  Private
- */
-router.get('/lists/:listId/cards', protect, checkListAccess, async (req, res) => {
-  try {
-    const { listId } = req.params;
-    const { includeArchived = false, assignedTo, priority, status } = req.query;
-
-    let query = { list: listId };
-    if (!includeArchived || includeArchived === 'false') {
-      query.isArchived = false;
-    }
-
-    // Add filters
-    if (assignedTo) query.assignedTo = assignedTo;
-    if (priority) query.priority = priority;
-    if (status) query.status = status;
-
-    const cards = await Card.find(query)
-      .populate('assignedTo', 'firstName lastName avatar email')
-      .populate('createdBy', 'firstName lastName avatar')
-      .populate('watchers', 'firstName lastName avatar')
-      .populate('comments.author', 'firstName lastName avatar')
-      .sort({ position: 1 });
-
-    res.status(200).json({
-      success: true,
-      data: cards
-    });
-  } catch (error) {
-    console.error('Get cards error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching cards'
-    });
-  }
-});
+const { upload, uploadImage, deleteFile } = require('../config/cloudinary');
 
 /**
  * @route   GET /api/cards/:cardId
@@ -78,114 +39,6 @@ router.get('/:cardId', protect, checkCardAccess, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching card'
-    });
-  }
-});
-
-/**
- * @route   POST /api/lists/:listId/cards
- * @desc    Create new card
- * @access  Private
- */
-router.post('/lists/:listId/cards', protect, checkListAccess, async (req, res) => {
-  try {
-    const { listId } = req.params;
-    const list = req.list;
-    const {
-      title,
-      description,
-      assignedTo,
-      priority,
-      dueDate,
-      startDate,
-      labels,
-      position,
-      customFields
-    } = req.body;
-
-    // Check if user has permission to create cards
-    const hasPermission = await list.hasPermission(req.user.id, 'write');
-    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to create cards in this list'
-      });
-    }
-
-    // Validation
-    if (!title) {
-      return res.status(400).json({
-        success: false,
-        message: 'Card title is required'
-      });
-    }
-
-    // Validate assigned users if provided
-    if (assignedTo && assignedTo.length > 0) {
-      const users = await User.find({ _id: { $in: assignedTo } });
-      if (users.length !== assignedTo.length) {
-        return res.status(400).json({
-          success: false,
-          message: 'One or more assigned users not found'
-        });
-      }
-    }
-
-    // Create card
-    const card = new Card({
-      title,
-      description: description || '',
-      list: listId,
-      board: list.board,
-      project: list.project,
-      createdBy: req.user.id,
-      assignedTo: assignedTo || [],
-      priority: priority || 'medium',
-      dueDate: dueDate ? new Date(dueDate) : null,
-      startDate: startDate ? new Date(startDate) : null,
-      labels: labels || [],
-      position: position || 0,
-      customFields: customFields || []
-    });
-
-    await card.save();
-
-    // Assign users and add watchers
-    if (assignedTo && assignedTo.length > 0) {
-      card.assignUsers(assignedTo, req.user.id);
-      await card.save();
-    }
-
-    // Log activity
-    await Activity.logActivity({
-      type: 'card_created',
-      user: req.user.id,
-      project: list.project,
-      board: list.board,
-      list: listId,
-      card: card._id,
-      metadata: {
-        entityName: card.title,
-        entityId: card._id
-      }
-    });
-
-    // Populate for response
-    await card.populate([
-      { path: 'assignedTo', select: 'firstName lastName avatar' },
-      { path: 'createdBy', select: 'firstName lastName avatar' }
-    ]);
-
-    res.status(201).json({
-      success: true,
-      data: card,
-      message: 'Card created successfully'
-    });
-  } catch (error) {
-    console.error('Create card error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating card'
     });
   }
 });
@@ -870,6 +723,303 @@ router.get('/assigned-to-me', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching assigned cards'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/attachments
+ * @desc    Upload file attachment to card
+ * @access  Private
+ */
+router.post('/:cardId/attachments', protect, checkCardAccess, upload.single('file'), async (req, res) => {
+  try {
+    const card = req.card;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    // Check if user has permission to add attachments
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add attachments to this card'
+      });
+    }
+
+    // Add attachment to card
+    const attachment = {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      url: req.file.path,
+      uploadedBy: req.user.id
+    };
+
+    card.attachments.push(attachment);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_attachment_added',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        attachmentName: req.file.originalname
+      }
+    });
+
+    // Populate for response
+    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+
+    const newAttachment = card.attachments[card.attachments.length - 1];
+
+    res.status(201).json({
+      success: true,
+      data: newAttachment,
+      message: 'File uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Upload attachment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading file'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/images
+ * @desc    Upload image attachment to card
+ * @access  Private
+ */
+router.post('/:cardId/images', protect, checkCardAccess, uploadImage.single('image'), async (req, res) => {
+  try {
+    const card = req.card;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image uploaded'
+      });
+    }
+
+    // Check if user has permission to add attachments
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add images to this card'
+      });
+    }
+
+    // Add image attachment to card
+    const attachment = {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      url: req.file.path,
+      uploadedBy: req.user.id
+    };
+
+    card.attachments.push(attachment);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_image_added',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        imageName: req.file.originalname
+      }
+    });
+
+    // Populate for response
+    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+
+    const newAttachment = card.attachments[card.attachments.length - 1];
+
+    res.status(201).json({
+      success: true,
+      data: newAttachment,
+      message: 'Image uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Upload image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading image'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/cards/:cardId/attachments/:attachmentId
+ * @desc    Delete attachment from card
+ * @access  Private
+ */
+router.delete('/:cardId/attachments/:attachmentId', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { attachmentId } = req.params;
+
+    // Check if user has permission to delete attachments
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete attachments from this card'
+      });
+    }
+
+    // Find the attachment
+    const attachment = card.attachments.id(attachmentId);
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Attachment not found'
+      });
+    }
+
+    // Check if user is the uploader or has admin role
+    if (attachment.uploadedBy.toString() !== req.user.id && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete attachments you uploaded'
+      });
+    }
+
+    // Extract public_id from Cloudinary URL to delete from cloud
+    try {
+      const urlParts = attachment.url.split('/');
+      const publicIdWithExtension = urlParts[urlParts.length - 1];
+      const publicId = publicIdWithExtension.split('.')[0];
+      await deleteFile(`euroshub/attachments/${publicId}`);
+    } catch (cloudError) {
+      console.warn('Failed to delete file from Cloudinary:', cloudError);
+      // Continue with database deletion even if cloud deletion fails
+    }
+
+    // Remove attachment from card
+    card.attachments.pull(attachmentId);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_attachment_deleted',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        attachmentName: attachment.originalName
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Attachment deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete attachment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting attachment'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/attachments/multiple
+ * @desc    Upload multiple file attachments to card
+ * @access  Private
+ */
+router.post('/:cardId/attachments/multiple', protect, checkCardAccess, upload.array('files', 10), async (req, res) => {
+  try {
+    const card = req.card;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    // Check if user has permission to add attachments
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add attachments to this card'
+      });
+    }
+
+    // Add all attachments to card
+    const newAttachments = req.files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      url: file.path,
+      uploadedBy: req.user.id
+    }));
+
+    card.attachments.push(...newAttachments);
+    await card.save();
+
+    // Log activity for each file
+    for (const file of req.files) {
+      await Activity.logActivity({
+        type: 'card_attachment_added',
+        user: req.user.id,
+        project: card.project,
+        board: card.board,
+        list: card.list,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id,
+          attachmentName: file.originalname
+        }
+      });
+    }
+
+    // Populate for response
+    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+
+    const addedAttachments = card.attachments.slice(-req.files.length);
+
+    res.status(201).json({
+      success: true,
+      data: addedAttachments,
+      message: `${req.files.length} file(s) uploaded successfully`
+    });
+  } catch (error) {
+    console.error('Upload multiple attachments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading files'
     });
   }
 });

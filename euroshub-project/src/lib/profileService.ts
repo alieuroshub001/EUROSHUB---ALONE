@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface ProfileUpdateRequest {
   firstName?: string;
@@ -108,7 +108,7 @@ export const profileService = {
     }
   },
 
-  async uploadAvatar(file: File): Promise<string> {
+  async uploadAvatar(file: File): Promise<UserProfile> {
     try {
       const formData = new FormData();
       formData.append('avatar', file);
@@ -117,19 +117,20 @@ export const profileService = {
         headers: getAuthHeadersForFormData(),
         withCredentials: true,
       });
-      return response.data.data.avatarUrl;
+      return response.data.data.user;
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       throw new Error(err.response?.data?.message || 'Failed to upload avatar');
     }
   },
 
-  async deleteAvatar(): Promise<void> {
+  async deleteAvatar(): Promise<UserProfile> {
     try {
-      await axios.delete(`${API_BASE_URL}/profile/avatar`, {
+      const response = await axios.delete(`${API_BASE_URL}/profile/avatar`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
+      return response.data.data.user;
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       throw new Error(err.response?.data?.message || 'Failed to delete avatar');

@@ -252,6 +252,19 @@ export const projectService = {
   },
 
   // Project Members
+  async getMembers(projectId: string): Promise<{ members: ProjectMember[], owner: { _id: string; firstName: string; lastName: string; avatar?: string; email: string } }> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/members`, {
+        headers: getAuthHeaders(),
+        withCredentials: true,
+      });
+      return response.data.data;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      throw new Error(err.response?.data?.message || 'Failed to fetch members');
+    }
+  },
+
   async addMember(projectId: string, memberData: AddMemberRequest): Promise<ProjectMember[]> {
     try {
       const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/members`, memberData, {

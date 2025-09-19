@@ -57,12 +57,19 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
     try {
       const response = await authAPI.login(formData.email, formData.password);
-      
+
       if (response.success) {
+        console.log('LoginForm: Login successful, user role:', response.data.user.role);
+
+        // Small delay to ensure cookie is set
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Redirect to role-specific dashboard
         const dashboardPath = getRoleDashboardPath(response.data.user.role);
+        console.log('LoginForm: Redirecting to:', dashboardPath);
+
         router.push(dashboardPath);
-        
+
         if (onSuccess) {
           onSuccess();
         }

@@ -399,6 +399,38 @@ router.delete('/:projectId', protect, checkProjectAccess, checkProjectPermission
 });
 
 /**
+ * @route   GET /api/projects/:projectId/members
+ * @desc    Get project members
+ * @access  Private
+ */
+router.get('/:projectId/members', protect, checkProjectAccess, async (req, res) => {
+  try {
+    const project = req.project;
+
+    // Populate members
+    await project.populate([
+      { path: 'members.user', select: 'firstName lastName avatar email' },
+      { path: 'members.addedBy', select: 'firstName lastName' },
+      { path: 'owner', select: 'firstName lastName avatar email' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members: project.members,
+        owner: project.owner
+      }
+    });
+  } catch (error) {
+    console.error('Get project members error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching project members'
+    });
+  }
+});
+
+/**
  * @route   POST /api/projects/:projectId/members
  * @desc    Add member to project
  * @access  Private
@@ -681,7 +713,16 @@ router.get('/:projectId/boards', protect, checkProjectAccess, async (req, res) =
       .populate({
         path: 'lists',
         match: { isArchived: false },
-        options: { sort: { position: 1 } }
+        options: { sort: { position: 1 } },
+        populate: {
+          path: 'cards',
+          match: { isArchived: false },
+          options: { sort: { position: 1 } },
+          populate: [
+            { path: 'assignedTo', select: 'firstName lastName avatar email' },
+            { path: 'createdBy', select: 'firstName lastName avatar' }
+          ]
+        }
       })
       .sort({ position: 1, createdAt: -1 });
 

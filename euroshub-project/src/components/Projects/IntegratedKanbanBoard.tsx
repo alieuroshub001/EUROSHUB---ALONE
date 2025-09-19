@@ -8,6 +8,8 @@ import KanbanColumn from './KanbanColumn';
 import TaskCard from './TaskCard';
 import CreateBoardModal from './CreateBoardModal';
 import CreateTaskModal from './CreateTaskModal';
+import EnhancedEditTaskModal from './EnhancedEditTaskModal';
+import { cardService } from '@/lib/cardService';
 import { boardService, Board, List, Card, CreateBoardRequest, CreateCardRequest } from '../../lib/boardService';
 import { projectService, Project } from '../../lib/projectService';
 import { userService } from '../../lib/userService';
@@ -82,6 +84,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [showEditTask, setShowEditTask] = useState<boolean>(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -110,6 +115,22 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           role: member.role
         }));
         setTeamMembers(members);
+
+        // Load current user info
+        try {
+          const { getMe } = await import('@/lib/auth');
+          const userInfo = await getMe();
+          if (userInfo) {
+            setCurrentUser({
+              id: userInfo.id,
+              name: `${userInfo.firstName} ${userInfo.lastName}`,
+              avatar: userInfo.avatar
+            });
+          }
+        } catch (userErr) {
+          console.warn('Failed to load current user:', userErr);
+        }
+
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load project');
       } finally {
@@ -128,8 +149,12 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       if (!project) return;
 
       try {
+        console.log('Loading boards for project:', project._id);
         const boardsData = await boardService.getProjectBoards(project._id);
+        console.log('Raw boards data from API:', boardsData);
+
         const convertedBoards = boardsData.map(convertBackendBoard);
+        console.log('Converted boards:', convertedBoards);
 
         // Add members to each board from project
         const boardsWithMembers = convertedBoards.map(board => ({
@@ -137,9 +162,11 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           members: teamMembers
         }));
 
+        console.log('Boards with members:', boardsWithMembers);
         setBoards(boardsWithMembers);
 
         if (boardsWithMembers.length > 0 && !activeBoard) {
+          console.log('Setting active board:', boardsWithMembers[0]);
           setActiveBoard(boardsWithMembers[0]);
         }
       } catch (err) {
@@ -217,7 +244,14 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
   }, [activeBoard]);
 
   const handleCreateBoard = useCallback(async (boardData: BoardData) => {
-    if (!project) return;
+    console.log('handleCreateBoard called with:', boardData);
+
+    if (!project) {
+      console.error('No project found');
+      return;
+    }
+
+    console.log('Project found:', project._id);
 
     try {
       const createData: CreateBoardRequest = {
@@ -227,12 +261,16 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         createDefaultLists: true
       };
 
+      console.log('Creating board with data:', createData);
       const newBoardData = await boardService.createBoard(project._id, createData);
+      console.log('Board created successfully:', newBoardData);
+
       const newBoard = {
         ...convertBackendBoard(newBoardData),
         members: teamMembers
       };
 
+      console.log('Converted board:', newBoard);
       setBoards(prevBoards => [...prevBoards, newBoard]);
 
       if (!activeBoard) {
@@ -240,7 +278,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       }
 
       setShowCreateBoard(false);
+      console.log('Create board modal closed');
     } catch (err) {
+      console.error('Failed to create board:', err);
       setError(err instanceof Error ? err.message : 'Failed to create board');
     }
   }, [project, teamMembers, activeBoard]);
@@ -254,12 +294,19 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         description: taskData.description,
         priority: taskData.priority,
         assignedTo: taskData.assignees.map(name => {
-          const member = teamMembers.find(m => m.name === name);
+          console.log('Create task - Looking for member with name:', name);
+          const member = teamMembers.find(m => {
+            console.log('Create task - Checking member:', m.name, 'against:', name);
+            return m.name === name;
+          });
+          console.log('Create task - Found member:', member);
           return member?.id;
         }).filter(Boolean),
-        dueDate: taskData.dueDate,
+        dueDate: taskData.dueDate || undefined,
         labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' }))
       };
+
+      console.log('Create task data being sent:', createData);
 
       const newCardData = await boardService.createCard(selectedColumn, createData);
       const newTask = convertBackendCard(newCardData);
@@ -286,6 +333,218 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       setError(err instanceof Error ? err.message : 'Failed to create task');
     }
   }, [activeBoard, selectedColumn, teamMembers]);
+
+  const handleEditTask = useCallback((taskId: string, taskData?: TaskData) => {
+    // Find the task to edit
+    let taskToEdit = null;
+    for (const column of activeBoard?.columns || []) {
+      const foundTask = column.tasks.find((t: any) => t.id === taskId);
+      if (foundTask) {
+        taskToEdit = foundTask;
+        break;
+      }
+    }
+
+    if (taskToEdit) {
+      setEditingTask(taskToEdit);
+      setShowEditTask(true);
+    }
+  }, [activeBoard]);
+
+  const handleUpdateTask = useCallback(async (taskId: string, taskData: TaskData) => {
+    if (!activeBoard) return;
+
+    try {
+      console.log('handleUpdateTask called with:', { taskId, taskData, teamMembers });
+
+      const updateData: any = {
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority,
+        assignedTo: taskData.assignees.map(name => {
+          console.log('Looking for member with name:', name);
+          const member = teamMembers.find(m => {
+            console.log('Checking member:', m.name, 'against:', name);
+            return m.name === name;
+          });
+          console.log('Found member:', member);
+          return member?.id;
+        }).filter(Boolean),
+        dueDate: taskData.dueDate || undefined,
+        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' }))
+      };
+
+      console.log('Update data being sent:', updateData);
+
+      const updatedCardData = await boardService.updateCard(taskId, updateData);
+      const updatedTask = convertBackendCard(updatedCardData);
+
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.map((task: any) =>
+            task.id === taskId ? updatedTask : task
+          )
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update task');
+    }
+  }, [activeBoard, teamMembers]);
+
+  const handleAddComment = useCallback(async (taskId: string, comment: string) => {
+    try {
+      await cardService.addComment(taskId, comment);
+
+      // Refresh the task data to get updated comments
+      const updatedCard = await cardService.getCard(taskId);
+
+      // Update the task in the current board
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.map((task: any) =>
+            task.id === taskId ? { ...task, comments: updatedCard.comments } : task
+          )
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add comment');
+      throw err;
+    }
+  }, [activeBoard]);
+
+  const handleUploadFile = useCallback(async (taskId: string, file: File) => {
+    try {
+      await cardService.uploadFile(taskId, file);
+
+      // Refresh the task data to get updated attachments
+      const updatedCard = await cardService.getCard(taskId);
+
+      // Update the task in the current board
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.map((task: any) =>
+            task.id === taskId ? { ...task, attachments: updatedCard.attachments } : task
+          )
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      throw err;
+    }
+  }, [activeBoard]);
+
+  const handleDeleteAttachment = useCallback(async (taskId: string, attachmentId: string) => {
+    try {
+      await cardService.deleteAttachment(taskId, attachmentId);
+
+      // Refresh the task data to get updated attachments
+      const updatedCard = await cardService.getCard(taskId);
+
+      // Update the task in the current board
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.map((task: any) =>
+            task.id === taskId ? { ...task, attachments: updatedCard.attachments } : task
+          )
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete attachment');
+      throw err;
+    }
+  }, [activeBoard]);
+
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (!activeBoard) return;
+
+    try {
+      await boardService.deleteCard(taskId);
+
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.filter((task: any) => task.id !== taskId)
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete task');
+    }
+  }, [activeBoard]);
+
+  const handleAssignUser = useCallback(async (taskId: string, userIds: string[]) => {
+    try {
+      const updatedAssignees = await boardService.assignUsers(taskId, userIds);
+
+      const updatedBoard = {
+        ...activeBoard,
+        columns: activeBoard.columns.map((col: any) => ({
+          ...col,
+          tasks: col.tasks.map((task: any) =>
+            task.id === taskId
+              ? { ...task, assignees: updatedAssignees.map(user => ({
+                  id: user._id,
+                  name: `${user.firstName} ${user.lastName}`,
+                  avatar: user.avatar
+                }))}
+              : task
+          )
+        }))
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to assign users');
+    }
+  }, [activeBoard]);
 
   const handleAddTask = useCallback((columnId: string) => {
     setSelectedColumn(columnId);
@@ -356,20 +615,38 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
 
   if (!activeBoard) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 flex items-center justify-center">
-            <Plus size={32} className="text-gray-400" />
+      <div>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 flex items-center justify-center">
+              <Plus size={32} className="text-gray-400" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Boards Found</h2>
+            <p className="text-gray-600 mb-4">Create your first project board to get started</p>
+            <button
+              onClick={() => {
+                console.log('Create Board button clicked');
+                setShowCreateBoard(true);
+                console.log('showCreateBoard set to true');
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Create Board
+            </button>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Boards Found</h2>
-          <p className="text-gray-600 mb-4">Create your first project board to get started</p>
-          <button
-            onClick={() => setShowCreateBoard(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Create Board
-          </button>
         </div>
+
+        {/* Modals - Must be included in this return block */}
+        {console.log('Rendering modals (no active board), showCreateBoard:', showCreateBoard)}
+        {showCreateBoard && (
+          <CreateBoardModal
+            onClose={() => {
+              console.log('CreateBoardModal onClose called');
+              setShowCreateBoard(false);
+            }}
+            onSubmit={handleCreateBoard}
+          />
+        )}
       </div>
     );
   }
@@ -469,6 +746,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
                 key={column.id}
                 column={column}
                 onAddTask={handleAddTask}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onAssignUser={handleAssignUser}
               />
             ))}
           </div>
@@ -482,9 +762,13 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       </div>
 
       {/* Modals */}
+      {console.log('Rendering modals, showCreateBoard:', showCreateBoard)}
       {showCreateBoard && (
         <CreateBoardModal
-          onClose={() => setShowCreateBoard(false)}
+          onClose={() => {
+            console.log('CreateBoardModal onClose called');
+            setShowCreateBoard(false);
+          }}
           onSubmit={handleCreateBoard}
         />
       )}
@@ -495,6 +779,22 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           onSubmit={handleCreateTask}
           columnTitle={activeBoard.columns.find((col: any) => col.id === selectedColumn)?.title}
           teamMembers={teamMembers}
+        />
+      )}
+
+      {showEditTask && editingTask && currentUser && (
+        <EnhancedEditTaskModal
+          task={editingTask}
+          onClose={() => {
+            setShowEditTask(false);
+            setEditingTask(null);
+          }}
+          onSubmit={handleUpdateTask}
+          onAddComment={handleAddComment}
+          onUploadFile={handleUploadFile}
+          onDeleteAttachment={handleDeleteAttachment}
+          teamMembers={teamMembers}
+          currentUser={currentUser}
         />
       )}
     </div>

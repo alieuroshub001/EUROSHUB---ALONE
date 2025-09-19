@@ -5,8 +5,8 @@ import { UserProfile, profileService } from '@/lib/profileService';
 
 interface AvatarUploadProps {
   profile: UserProfile;
-  onAvatarUpdate: (avatarUrl: string) => void;
-  onAvatarDelete: () => void;
+  onAvatarUpdate: (updatedProfile: UserProfile) => void;
+  onAvatarDelete: (updatedProfile: UserProfile) => void;
 }
 
 export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }: AvatarUploadProps) {
@@ -32,8 +32,8 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
     setLoading(true);
 
     try {
-      const avatarUrl = await profileService.uploadAvatar(file);
-      onAvatarUpdate(avatarUrl);
+      const updatedProfile = await profileService.uploadAvatar(file);
+      onAvatarUpdate(updatedProfile);
       alert('Avatar uploaded successfully!');
     } catch (err: unknown) {
       const error = err as { message: string };
@@ -79,8 +79,8 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
 
     setLoading(true);
     try {
-      await profileService.deleteAvatar();
-      onAvatarDelete();
+      const updatedProfile = await profileService.deleteAvatar();
+      onAvatarDelete(updatedProfile);
       alert('Avatar deleted successfully!');
     } catch (err: unknown) {
       const error = err as { message: string };

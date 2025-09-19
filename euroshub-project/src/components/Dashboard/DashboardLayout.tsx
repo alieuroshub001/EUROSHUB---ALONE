@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI, User } from '@/lib/auth';
+import { authAPI, User, getRoleDashboardPath } from '@/lib/auth';
 import Sidebar from '@/components/Global/Sidebar/Sidebar';
 import Header from '@/components/Global/Header/Header';
 import NavigationProvider from '@/components/Global/Navigation/NavigationProvider';
@@ -33,6 +33,11 @@ export default function DashboardLayout({
     const checkAuth = async () => {
       try {
         console.log('DashboardLayout: Checking authentication...');
+        console.log('DashboardLayout: Required role:', role);
+
+        // Add delay to ensure cookie is properly set
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         const userData = await authAPI.getMe();
         console.log('DashboardLayout: getMe result:', userData);
 
@@ -45,7 +50,10 @@ export default function DashboardLayout({
         // Check if user has the required role
         if (userData.role !== role) {
           console.log('DashboardLayout: Role mismatch. Expected:', role, 'Got:', userData.role);
-          router.push('/');
+          // Redirect to user's correct dashboard instead of login
+          const correctPath = getRoleDashboardPath(userData.role);
+          console.log('DashboardLayout: Redirecting to correct dashboard:', correctPath);
+          router.push(correctPath);
           return;
         }
 
@@ -53,6 +61,21 @@ export default function DashboardLayout({
         setUser(userData);
       } catch (error) {
         console.error('DashboardLayout: Auth check failed:', error);
+
+        // Add more specific error handling
+        if (error instanceof Error) {
+          console.error('DashboardLayout: Error details:', error.message);
+
+          // Check for network errors specifically
+          if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
+            console.error('DashboardLayout: Network error during auth check - server may be down or unreachable');
+            console.error('DashboardLayout: API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
+
+            // Don't redirect to login immediately on network errors - give user a chance to retry
+            return;
+          }
+        }
+
         router.push('/');
       } finally {
         setLoading(false);

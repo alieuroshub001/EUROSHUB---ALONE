@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuthToken } from './auth';
 import { UserRole } from './permissions';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface CreateUserRequest {
   firstName: string;
@@ -124,6 +124,16 @@ export const userService = {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       throw new Error(err.response?.data?.message || 'Failed to delete user');
+    }
+  },
+
+  async getClients(): Promise<User[]> {
+    try {
+      const users = await this.getUsers();
+      return users.filter(user => user.role === 'client');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      throw new Error(err.response?.data?.message || 'Failed to fetch clients');
     }
   },
 };

@@ -105,16 +105,16 @@ export const useSocket = (options: UseSocketOptions = {}) => {
 
   const on = <T extends keyof SocketEvents>(event: T, handler: SocketEvents[T]) => {
     if (socketRef.current) {
-      socketRef.current.on(event, handler);
+      socketRef.current.on(event as string, handler as (...args: any[]) => void);
     }
   };
 
   const off = <T extends keyof SocketEvents>(event: T, handler?: SocketEvents[T]) => {
     if (socketRef.current) {
       if (handler) {
-        socketRef.current.off(event, handler);
+        socketRef.current.off(event as string, handler as (...args: any[]) => void);
       } else {
-        socketRef.current.off(event);
+        socketRef.current.off(event as string);
       }
     }
   };

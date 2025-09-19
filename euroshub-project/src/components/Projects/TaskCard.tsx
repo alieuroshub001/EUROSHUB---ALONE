@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -9,7 +10,11 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  MoreHorizontal,
+  Edit3,
+  Trash2,
+  UserPlus
 } from 'lucide-react';
 
 interface Member {
@@ -32,9 +37,19 @@ interface Task {
 interface TaskCardProps {
   task: Task;
   isDragging?: boolean;
+  onEdit?: (taskId: string, taskData: any) => void;
+  onDelete?: (taskId: string) => void;
+  onAssign?: (taskId: string, userIds: string[]) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging = false }) => {
+const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  isDragging = false,
+  onEdit,
+  onDelete,
+  onAssign
+}) => {
+  const [showMenu, setShowMenu] = useState(false);
   const {
     attributes,
     listeners,
@@ -94,7 +109,85 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging = false }) => {
         <h4 className="font-semibold text-gray-900 text-sm leading-tight pr-2 line-clamp-2">
           {task.title}
         </h4>
-        {getPriorityIcon(task.priority)}
+        <div className="flex items-center space-x-1">
+          {getPriorityIcon(task.priority)}
+
+          {/* Dropdown Menu */}
+          {(onEdit || onDelete || onAssign) && (
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(!showMenu);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+
+              {showMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowMenu(false)}
+                  />
+                  <div className="absolute right-0 top-6 z-20 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                    {onEdit && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(task.id, {
+                            title: task.title,
+                            description: task.description,
+                            priority: task.priority,
+                            assignees: task.assignees?.map(a => a.name) || [],
+                            dueDate: task.dueDate,
+                            tags: task.tags || []
+                          });
+                          setShowMenu(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Edit3 size={14} />
+                        <span>Edit Task</span>
+                      </button>
+                    )}
+
+                    {onAssign && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAssign(task.id, []);
+                          setShowMenu(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <UserPlus size={14} />
+                        <span>Assign Users</span>
+                      </button>
+                    )}
+
+                    {onDelete && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Are you sure you want to delete this task?')) {
+                            onDelete(task.id);
+                          }
+                          setShowMenu(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete Task</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Task Description */}
