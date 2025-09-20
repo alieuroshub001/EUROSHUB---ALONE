@@ -6,8 +6,21 @@ const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 // Load environment variables
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config(); // Will load from server/.env
+// Only load .env file in development or if no NODE_ENV is set
+if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+  require('dotenv').config({ path: path.join(__dirname, '.env') });
+}
+
+// Railway-specific environment validation
+if (process.env.NODE_ENV === 'production') {
+  console.log('🔧 Railway Production Mode Detected');
+  // Ensure critical environment variables are available
+  if (!process.env.MONGODB_URI) {
+    console.error('❌ MONGODB_URI is required in production');
+  }
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET is required in production');
+  }
 }
 
 const connectDB = require('./config/database');
@@ -94,17 +107,32 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
-// CORS configuration - must work for Vercel app
+// CORS configuration - Dynamic origin handling for Railway + Vercel
+const allowedOrigins = [
+  'https://euroshub-alone.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  process.env.NEXT_PUBLIC_SITE_URL,
+  process.env.CORS_ORIGIN
+].filter(Boolean); // Remove undefined values
+
 app.use((req, res, next) => {
-  // Always allow Vercel origin
-  res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
+  const origin = req.headers.origin;
+
+  // Allow requests from allowed origins or no origin (for server-to-server)
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
-  console.log(`🔧 CORS: ${req.method} ${req.path} from ${req.headers.origin || 'no-origin'}`);
+  console.log(`🔧 CORS: ${req.method} ${req.path} from ${origin || 'no-origin'} - ${allowedOrigins.includes(origin) ? 'ALLOWED' : 'CHECKING'}`);
 
   // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
@@ -251,34 +279,48 @@ console.log('  - JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'not set');
 console.log('  - EMAIL_SERVICE:', process.env.EMAIL_SERVICE || 'not set');
 console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
 
-// Railway binding - try different approaches
+// Railway binding configuration
 const HOST = '0.0.0.0';
 
 console.log(`🎯 Attempting to bind to ${HOST}:${PORT}`);
 console.log(`⏰ Deployment timestamp: ${new Date().toISOString()}`);
+console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🔧 Railway Public URL: ${process.env.RAILWAY_STATIC_URL || 'not set'}`);
 
 server.listen(PORT, HOST, () => {
   console.log(`✅ Server successfully bound to ${HOST}:${PORT}`);
   console.log(`🌐 Server running in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`🔗 Socket.IO enabled for real-time communication`);
-  console.log(`🌐 Health check: http://${HOST}:${PORT}/api/health`);
-  console.log(`🚀 Railway URL: https://euroshub-alone-production.up.railway.app`);
+  console.log(`🌐 Health check: http://${HOST}:${PORT}/health`);
+  console.log(`🌐 API Health check: http://${HOST}:${PORT}/api/health`);
+  console.log(`🚀 Railway URL: ${process.env.RAILWAY_STATIC_URL || 'https://euroshub-alone-production.up.railway.app'}`);
   console.log(`🎉 Server ready to accept connections!`);
+  console.log(`🔧 CORS Origins: ${allowedOrigins.join(', ')}`);
 }).on('error', (err) => {
   console.error('❌ Server failed to bind to port:', err);
   console.error('🔍 Attempted Port:', PORT, 'Host:', HOST);
   console.error('🔍 Error Code:', err.code);
   console.error('🔍 Error Message:', err.message);
+  console.error('🔍 Environment Variables:');
+  console.error('   - PORT:', process.env.PORT);
+  console.error('   - NODE_ENV:', process.env.NODE_ENV);
+  console.error('   - RAILWAY_STATIC_URL:', process.env.RAILWAY_STATIC_URL);
 
-  // Try alternative port as fallback
-  if (err.code === 'EADDRINUSE') {
-    console.log('🔄 Port in use, trying alternative...');
-    const altPort = PORT + 1;
-    server.listen(altPort, HOST, () => {
-      console.log(`✅ Server bound to alternative port ${HOST}:${altPort}`);
-    });
-  } else {
+  // Don't try alternative ports on Railway - let it fail fast
+  if (process.env.NODE_ENV === 'production') {
+    console.error('🚨 Production deployment failed - exiting');
     process.exit(1);
+  } else {
+    // Only try alternative port in development
+    if (err.code === 'EADDRINUSE') {
+      console.log('🔄 Port in use in development, trying alternative...');
+      const altPort = PORT + 1;
+      server.listen(altPort, HOST, () => {
+        console.log(`✅ Server bound to alternative port ${HOST}:${altPort}`);
+      });
+    } else {
+      process.exit(1);
+    }
   }
 });
 

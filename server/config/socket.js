@@ -4,17 +4,29 @@ const User = require('../models/User');
 
 class SocketManager {
   constructor(server) {
-    const corsOrigin = process.env.CORS_ORIGIN || process.env.CLIENT_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://euroshub-alone.vercel.app';
-    console.log('🔌 Socket.IO CORS origin:', corsOrigin);
+    // Build allowed origins for Socket.IO
+    const allowedOrigins = [
+      'https://euroshub-alone.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      process.env.CLIENT_URL,
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_SITE_URL,
+      process.env.CORS_ORIGIN
+    ].filter(Boolean);
+
+    console.log('🔌 Socket.IO CORS origins:', allowedOrigins);
 
     this.io = new Server(server, {
       cors: {
-        origin: [corsOrigin, 'https://euroshub-alone.vercel.app', 'http://localhost:3000'],
+        origin: allowedOrigins,
         methods: ['GET', 'POST'],
         credentials: true
       },
-      transports: ['websocket', 'polling'],
-      allowEIO3: true
+      transports: ['polling', 'websocket'], // Polling first for Railway compatibility
+      allowEIO3: true,
+      pingTimeout: 60000,
+      pingInterval: 25000
     });
 
     this.connectedUsers = new Map(); // userId -> socketId
