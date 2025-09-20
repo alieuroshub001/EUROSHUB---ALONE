@@ -51,11 +51,12 @@ export const authAPI = {
         console.log('Login: Setting token cookie:', response.data.token);
 
         // Try different cookie configurations
+        const isProduction = process.env.NODE_ENV === 'production';
         const cookieOptions = {
           expires: 7, // 7 days
           path: '/',
-          sameSite: 'lax' as const,
-          secure: false // Always false for localhost development
+          sameSite: isProduction ? 'none' as const : 'lax' as const,
+          secure: isProduction
         };
 
         console.log('Login: Cookie options:', cookieOptions);
@@ -127,11 +128,12 @@ export const authAPI = {
         // If found in localStorage, set it back to cookie
         if (token) {
           console.log('getMe: Restoring token to cookie from localStorage');
+          const isProduction = process.env.NODE_ENV === 'production';
           Cookies.set('token', token, {
             expires: 7,
             path: '/',
-            sameSite: 'lax' as const,
-            secure: false
+            sameSite: isProduction ? 'none' as const : 'lax' as const,
+            secure: isProduction
           });
         }
       }

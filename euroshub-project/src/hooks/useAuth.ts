@@ -62,7 +62,10 @@ export const useAuth = () => {
         
         if (localToken) {
           // Restore token to cookie
-          document.cookie = `token=${localToken}; path=/; SameSite=Lax`;
+          const isProduction = process.env.NODE_ENV === 'production';
+          const sameSite = isProduction ? 'None' : 'Lax';
+          const secure = isProduction ? '; Secure' : '';
+          document.cookie = `token=${localToken}; path=/; SameSite=${sameSite}${secure}`;
           token = localToken;
           console.log('useAuth: Restoring token to cookie from localStorage');
         }
