@@ -130,6 +130,17 @@ app.use(cookieParser());
 // Serve static files (for avatar uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Root route for Railway health checks
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'EuroHub Project Management API',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    status: 'running'
+  });
+});
+
 // Simple health check route
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -227,14 +238,22 @@ console.log('  - PORT:', PORT);
 console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? 'set' : 'not set');
 console.log('  - JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'not set');
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+// Railway requires binding to 0.0.0.0 and the PORT environment variable
+const HOST = process.env.RAILWAY_STATIC_URL ? '0.0.0.0' : '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`🌐 Listening on ${HOST}:${PORT}`);
   console.log(`🔗 Socket.IO enabled for real-time communication`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🌐 Health check: http://${HOST}:${PORT}/api/health`);
+  console.log(`🚀 Railway URL: https://euroshub-alone-production.up.railway.app`);
 }).on('error', (err) => {
   console.error('❌ Server failed to start:', err);
+  console.error('🔍 Port:', PORT, 'Host:', HOST);
   console.error('🔍 Check environment variables and database connection');
-  process.exit(1);
+
+  // Don't exit immediately, let Railway handle it
+  setTimeout(() => process.exit(1), 1000);
 });
 
 // Handle unhandled promise rejections
