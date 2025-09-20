@@ -30,15 +30,21 @@ const createTransporter = () => {
 
     // Try different SMTP configurations based on Railway constraints
     if (process.env.NODE_ENV === 'production') {
-      // Railway-optimized configuration
+      // Try alternative ports that Railway might allow
+      const railwayPorts = [2587, 2525, 25, 465, 587];
+      const selectedPort = process.env.SMTP_PORT || 2587;
+
       Object.assign(smtpConfig, {
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // Use SSL
-        pool: true,
+        port: parseInt(selectedPort),
+        secure: selectedPort == 465, // SSL for 465, TLS for others
+        pool: false,
         maxConnections: 1,
-        maxMessages: 3
+        ignoreTLS: false,
+        requireTLS: selectedPort != 465
       });
+
+      console.log(`📧 Trying Railway port: ${selectedPort}`);
     } else {
       // Development configuration
       Object.assign(smtpConfig, {
