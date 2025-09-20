@@ -52,8 +52,21 @@ export const useAuth = () => {
         return null;
       };
 
-      const token = getCookie('token');
+      let token = getCookie('token');
       console.log('useAuth: Token from cookie:', token ? 'exists' : 'not found');
+
+      // Fallback to localStorage if no cookie token (same as getMe function)
+      if (!token && typeof window !== 'undefined') {
+        const localToken = localStorage.getItem('token');
+        console.log('useAuth: Token from localStorage:', localToken ? 'exists' : 'not found');
+        
+        if (localToken) {
+          // Restore token to cookie
+          document.cookie = `token=${localToken}; path=/; SameSite=Lax`;
+          token = localToken;
+          console.log('useAuth: Restoring token to cookie from localStorage');
+        }
+      }
 
       if (!token) {
         console.log('useAuth: No token found, user not authenticated');
