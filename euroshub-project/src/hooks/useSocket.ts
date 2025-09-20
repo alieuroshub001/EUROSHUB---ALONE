@@ -49,7 +49,7 @@ interface SocketEvents {
 
 export const useSocket = (options: UseSocketOptions = {}) => {
   const {
-    url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000',
+    url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5001',
     token,
     autoConnect = true
   } = options;
