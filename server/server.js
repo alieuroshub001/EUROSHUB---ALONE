@@ -120,13 +120,24 @@ const allowedOrigins = [
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const userAgent = req.headers['user-agent'];
+  const timestamp = new Date().toISOString();
+
+  console.log(`\n🔍 [${timestamp}] INCOMING REQUEST DETAILS:`);
+  console.log(`   Method: ${req.method}`);
+  console.log(`   Path: ${req.path}`);
+  console.log(`   Origin: ${origin || 'NO ORIGIN'}`);
+  console.log(`   User-Agent: ${userAgent ? userAgent.substring(0, 50) + '...' : 'NO USER-AGENT'}`);
+  console.log(`   Headers: ${JSON.stringify(req.headers, null, 2)}`);
 
   // Always set CORS headers for production
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
+    console.log(`   🔧 CORS: Set Origin Header to: https://euroshub-alone.vercel.app`);
   } else {
     // Development - allow any origin
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    console.log(`   🔧 CORS: Set Origin Header to: ${origin || '*'}`);
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -135,15 +146,16 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
-  console.log(`🔧 CORS: ${req.method} ${req.path} from ${origin || 'no-origin'} - ALLOWED`);
+  console.log(`   🔧 CORS: All headers set successfully`);
 
   // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
-    console.log('✅ CORS: Handling OPTIONS preflight request');
-    res.status(200).json({ success: true });
+    console.log(`   ✅ CORS: Handling OPTIONS preflight request - responding with 200`);
+    res.status(200).json({ success: true, message: 'CORS preflight successful', timestamp });
     return;
   }
 
+  console.log(`   ➡️  Proceeding to next middleware...\n`);
   next();
 });
 
@@ -156,6 +168,38 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Request/Response logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const originalSend = res.send;
+  const originalJson = res.json;
+
+  console.log(`\n📥 [${timestamp}] REQUEST: ${req.method} ${req.path}`);
+  console.log(`   Origin: ${req.headers.origin || 'NO ORIGIN'}`);
+  console.log(`   Content-Type: ${req.headers['content-type'] || 'NOT SET'}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body Keys: ${Object.keys(req.body).join(', ')}`);
+  }
+
+  // Override res.send to log responses
+  res.send = function(body) {
+    const responseTimestamp = new Date().toISOString();
+    console.log(`📤 [${responseTimestamp}] RESPONSE: ${res.statusCode} for ${req.method} ${req.path}`);
+    console.log(`   Response Size: ${Buffer.byteLength(body)} bytes`);
+    return originalSend.call(this, body);
+  };
+
+  // Override res.json to log responses
+  res.json = function(body) {
+    const responseTimestamp = new Date().toISOString();
+    console.log(`📤 [${responseTimestamp}] JSON RESPONSE: ${res.statusCode} for ${req.method} ${req.path}`);
+    console.log(`   Response Body: ${JSON.stringify(body).substring(0, 200)}...`);
+    return originalJson.call(this, body);
+  };
+
+  next();
+});
 
 // Serve static files (for avatar uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -230,8 +274,14 @@ app.use('*', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error stack:', err.stack);
-  
+  const timestamp = new Date().toISOString();
+  console.error(`\n🚨 [${timestamp}] GLOBAL ERROR HANDLER:`);
+  console.error(`   Request: ${req.method} ${req.path}`);
+  console.error(`   Origin: ${req.headers.origin || 'NO ORIGIN'}`);
+  console.error(`   Error Name: ${err.name}`);
+  console.error(`   Error Message: ${err.message}`);
+  console.error(`   Error Stack:`, err.stack);
+
   let error = { ...err };
   error.message = err.message;
 
@@ -239,36 +289,47 @@ app.use((err, req, res, next) => {
   if (err.name === 'CastError') {
     const message = 'Resource not found';
     error = { message, statusCode: 404 };
+    console.error(`   🔧 Handled as CastError (404)`);
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
     const message = 'Duplicate field value entered';
     error = { message, statusCode: 400 };
+    console.error(`   🔧 Handled as Duplicate Key (400)`);
   }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     const message = Object.values(err.errors).map(val => val.message).join(', ');
     error = { message, statusCode: 400 };
+    console.error(`   🔧 Handled as ValidationError (400)`);
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     const message = 'Invalid token';
     error = { message, statusCode: 401 };
+    console.error(`   🔧 Handled as JWT Error (401)`);
   }
 
   if (err.name === 'TokenExpiredError') {
     const message = 'Token expired';
     error = { message, statusCode: 401 };
+    console.error(`   🔧 Handled as Token Expired (401)`);
   }
 
-  res.status(error.statusCode || 500).json({
+  const responseStatus = error.statusCode || 500;
+  console.error(`   📤 Sending response with status: ${responseStatus}`);
+
+  res.status(responseStatus).json({
     success: false,
     message: error.message || 'Server Error',
+    timestamp,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
+
+  console.error(`   ✅ Error response sent\n`);
 });
 
 const PORT = process.env.PORT || 5001;

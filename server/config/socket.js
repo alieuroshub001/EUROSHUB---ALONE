@@ -16,6 +16,7 @@ class SocketManager {
     ].filter(Boolean);
 
     console.log('🔌 Socket.IO CORS origins:', allowedOrigins);
+    console.log('🔌 Socket.IO Production mode:', process.env.NODE_ENV === 'production');
 
     this.io = new Server(server, {
       cors: {
@@ -34,6 +35,34 @@ class SocketManager {
       httpCompression: true,
       perMessageDeflate: true
     });
+
+    // Add comprehensive Socket.IO debugging
+    this.io.on('connection_error', (err) => {
+      console.error('🚨 Socket.IO Connection Error:', err);
+      console.error('🚨 Error Details:', {
+        message: err.message,
+        type: err.type,
+        description: err.description,
+        context: err.context,
+        stack: err.stack
+      });
+    });
+
+    this.io.engine.on('connection_error', (err) => {
+      console.error('🚨 Socket.IO Engine Connection Error:', err);
+      console.error('🚨 Engine Error Details:', {
+        req: {
+          url: err.req?.url,
+          method: err.req?.method,
+          headers: err.req?.headers
+        },
+        code: err.code,
+        message: err.message,
+        context: err.context
+      });
+    });
+
+    console.log('🔌 Socket.IO server initialized with debugging');
 
     this.connectedUsers = new Map(); // userId -> socketId
     this.userRooms = new Map(); // userId -> Set of room names
