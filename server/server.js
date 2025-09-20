@@ -260,22 +260,34 @@ console.log('  - JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'not set');
 console.log('  - EMAIL_SERVICE:', process.env.EMAIL_SERVICE || 'not set');
 console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
 
-// Railway requires binding to 0.0.0.0 and the PORT environment variable
-const HOST = process.env.RAILWAY_STATIC_URL ? '0.0.0.0' : '0.0.0.0';
+// Railway binding - try different approaches
+const HOST = '0.0.0.0';
+
+console.log(`🎯 Attempting to bind to ${HOST}:${PORT}`);
 
 server.listen(PORT, HOST, () => {
-  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode`);
-  console.log(`🌐 Listening on ${HOST}:${PORT}`);
+  console.log(`✅ Server successfully bound to ${HOST}:${PORT}`);
+  console.log(`🌐 Server running in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`🔗 Socket.IO enabled for real-time communication`);
   console.log(`🌐 Health check: http://${HOST}:${PORT}/api/health`);
   console.log(`🚀 Railway URL: https://euroshub-alone-production.up.railway.app`);
+  console.log(`🎉 Server ready to accept connections!`);
 }).on('error', (err) => {
-  console.error('❌ Server failed to start:', err);
-  console.error('🔍 Port:', PORT, 'Host:', HOST);
-  console.error('🔍 Check environment variables and database connection');
+  console.error('❌ Server failed to bind to port:', err);
+  console.error('🔍 Attempted Port:', PORT, 'Host:', HOST);
+  console.error('🔍 Error Code:', err.code);
+  console.error('🔍 Error Message:', err.message);
 
-  // Don't exit immediately, let Railway handle it
-  setTimeout(() => process.exit(1), 1000);
+  // Try alternative port as fallback
+  if (err.code === 'EADDRINUSE') {
+    console.log('🔄 Port in use, trying alternative...');
+    const altPort = PORT + 1;
+    server.listen(altPort, HOST, () => {
+      console.log(`✅ Server bound to alternative port ${HOST}:${altPort}`);
+    });
+  } else {
+    process.exit(1);
+  }
 });
 
 // Handle unhandled promise rejections
