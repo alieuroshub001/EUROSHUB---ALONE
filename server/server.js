@@ -23,7 +23,15 @@ const activityRoutes = require('./routes/activities');
 const automationRoutes = require('./routes/automation');
 const SocketManager = require('./config/socket');
 const ProjectSocketManager = require('./config/projectSocket');
-const automationService = require('./services/automationService');
+// Initialize automation service with error handling
+let automationService;
+try {
+  automationService = require('./services/automationService');
+  console.log('✅ Automation service initialized');
+} catch (error) {
+  console.error('⚠️  Automation service initialization failed:', error.message);
+  console.log('🚀 Server will continue without automation service');
+}
 
 const app = express();
 const server = http.createServer(app);

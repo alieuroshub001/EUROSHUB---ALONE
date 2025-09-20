@@ -4,8 +4,8 @@
   "description": "Project Management Server with Authentication",
   "main": "server.js",
   "scripts": {
-    "start": "node minimal-test.js",
-    "start-full": "node server.js",
+    "start": "node server.js",
+    "start-minimal": "node minimal-test.js",
     "dev": "nodemon server.js",
     "create-superadmin": "node scripts/createSuperAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
