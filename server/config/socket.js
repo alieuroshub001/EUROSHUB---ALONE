@@ -19,14 +19,20 @@ class SocketManager {
 
     this.io = new Server(server, {
       cors: {
-        origin: allowedOrigins,
+        origin: process.env.NODE_ENV === 'production'
+          ? ['https://euroshub-alone.vercel.app']
+          : allowedOrigins,
         methods: ['GET', 'POST'],
-        credentials: true
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization']
       },
       transports: ['polling', 'websocket'], // Polling first for Railway compatibility
       allowEIO3: true,
       pingTimeout: 60000,
-      pingInterval: 25000
+      pingInterval: 25000,
+      upgradeTimeout: 30000,
+      httpCompression: true,
+      perMessageDeflate: true
     });
 
     this.connectedUsers = new Map(); // userId -> socketId

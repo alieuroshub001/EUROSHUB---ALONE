@@ -121,8 +121,11 @@ const allowedOrigins = [
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Allow requests from allowed origins or no origin (for server-to-server)
-  if (!origin || allowedOrigins.includes(origin)) {
+  // Always set CORS headers for production
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
+  } else {
+    // Development - allow any origin
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
 
@@ -132,12 +135,12 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
-  console.log(`🔧 CORS: ${req.method} ${req.path} from ${origin || 'no-origin'} - ${allowedOrigins.includes(origin) ? 'ALLOWED' : 'CHECKING'}`);
+  console.log(`🔧 CORS: ${req.method} ${req.path} from ${origin || 'no-origin'} - ALLOWED`);
 
   // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
     console.log('✅ CORS: Handling OPTIONS preflight request');
-    res.status(204).end();
+    res.status(200).json({ success: true });
     return;
   }
 
