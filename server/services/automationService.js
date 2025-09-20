@@ -207,20 +207,28 @@ class AutomationService {
         .populate('list', 'title');
 
       for (const task of dueTasks) {
+        // Skip tasks with missing required data
+        if (!task || !task.project || !task.title || !task.assignedTo || task.assignedTo.length === 0) {
+          console.warn(`Skipping task with missing data: ${task?._id || 'unknown'}`);
+          continue;
+        }
+
         const daysUntilDue = Math.ceil((task.dueDate - now) / (1000 * 60 * 60 * 24));
 
         // Send reminders for overdue, due today, due tomorrow, or due in 3 days
         if (daysUntilDue <= 0 || daysUntilDue === 1 || daysUntilDue === 3) {
           for (const assignee of task.assignedTo) {
-            await emailService.sendDueDateReminderNotification(
-              assignee.email,
-              `${assignee.firstName} ${assignee.lastName}`,
-              task.title,
-              task._id,
-              task.project.title,
-              task.project._id,
-              task.dueDate
-            );
+            if (assignee && assignee.email && assignee.firstName && assignee.lastName) {
+              await emailService.sendDueDateReminderNotification(
+                assignee.email,
+                `${assignee.firstName} ${assignee.lastName}`,
+                task.title,
+                task._id,
+                task.project.title,
+                task.project._id,
+                task.dueDate
+              );
+            }
           }
         }
       }
