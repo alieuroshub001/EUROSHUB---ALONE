@@ -51,12 +51,13 @@ export const authAPI = {
         console.log('Login: Setting token cookie:', response.data.token);
 
         // Try different cookie configurations
-        const isProduction = process.env.NODE_ENV === 'production';
+        const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname.includes('vercel.app');
         const cookieOptions = {
           expires: 7, // 7 days
           path: '/',
           sameSite: isProduction ? 'none' as const : 'lax' as const,
           secure: isProduction
+          // Note: domain is omitted to use current domain
         };
 
         console.log('Login: Cookie options:', cookieOptions);
@@ -128,7 +129,7 @@ export const authAPI = {
         // If found in localStorage, set it back to cookie
         if (token) {
           console.log('getMe: Restoring token to cookie from localStorage');
-          const isProduction = process.env.NODE_ENV === 'production';
+          const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname.includes('vercel.app');
           Cookies.set('token', token, {
             expires: 7,
             path: '/',

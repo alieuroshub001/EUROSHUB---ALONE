@@ -62,7 +62,7 @@ export const useAuth = () => {
         
         if (localToken) {
           // Restore token to cookie
-          const isProduction = process.env.NODE_ENV === 'production';
+          const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname.includes('vercel.app');
           const sameSite = isProduction ? 'None' : 'Lax';
           const secure = isProduction ? '; Secure' : '';
           document.cookie = `token=${localToken}; path=/; SameSite=${sameSite}${secure}`;
