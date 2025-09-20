@@ -25,15 +25,38 @@ const convertBackendCard = (card: Card): any => ({
   title: card.title,
   description: card.description,
   priority: card.priority,
-  assignees: card.assignedTo.filter(user => user).map(user => ({
-    id: user!._id,
-    name: `${user!.firstName} ${user!.lastName}`,
-    avatar: user!.avatar
-  })),
+  assignees: card.assignedTo.filter(user => user).map(user =>
+    `${user!.firstName || ''} ${user!.lastName || ''}`.trim() || 'Unknown User'
+  ),
   dueDate: card.dueDate,
   tags: card.labels.map(label => label.name),
   comments: card.comments.length,
   attachments: card.attachments.length,
+  commentsData: card.comments.map(comment => ({
+    id: comment._id,
+    author: {
+      id: comment.author?._id || '',
+      name: comment.author ? `${comment.author.firstName || ''} ${comment.author.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
+      avatar: comment.author?.avatar
+    },
+    content: comment.text,
+    createdAt: comment.createdAt
+  })),
+  attachmentsData: card.attachments.map(attachment => {
+    console.log('Attachment from backend:', attachment); // Debug log
+    return {
+      id: attachment._id || attachment.id,
+      name: attachment.originalName,
+      size: attachment.size,
+      type: attachment.mimetype,
+      url: attachment.url,
+      uploadedBy: {
+        id: attachment.uploadedBy,
+        name: 'Unknown User' // We'll need to get this from somewhere else
+      },
+      uploadedAt: card.createdAt // Using card creation date as fallback
+    };
+  }),
   status: card.status,
   isOverdue: card.isOverdue,
   checklistCompletion: card.checklistCompletion
@@ -110,7 +133,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         // Set team members from project members
         const members = projectData.members.map(member => ({
           id: member.user!._id,
-          name: `${member.user!.firstName} ${member.user!.lastName}`,
+          name: `${member.user!.firstName || ''} ${member.user!.lastName || ''}`.trim() || 'Unknown User',
           avatar: member.user!.avatar,
           role: member.role
         }));
@@ -123,7 +146,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           if (userInfo) {
             setCurrentUser({
               id: userInfo.id,
-              name: `${userInfo.firstName} ${userInfo.lastName}`,
+              name: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Unknown User',
               avatar: userInfo.avatar
             });
           }
@@ -296,8 +319,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         assignedTo: taskData.assignees.map(name => {
           console.log('Create task - Looking for member with name:', name);
           const member = teamMembers.find(m => {
-            console.log('Create task - Checking member:', m.name, 'against:', name);
-            return m.name === name;
+            const memberName = typeof m.name === 'string' ? m.name : m.name?.name || '';
+            console.log('Create task - Checking member:', memberName, 'against:', name);
+            return memberName === name;
           });
           console.log('Create task - Found member:', member);
           return member?.id;
@@ -364,8 +388,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         assignedTo: taskData.assignees.map(name => {
           console.log('Looking for member with name:', name);
           const member = teamMembers.find(m => {
-            console.log('Checking member:', m.name, 'against:', name);
-            return m.name === name;
+            const memberName = typeof m.name === 'string' ? m.name : m.name?.name || '';
+            console.log('Checking member:', memberName, 'against:', name);
+            return memberName === name;
           });
           console.log('Found member:', member);
           return member?.id;
@@ -408,12 +433,13 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const updatedCard = await cardService.getCard(taskId);
 
       // Update the task in the current board
+      const updatedTask = convertBackendCard(updatedCard);
       const updatedBoard = {
         ...activeBoard,
         columns: activeBoard.columns.map((col: any) => ({
           ...col,
           tasks: col.tasks.map((task: any) =>
-            task.id === taskId ? { ...task, comments: updatedCard.comments } : task
+            task.id === taskId ? { ...task, comments: updatedTask.comments, attachments: updatedTask.attachments, commentsData: updatedTask.commentsData, attachmentsData: updatedTask.attachmentsData } : task
           )
         }))
       };
@@ -424,11 +450,21 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           board.id === activeBoard.id ? updatedBoard : board
         )
       );
+
+      // Update editingTask if it matches the updated task
+      if (editingTask && editingTask.id === taskId) {
+        const updatedEditingTask = updatedBoard.columns
+          .flatMap((col: any) => col.tasks)
+          .find((task: any) => task.id === taskId);
+        if (updatedEditingTask) {
+          setEditingTask(updatedEditingTask);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add comment');
       throw err;
     }
-  }, [activeBoard]);
+  }, [activeBoard, editingTask]);
 
   const handleUploadFile = useCallback(async (taskId: string, file: File) => {
     try {
@@ -438,12 +474,13 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const updatedCard = await cardService.getCard(taskId);
 
       // Update the task in the current board
+      const updatedTask = convertBackendCard(updatedCard);
       const updatedBoard = {
         ...activeBoard,
         columns: activeBoard.columns.map((col: any) => ({
           ...col,
           tasks: col.tasks.map((task: any) =>
-            task.id === taskId ? { ...task, attachments: updatedCard.attachments } : task
+            task.id === taskId ? { ...task, comments: updatedTask.comments, attachments: updatedTask.attachments, commentsData: updatedTask.commentsData, attachmentsData: updatedTask.attachmentsData } : task
           )
         }))
       };
@@ -454,11 +491,21 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           board.id === activeBoard.id ? updatedBoard : board
         )
       );
+
+      // Update editingTask if it matches the updated task
+      if (editingTask && editingTask.id === taskId) {
+        const updatedEditingTask = updatedBoard.columns
+          .flatMap((col: any) => col.tasks)
+          .find((task: any) => task.id === taskId);
+        if (updatedEditingTask) {
+          setEditingTask(updatedEditingTask);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload file');
       throw err;
     }
-  }, [activeBoard]);
+  }, [activeBoard, editingTask]);
 
   const handleDeleteAttachment = useCallback(async (taskId: string, attachmentId: string) => {
     try {
@@ -468,12 +515,13 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const updatedCard = await cardService.getCard(taskId);
 
       // Update the task in the current board
+      const updatedTask = convertBackendCard(updatedCard);
       const updatedBoard = {
         ...activeBoard,
         columns: activeBoard.columns.map((col: any) => ({
           ...col,
           tasks: col.tasks.map((task: any) =>
-            task.id === taskId ? { ...task, attachments: updatedCard.attachments } : task
+            task.id === taskId ? { ...task, comments: updatedTask.comments, attachments: updatedTask.attachments, commentsData: updatedTask.commentsData, attachmentsData: updatedTask.attachmentsData } : task
           )
         }))
       };
@@ -484,11 +532,21 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           board.id === activeBoard.id ? updatedBoard : board
         )
       );
+
+      // Update editingTask if it matches the updated task
+      if (editingTask && editingTask.id === taskId) {
+        const updatedEditingTask = updatedBoard.columns
+          .flatMap((col: any) => col.tasks)
+          .find((task: any) => task.id === taskId);
+        if (updatedEditingTask) {
+          setEditingTask(updatedEditingTask);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete attachment');
       throw err;
     }
-  }, [activeBoard]);
+  }, [activeBoard, editingTask]);
 
   const handleDeleteTask = useCallback(async (taskId: string) => {
     if (!activeBoard) return;
@@ -525,11 +583,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           ...col,
           tasks: col.tasks.map((task: any) =>
             task.id === taskId
-              ? { ...task, assignees: updatedAssignees.map(user => ({
-                  id: user!._id,
-                  name: `${user!.firstName} ${user!.lastName}`,
-                  avatar: user!.avatar
-                }))}
+              ? { ...task, assignees: updatedAssignees.map(user =>
+                  `${user!.firstName || ''} ${user!.lastName || ''}`.trim() || 'Unknown User'
+                )}
               : task
           )
         }))
@@ -668,16 +724,18 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
                 <div
                   key={member.id}
                   className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
-                  title={member.name}
+                  title={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
                 >
                   {member.avatar ? (
                     <img
                       src={member.avatar}
-                      alt={member.name}
+                      alt={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    member.name.split(' ').map((n: string) => n[0]).join('')
+                    typeof member.name === 'string'
+                      ? member.name.split(' ').map((n: string) => n[0]).join('')
+                      : (member.name?.name || 'U').substring(0, 2)
                   )}
                 </div>
               ))}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 // Types
 export interface Activity {
@@ -13,10 +13,10 @@ export interface Activity {
     lastName: string;
     avatar?: string;
   };
-  project: {
+  project?: {
     _id: string;
     title: string;
-  };
+  } | null;
   board?: {
     _id: string;
     title: string;
@@ -125,7 +125,7 @@ export const activityService = {
         if (options.skip) params.append('skip', options.skip.toString());
       }
 
-      const response = await axios.get(`${API_BASE_URL}/activities/dashboard?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/activities/dashboard?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -149,8 +149,8 @@ export const activityService = {
       }
 
       const endpoint = userId
-        ? `${API_BASE_URL}/activities/user/${userId}?${params.toString()}`
-        : `${API_BASE_URL}/activities/my-activities?${params.toString()}`;
+        ? `${API_BASE_URL}/api/activities/user/${userId}?${params.toString()}`
+        : `${API_BASE_URL}/api/activities/my-activities?${params.toString()}`;
 
       const response = await axios.get(endpoint, {
         headers: getAuthHeaders(),
@@ -180,7 +180,7 @@ export const activityService = {
         if (options.endDate) params.append('endDate', options.endDate);
       }
 
-      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/activities?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/activities?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -193,7 +193,7 @@ export const activityService = {
 
   async getActivityTypes(): Promise<ActivityTypeInfo[]> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/activities/types`, {
+      const response = await axios.get(`${API_BASE_URL}/api/activities/types`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -209,7 +209,7 @@ export const activityService = {
       const params = new URLSearchParams();
       params.append('period', period);
 
-      const response = await axios.get(`${API_BASE_URL}/activities/stats?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/activities/stats?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -237,12 +237,14 @@ export const activityService = {
         return `${userName} updated project "${entityName}"`;
       case 'project_member_added':
         const addedUser = activity.targetUser ? `${activity.targetUser.firstName} ${activity.targetUser.lastName}` : 'user';
-        return `${userName} added ${addedUser} to project "${activity.project.title}"`;
+        const projectTitle = activity.project?.title || activity.data?.projectTitle || activity.metadata?.entityName || 'Unknown Project';
+        return `${userName} added ${addedUser} to project "${projectTitle}"`;
       case 'project_member_role_changed':
         const changedUser = activity.targetUser ? `${activity.targetUser.firstName} ${activity.targetUser.lastName}` : 'user';
         const oldRole = activity.data?.oldValue || 'role';
         const newRole = activity.data?.newValue || 'role';
-        return `${userName} changed ${changedUser}'s role from ${oldRole} to ${newRole} in project "${activity.project.title}"`;
+        const roleProjectTitle = activity.project?.title || activity.data?.projectTitle || activity.metadata?.entityName || 'Unknown Project';
+        return `${userName} changed ${changedUser}'s role from ${oldRole} to ${newRole} in project "${roleProjectTitle}"`;
       case 'board_created':
         return `${userName} created board "${entityName}"`;
       case 'card_created':

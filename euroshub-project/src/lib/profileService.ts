@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export interface ProfileUpdateRequest {
   firstName?: string;
@@ -60,7 +60,7 @@ const getAuthHeadersForFormData = () => {
 export const profileService = {
   async getProfile(): Promise<UserProfile> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/profile`, {
+      const response = await axios.get(`${API_BASE_URL}/api/profile`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -73,7 +73,7 @@ export const profileService = {
 
   async updateProfile(profileData: ProfileUpdateRequest): Promise<UserProfile> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/profile`, profileData, {
+      const response = await axios.put(`${API_BASE_URL}/api/profile`, profileData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -92,7 +92,7 @@ export const profileService = {
 
   async changePassword(passwordData: PasswordChangeRequest): Promise<void> {
     try {
-      await axios.put(`${API_BASE_URL}/profile/password`, passwordData, {
+      await axios.put(`${API_BASE_URL}/api/profile/password`, passwordData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -113,7 +113,7 @@ export const profileService = {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await axios.post(`${API_BASE_URL}/profile/avatar`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/profile/avatar`, formData, {
         headers: getAuthHeadersForFormData(),
         withCredentials: true,
       });
@@ -126,7 +126,7 @@ export const profileService = {
 
   async deleteAvatar(): Promise<UserProfile> {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/profile/avatar`, {
+      const response = await axios.delete(`${API_BASE_URL}/api/profile/avatar`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });

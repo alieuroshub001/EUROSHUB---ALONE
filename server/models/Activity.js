@@ -18,8 +18,9 @@ const activitySchema = new mongoose.Schema({
       'card_created', 'card_updated', 'card_deleted', 'card_moved',
       'card_assigned', 'card_unassigned', 'card_completed', 'card_reopened',
       'card_due_date_set', 'card_due_date_changed', 'card_comment_added',
-      'card_attachment_added', 'card_attachment_removed', 'card_label_added',
-      'card_label_removed', 'card_checklist_item_completed'
+      'card_attachment_added', 'card_attachment_removed', 'card_attachment_deleted',
+      'card_image_added', 'card_label_added', 'card_label_removed',
+      'card_checklist_item_completed'
     ],
     required: true
   },
@@ -116,6 +117,7 @@ activitySchema.virtual('description').get(function() {
 // Static method to create activity log
 activitySchema.statics.logActivity = async function(activityData) {
   try {
+    console.log('Creating activity with data:', activityData); // Debug log
     const activity = new this(activityData);
     await activity.save();
 
@@ -237,7 +239,7 @@ activitySchema.statics.getDashboardActivities = async function(userId, userRole,
     query.project = { $in: projectIds };
   }
 
-  return this.find(query)
+  const activities = await this.find(query)
     .populate([
       { path: 'user', select: 'firstName lastName avatar' },
       { path: 'project', select: 'title' },
@@ -248,6 +250,15 @@ activitySchema.statics.getDashboardActivities = async function(userId, userRole,
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip);
+
+  // Debug log to check project population
+  activities.forEach(activity => {
+    if (!activity.project) {
+      console.log('Activity with missing project:', activity._id, activity.type, activity.project);
+    }
+  });
+
+  return activities;
 };
 
 // Indexes for performance

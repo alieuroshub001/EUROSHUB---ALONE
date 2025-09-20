@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 // Types
 export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
@@ -164,7 +164,7 @@ export const projectService = {
         });
       }
 
-      const response = await axios.get(`${API_BASE_URL}/projects?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -186,7 +186,7 @@ export const projectService = {
 
   async getProject(projectId: string): Promise<Project> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -199,7 +199,7 @@ export const projectService = {
 
   async createProject(projectData: CreateProjectRequest): Promise<Project> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/projects`, projectData, {
+      const response = await axios.post(`${API_BASE_URL}/api/projects`, projectData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -212,7 +212,7 @@ export const projectService = {
 
   async updateProject(projectId: string, projectData: UpdateProjectRequest): Promise<Project> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/projects/${projectId}`, projectData, {
+      const response = await axios.put(`${API_BASE_URL}/api/projects/${projectId}`, projectData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -225,7 +225,7 @@ export const projectService = {
 
   async deleteProject(projectId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/projects/${projectId}`, {
+      await axios.delete(`${API_BASE_URL}/api/projects/${projectId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -237,7 +237,7 @@ export const projectService = {
 
   async archiveProject(projectId: string, archive: boolean = true): Promise<Project> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/projects/${projectId}/archive`,
+      const response = await axios.put(`${API_BASE_URL}/api/projects/${projectId}/archive`,
         { archive },
         {
           headers: getAuthHeaders(),
@@ -254,7 +254,7 @@ export const projectService = {
   // Project Members
   async getMembers(projectId: string): Promise<{ members: ProjectMember[], owner: { _id: string; firstName: string; lastName: string; avatar?: string; email: string } }> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/members`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/members`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -267,7 +267,7 @@ export const projectService = {
 
   async addMember(projectId: string, memberData: AddMemberRequest): Promise<ProjectMember[]> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/members`, memberData, {
+      const response = await axios.post(`${API_BASE_URL}/api/projects/${projectId}/members`, memberData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -280,7 +280,7 @@ export const projectService = {
 
   async updateMemberRole(projectId: string, memberId: string, memberData: UpdateMemberRequest): Promise<ProjectMember[]> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/projects/${projectId}/members/${memberId}`, memberData, {
+      const response = await axios.put(`${API_BASE_URL}/api/projects/${projectId}/members/${memberId}`, memberData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -293,7 +293,7 @@ export const projectService = {
 
   async removeMember(projectId: string, memberId: string): Promise<ProjectMember[]> {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/projects/${projectId}/members/${memberId}`, {
+      const response = await axios.delete(`${API_BASE_URL}/api/projects/${projectId}/members/${memberId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -316,7 +316,7 @@ export const projectService = {
         }
       }
 
-      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/activities?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/activities?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });

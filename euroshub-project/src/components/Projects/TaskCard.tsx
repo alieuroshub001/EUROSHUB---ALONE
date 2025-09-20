@@ -17,17 +17,12 @@ import {
   UserPlus
 } from 'lucide-react';
 
-interface Member {
-  id: string;
-  name: string;
-}
-
 interface Task {
   id: string;
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high';
-  assignees?: Member[];
+  assignees?: string[];
   dueDate?: string;
   tags?: string[];
   comments: number;
@@ -140,7 +135,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                             title: task.title,
                             description: task.description,
                             priority: task.priority,
-                            assignees: task.assignees?.map(a => a.name) || [],
+                            assignees: task.assignees || [],
                             dueDate: task.dueDate,
                             tags: task.tags || []
                           });
@@ -249,13 +244,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
         {/* Assignees */}
         <div className="flex items-center space-x-2">
           <div className="flex -space-x-1">
-            {task.assignees?.slice(0, 3).map((assignee, index) => (
+            {task.assignees?.slice(0, 3).map((assigneeName, index) => (
               <div
-                key={assignee.id || index}
+                key={assigneeName || index}
                 className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
-                title={assignee.name}
+                title={assigneeName}
               >
-                {assignee.name.split(' ').map(n => n[0]).join('')}
+                {assigneeName && assigneeName.split(' ').map(n => n[0]).join('')}
               </div>
             ))}
             {task.assignees && task.assignees.length > 3 && (

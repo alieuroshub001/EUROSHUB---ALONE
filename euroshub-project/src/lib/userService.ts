@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuthToken } from './auth';
 import { UserRole } from './permissions';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export interface CreateUserRequest {
   firstName: string;
@@ -62,7 +62,7 @@ const getAuthHeaders = () => {
 export const userService = {
   async getUsers(): Promise<User[]> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/user-management/users`, {
+      const response = await axios.get(`${API_BASE_URL}/api/user-management/users`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -75,7 +75,7 @@ export const userService = {
 
   async createUser(userData: CreateUserRequest): Promise<{ user: User; emailSent: boolean; temporaryPassword?: string }> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/user-management/users`, userData, {
+      const response = await axios.post(`${API_BASE_URL}/api/user-management/users`, userData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -98,7 +98,7 @@ export const userService = {
 
   async updateUser(userData: UpdateUserRequest): Promise<User> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/user-management/users`, userData, {
+      const response = await axios.put(`${API_BASE_URL}/api/user-management/users`, userData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -117,7 +117,7 @@ export const userService = {
 
   async deleteUser(userId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/user-management/users?id=${userId}`, {
+      await axios.delete(`${API_BASE_URL}/api/user-management/users?id=${userId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });

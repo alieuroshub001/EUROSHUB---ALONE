@@ -469,7 +469,8 @@ router.post('/:projectId/members', protect, checkProjectAccess, checkMemberManag
         project: project._id,
         targetUser: userId,
         data: {
-          newValue: role
+          newValue: role,
+          projectTitle: project.title // Include project title directly
         },
         metadata: {
           entityName: project.title,
@@ -540,7 +541,8 @@ router.put('/:projectId/members/:memberId', protect, checkProjectAccess, checkMe
         targetUser: memberId,
         data: {
           oldValue: oldRole,
-          newValue: role
+          newValue: role,
+          projectTitle: project.title // Include project title directly
         },
         metadata: {
           entityName: project.title,

@@ -772,7 +772,18 @@ router.get('/assigned-to-me', protect, async (req, res) => {
  * @desc    Upload file attachment to card
  * @access  Private
  */
-router.post('/:cardId/attachments', protect, checkCardAccess, upload.single('file'), async (req, res) => {
+router.post('/:cardId/attachments', protect, checkCardAccess, (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload failed'
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const card = req.card;
 
@@ -995,7 +1006,18 @@ router.delete('/:cardId/attachments/:attachmentId', protect, checkCardAccess, as
  * @desc    Upload multiple file attachments to card
  * @access  Private
  */
-router.post('/:cardId/attachments/multiple', protect, checkCardAccess, upload.array('files', 10), async (req, res) => {
+router.post('/:cardId/attachments/multiple', protect, checkCardAccess, (req, res, next) => {
+  upload.array('files', 10)(req, res, (err) => {
+    if (err) {
+      console.error('Multiple file upload error:', err);
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload failed'
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const card = req.card;
 
@@ -1060,6 +1082,49 @@ router.post('/:cardId/attachments/multiple', protect, checkCardAccess, upload.ar
     res.status(500).json({
       success: false,
       message: 'Error uploading files'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/cards/:cardId/attachments/:attachmentId/download
+ * @desc    Download attachment with proper filename
+ * @access  Private
+ */
+router.get('/:cardId/attachments/:attachmentId/download', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { attachmentId } = req.params;
+
+    // Find the attachment
+    const attachment = card.attachments.id(attachmentId);
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Attachment not found'
+      });
+    }
+
+    // Check if user has permission to download attachments
+    const hasPermission = await card.hasPermission(req.user.id, 'read');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to download attachments from this card'
+      });
+    }
+
+    // Set headers for file download with original filename
+    res.setHeader('Content-Disposition', `attachment; filename="${attachment.originalName}"`);
+    res.setHeader('Content-Type', attachment.mimetype);
+
+    // Redirect to the Cloudinary URL
+    res.redirect(attachment.url);
+  } catch (error) {
+    console.error('Download attachment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error downloading attachment'
     });
   }
 });

@@ -46,7 +46,7 @@ interface TeamMember {
 }
 
 interface EnhancedEditTaskModalProps {
-  task: TaskData & { id: string };
+  task: TaskData & { id: string; commentsData?: Comment[]; attachmentsData?: Attachment[] };
   onClose: () => void;
   onSubmit: (taskId: string, taskData: TaskData) => void;
   onAddComment: (taskId: string, comment: string) => Promise<void>;
@@ -73,8 +73,8 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
     assignees: task.assignees,
     dueDate: task.dueDate || '',
     tags: task.tags,
-    comments: task.comments || [],
-    attachments: task.attachments || []
+    comments: task.commentsData || [],
+    attachments: task.attachmentsData || []
   });
 
   const [newTag, setNewTag] = useState('');
@@ -84,6 +84,20 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync formData with task prop when it changes (for real-time updates)
+  useEffect(() => {
+    setFormData({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      assignees: task.assignees,
+      dueDate: task.dueDate || '',
+      tags: task.tags,
+      comments: task.commentsData || [],
+      attachments: task.attachmentsData || []
+    });
+  }, [task]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +190,30 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleDownloadAttachment = async (attachment: any) => {
+    console.log('Downloading attachment:', attachment); // Debug log
+    console.log('Task ID:', task.id, 'Attachment ID:', attachment.id); // Debug log
+
+    // Use direct blob download approach for better reliability
+    try {
+      const response = await fetch(attachment.url);
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.name; // Use original filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Final fallback to opening in new tab
+      window.open(attachment.url, '_blank');
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -346,8 +384,8 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                           >
                             <input
                               type="checkbox"
-                              checked={formData.assignees.includes(member.name)}
-                              onChange={() => handleToggleAssignee(member.name)}
+                              checked={formData.assignees.includes(typeof member.name === 'string' ? member.name : member.name?.name || '')}
+                              onChange={() => handleToggleAssignee(typeof member.name === 'string' ? member.name : member.name?.name || '')}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <div className="flex items-center space-x-2">
@@ -355,15 +393,15 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                                 {member.avatar ? (
                                   <img
                                     src={member.avatar}
-                                    alt={member.name}
+                                    alt={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
                                     className="w-full h-full rounded-full object-cover"
                                   />
                                 ) : (
-                                  member.name.charAt(0).toUpperCase()
+                                  (typeof member.name === 'string' ? member.name : member.name?.name || 'U').charAt(0).toUpperCase()
                                 )}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                                <p className="text-sm font-medium text-gray-900">{typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}</p>
                                 <p className="text-xs text-gray-500">{member.role}</p>
                               </div>
                             </div>
@@ -481,16 +519,16 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                           {comment.author.avatar ? (
                             <img
                               src={comment.author.avatar}
-                              alt={comment.author.name}
+                              alt={typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'Unknown User'}
                               className="w-full h-full rounded-full object-cover"
                             />
                           ) : (
-                            comment.author.name.charAt(0).toUpperCase()
+(typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'U').charAt(0).toUpperCase()
                           )}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <p className="text-sm font-medium text-gray-900">{comment.author.name}</p>
+                            <p className="text-sm font-medium text-gray-900">{typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'Unknown User'}</p>
                             <p className="text-xs text-gray-500">{formatDate(comment.createdAt)}</p>
                           </div>
                           <p className="text-sm text-gray-700">{comment.content}</p>
@@ -513,11 +551,11 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                     {currentUser.avatar ? (
                       <img
                         src={currentUser.avatar}
-                        alt={currentUser.name}
+                        alt={typeof currentUser.name === 'string' ? currentUser.name : currentUser.name?.name || 'Current User'}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
-                      currentUser.name.charAt(0).toUpperCase()
+(typeof currentUser.name === 'string' ? currentUser.name : currentUser.name?.name || 'U').charAt(0).toUpperCase()
                     )}
                   </div>
                   <div className="flex-1">
@@ -608,13 +646,13 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                         <div>
                           <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
                           <p className="text-xs text-gray-500">
-                            {formatFileSize(attachment.size)} • Uploaded by {attachment.uploadedBy.name} • {formatDate(attachment.uploadedAt)}
+                            {formatFileSize(attachment.size)} • Uploaded by {typeof attachment.uploadedBy.name === 'string' ? attachment.uploadedBy.name : attachment.uploadedBy.name?.name || 'Unknown User'} • {formatDate(attachment.uploadedAt)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => window.open(attachment.url, '_blank')}
+                          onClick={() => handleDownloadAttachment(attachment)}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
                           title="Download"
                         >

@@ -15,7 +15,6 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'euroshub/attachments',
     resource_type: 'auto', // Automatically detect file type
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt', 'csv', 'xlsx', 'zip', 'rar'],
     transformation: [
       {
         quality: 'auto',
