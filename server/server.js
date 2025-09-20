@@ -255,6 +255,7 @@ console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
 const HOST = '0.0.0.0';
 
 console.log(`🎯 Attempting to bind to ${HOST}:${PORT}`);
+console.log(`⏰ Deployment timestamp: ${new Date().toISOString()}`);
 
 server.listen(PORT, HOST, () => {
   console.log(`✅ Server successfully bound to ${HOST}:${PORT}`);
