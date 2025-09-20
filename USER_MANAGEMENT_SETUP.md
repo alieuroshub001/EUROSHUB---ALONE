@@ -33,7 +33,7 @@ EMAIL_FROM="EuroHub <noreply@eurohub.com>"
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 # Server Port
-PORT=5000
+PORT=5001
 ```
 
 #### Install Dependencies & Start Server
@@ -49,7 +49,7 @@ npm run dev
 Create/update your frontend `.env.local` file:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_API_URL=http://localhost:5001/api
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -213,7 +213,7 @@ The system is ready for your database. Simply:
 
 ## ✅ Verification Checklist
 
-- [ ] Server starts without errors on port 5000
+- [ ] Server starts without errors on port 5001
 - [ ] Frontend starts without errors on port 3000
 - [ ] User management pages load correctly for each role
 - [ ] API endpoints respond correctly

@@ -108,7 +108,7 @@ npm install socket.io-client
 ```
 
 ### 🚀 **Server Status**
-- ✅ Socket.IO server running on port 5000
+- ✅ Socket.IO server running on port 5001
 - ✅ Real-time authentication working
 - ✅ Room management configured
 - ✅ Event handlers implemented

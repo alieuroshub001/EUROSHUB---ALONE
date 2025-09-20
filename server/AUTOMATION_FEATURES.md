@@ -189,7 +189,7 @@ npm run dev
 Use the test email endpoint to verify configuration:
 
 ```bash
-curl -X POST http://localhost:5000/api/automation/test-email \
+curl -X POST http://localhost:5001/api/automation/test-email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"testEmail": "test@example.com"}'
@@ -312,7 +312,7 @@ Future versions will include:
 Use the automation status endpoint to diagnose issues:
 
 ```bash
-curl -X GET http://localhost:5000/api/automation/status \
+curl -X GET http://localhost:5001/api/automation/status \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 

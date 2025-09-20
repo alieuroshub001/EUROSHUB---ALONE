@@ -70,7 +70,7 @@ npm run dev
 2. **Test email** by making this API call (replace `YOUR_JWT_TOKEN`):
 
 ```bash
-curl -X POST http://localhost:5000/api/automation/test-email \
+curl -X POST http://localhost:5001/api/automation/test-email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -109,7 +109,7 @@ fetch('/api/automation/test-email', {
 
 Check automation status anytime:
 ```bash
-curl -X GET http://localhost:5000/api/automation/status \
+curl -X GET http://localhost:5001/api/automation/status \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 

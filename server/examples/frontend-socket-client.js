@@ -16,7 +16,7 @@ class SocketClient {
       return this.socket;
     }
 
-    this.socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
+    this.socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001', {
       auth: {
         token: token
       },
