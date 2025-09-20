@@ -79,13 +79,19 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
 // CORS should come before general rate limiting
-// CORS configuration
-console.log('🔧 CORS Origin:', process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000');
+// CORS configuration with robust fallbacks
+const corsOrigin = process.env.CORS_ORIGIN || process.env.CLIENT_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://euroshub-alone.vercel.app';
+console.log('🔧 CORS Configuration:');
+console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
+console.log('  - CLIENT_URL:', process.env.CLIENT_URL || 'not set');
+console.log('  - Using origin:', corsOrigin);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [corsOrigin, 'https://euroshub-alone.vercel.app', 'http://localhost:3000'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+  exposedHeaders: ['set-cookie']
 }));
 
 // Apply general rate limiter after CORS
@@ -193,11 +199,20 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
+console.log('🚀 Starting server...');
+console.log('📊 Environment variables check:');
+console.log('  - NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.log('  - PORT:', PORT);
+console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? 'set' : 'not set');
+console.log('  - JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'not set');
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log(`Socket.IO enabled for real-time communication`);
+  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`🔗 Socket.IO enabled for real-time communication`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
 }).on('error', (err) => {
-  console.error('Server failed to start:', err);
+  console.error('❌ Server failed to start:', err);
+  console.error('🔍 Check environment variables and database connection');
   process.exit(1);
 });
 
