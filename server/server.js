@@ -94,38 +94,29 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
-// CORS should come before general rate limiting
-// Simple CORS middleware that always works
+// CORS configuration - must work for Vercel app
 app.use((req, res, next) => {
-  const allowedOrigins = [
-    'https://euroshub-alone.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ];
-
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    // Default to Vercel app for production
-    res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
-  }
-
+  // Always allow Vercel origin
+  res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-requested-with');
-  res.setHeader('Access-Control-Expose-Headers', 'set-cookie');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
-  // Handle preflight requests
+  console.log(`🔧 CORS: ${req.method} ${req.path} from ${req.headers.origin || 'no-origin'}`);
+
+  // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    console.log('✅ CORS: Handling OPTIONS preflight request');
+    res.status(204).end();
     return;
   }
 
   next();
 });
 
-console.log('🔧 CORS Configuration: Using custom middleware with hardcoded origins');
+console.log('🔧 CORS Configuration: Fixed headers for Vercel app');
 
 // Apply general rate limiter after CORS
 app.use(limiter);
