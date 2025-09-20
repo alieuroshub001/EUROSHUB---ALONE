@@ -129,9 +129,9 @@ router.get('/status', protect, async (req, res) => {
 
     const status = {
       emailService: {
-        configured: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
-        host: process.env.SMTP_HOST || 'Not configured',
-        user: process.env.SMTP_USER || 'Not configured'
+        configured: !!(process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD),
+        service: process.env.EMAIL_SERVICE || 'gmail',
+        user: process.env.EMAIL_USERNAME || 'Not configured'
       },
       cronJobs: {
         dailyDigest: 'Active (9 AM daily)',
