@@ -28,8 +28,11 @@ const automationService = require('./services/automationService');
 const app = express();
 const server = http.createServer(app);
 
-// Connect to database
-connectDB();
+// Connect to database with error handling
+connectDB().catch(err => {
+  console.error('❌ Database connection failed:', err.message);
+  console.log('⚠️  Server will continue without database connection');
+});
 
 // Initialize Socket.IO
 const socketManager = new SocketManager(server);
@@ -79,20 +82,37 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
 // CORS should come before general rate limiting
-// CORS configuration with robust fallbacks
-const corsOrigin = process.env.CORS_ORIGIN || process.env.CLIENT_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://euroshub-alone.vercel.app';
-console.log('🔧 CORS Configuration:');
-console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
-console.log('  - CLIENT_URL:', process.env.CLIENT_URL || 'not set');
-console.log('  - Using origin:', corsOrigin);
+// Simple CORS middleware that always works
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://euroshub-alone.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ];
 
-app.use(cors({
-  origin: [corsOrigin, 'https://euroshub-alone.vercel.app', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
-  exposedHeaders: ['set-cookie']
-}));
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    // Default to Vercel app for production
+    res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
+  }
+
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-requested-with');
+  res.setHeader('Access-Control-Expose-Headers', 'set-cookie');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  next();
+});
+
+console.log('🔧 CORS Configuration: Using custom middleware with hardcoded origins');
 
 // Apply general rate limiter after CORS
 app.use(limiter);
@@ -105,30 +125,26 @@ app.use(cookieParser());
 // Serve static files (for avatar uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check route
+// Simple health check route
 app.get('/health', (req, res) => {
-  const socketManager = req.app.get('socketManager');
   res.status(200).json({
     success: true,
     message: 'Server is running successfully',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    onlineUsers: socketManager.getOnlineUsers().length,
-    socketEnabled: true
+    port: process.env.PORT || 5001
   });
 });
 
 // API Health check route
 app.get('/api/health', (req, res) => {
-  const socketManager = req.app.get('socketManager');
   res.status(200).json({
     success: true,
     message: 'EuroHub PM API is running successfully',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    onlineUsers: socketManager.getOnlineUsers().length,
-    socketEnabled: true,
-    version: '1.0.0'
+    version: '1.0.0',
+    cors: 'enabled'
   });
 });
 
