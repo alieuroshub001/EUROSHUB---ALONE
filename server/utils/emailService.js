@@ -2,33 +2,60 @@ const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
   try {
-    return nodemailer.createTransport({
+    console.log('📧 Creating email transporter...');
+    console.log('📧 Email service:', process.env.EMAIL_SERVICE);
+    console.log('📧 Email username:', process.env.EMAIL_USERNAME ? 'SET' : 'NOT SET');
+    console.log('📧 Email password:', process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET');
+
+    if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
+      console.error('📧 Missing email credentials');
+      return null;
+    }
+
+    const transporter = nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE || 'gmail',
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD
       },
-      // Add timeout configuration
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000,
-      socketTimeout: 10000
+      // Enhanced timeout configuration for Railway
+      connectionTimeout: 30000, // 30 seconds
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
+      // Additional Gmail-specific settings
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      requireTLS: true,
+      tls: {
+        rejectUnauthorized: false
+      }
     });
+
+    console.log('📧 Email transporter created successfully');
+    return transporter;
   } catch (error) {
-    console.error('Email transporter creation failed:', error.message);
+    console.error('📧 Email transporter creation failed:', error.message);
     return null;
   }
 };
 
 const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role, verificationToken }) => {
-  const transporter = createTransporter();
-  
-  const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
-  
-  const mailOptions = {
-    from: process.env.EMAIL_FROM,
-    to: email,
-    subject: 'Welcome to EurosHub - Account Created',
-    html: `
+  try {
+    console.log(`📧 Sending welcome email to ${email}...`);
+    const transporter = createTransporter();
+
+    if (!transporter) {
+      throw new Error('Email transporter not available');
+    }
+
+    const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'Welcome to EurosHub - Account Created',
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
           <h1 style="color: #333; margin: 0;">Welcome to EurosHub</h1>
@@ -70,9 +97,14 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
         </div>
       </div>
     `
-  };
+    };
 
-  await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Welcome email sent successfully to ${email}`);
+  } catch (error) {
+    console.error(`📧 Failed to send welcome email to ${email}:`, error.message);
+    throw error;
+  }
 };
 
 const sendPasswordResetEmail = async ({ email, firstName, resetToken }) => {
@@ -420,7 +452,10 @@ const generateEmailTemplate = (subject, content, actionUrl = '', actionText = ''
 
 const sendEmail = async (to, subject, html) => {
   try {
-    const transporter = createTransport();
+    const transporter = createTransporter();
+    if (!transporter) {
+      throw new Error('Email transporter not available');
+    }
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USERNAME,
       to,
@@ -430,6 +465,7 @@ const sendEmail = async (to, subject, html) => {
     console.log(`📧 Email sent to ${to}: ${subject}`);
   } catch (error) {
     console.error('📧 Email send error:', error.message);
+    throw error;
   }
 };
 
