@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 interface ApiOptions extends RequestInit {
   requireAuth?: boolean;
@@ -119,120 +119,120 @@ export const projectsApi = {
   // Projects
   getProjects: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/projects${query}`);
+    return api.get(`/projects${query}`);
   },
 
-  getProject: (id: string) => api.get(`/api/projects/${id}`),
+  getProject: (id: string) => api.get(`/projects/${id}`),
 
-  createProject: (data: any) => api.post('/api/projects', data),
+  createProject: (data: any) => api.post('/projects', data),
 
-  updateProject: (id: string, data: any) => api.put(`/api/projects/${id}`, data),
+  updateProject: (id: string, data: any) => api.put(`/projects/${id}`, data),
 
-  deleteProject: (id: string) => api.delete(`/api/projects/${id}`),
+  deleteProject: (id: string) => api.delete(`/projects/${id}`),
 
   // Project Members
   addMember: (projectId: string, data: { userId: string; role: string }) =>
-    api.post(`/api/projects/${projectId}/members`, data),
+    api.post(`/projects/${projectId}/members`, data),
 
   updateMemberRole: (projectId: string, memberId: string, data: { role: string }) =>
-    api.put(`/api/projects/${projectId}/members/${memberId}`, data),
+    api.put(`/projects/${projectId}/members/${memberId}`, data),
 
   removeMember: (projectId: string, memberId: string) =>
-    api.delete(`/api/projects/${projectId}/members/${memberId}`),
+    api.delete(`/projects/${projectId}/members/${memberId}`),
 
   getProjectActivities: (projectId: string, params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/projects/${projectId}/activities${query}`);
+    return api.get(`/projects/${projectId}/activities${query}`);
   },
 
   // Boards
   getProjectBoards: (projectId: string, params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/projects/${projectId}/boards${query}`);
+    return api.get(`/projects/${projectId}/boards${query}`);
   },
 
   createBoard: (projectId: string, data: any) =>
-    api.post(`/api/projects/${projectId}/boards`, data),
+    api.post(`/projects/${projectId}/boards`, data),
 
-  getBoard: (boardId: string) => api.get(`/api/boards/${boardId}`),
+  getBoard: (boardId: string) => api.get(`/boards/${boardId}`),
 
-  updateBoard: (boardId: string, data: any) => api.put(`/api/boards/${boardId}`, data),
+  updateBoard: (boardId: string, data: any) => api.put(`/boards/${boardId}`, data),
 
-  deleteBoard: (boardId: string) => api.delete(`/api/boards/${boardId}`),
+  deleteBoard: (boardId: string) => api.delete(`/boards/${boardId}`),
 
   duplicateBoard: (boardId: string, data: { title: string; includeCards?: boolean }) =>
-    api.post(`/api/boards/${boardId}/duplicate`, data),
+    api.post(`/boards/${boardId}/duplicate`, data),
 
   // Lists
   getBoardLists: (boardId: string, params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/boards/${boardId}/lists${query}`);
+    return api.get(`/boards/${boardId}/lists${query}`);
   },
 
   createList: (boardId: string, data: any) =>
-    api.post(`/api/boards/${boardId}/lists`, data),
+    api.post(`/boards/${boardId}/lists`, data),
 
-  updateList: (listId: string, data: any) => api.put(`/api/lists/${listId}`, data),
+  updateList: (listId: string, data: any) => api.put(`/lists/${listId}`, data),
 
-  deleteList: (listId: string) => api.delete(`/api/lists/${listId}`),
+  deleteList: (listId: string) => api.delete(`/lists/${listId}`),
 
   moveAllCards: (listId: string, data: { targetListId: string }) =>
-    api.post(`/api/lists/${listId}/move-all-cards`, data),
+    api.post(`/lists/${listId}/move-all-cards`, data),
 
   // Cards
   getListCards: (listId: string, params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/lists/${listId}/cards${query}`);
+    return api.get(`/lists/${listId}/cards${query}`);
   },
 
   createCard: (listId: string, data: any) =>
-    api.post(`/api/lists/${listId}/cards`, data),
+    api.post(`/lists/${listId}/cards`, data),
 
-  getCard: (cardId: string) => api.get(`/api/cards/${cardId}`),
+  getCard: (cardId: string) => api.get(`/cards/${cardId}`),
 
-  updateCard: (cardId: string, data: any) => api.put(`/api/cards/${cardId}`, data),
+  updateCard: (cardId: string, data: any) => api.put(`/cards/${cardId}`, data),
 
-  deleteCard: (cardId: string) => api.delete(`/api/cards/${cardId}`),
+  deleteCard: (cardId: string) => api.delete(`/cards/${cardId}`),
 
   moveCard: (cardId: string, data: { targetListId: string; position?: number }) =>
-    api.put(`/api/cards/${cardId}/move`, data),
+    api.put(`/cards/${cardId}/move`, data),
 
   assignUsers: (cardId: string, data: { userIds: string[] }) =>
-    api.put(`/api/cards/${cardId}/assign`, data),
+    api.put(`/cards/${cardId}/assign`, data),
 
   unassignUsers: (cardId: string, data: { userIds: string[] }) =>
-    api.put(`/api/cards/${cardId}/unassign`, data),
+    api.put(`/cards/${cardId}/unassign`, data),
 
   addComment: (cardId: string, data: { text: string; mentions?: string[] }) =>
-    api.post(`/api/cards/${cardId}/comments`, data),
+    api.post(`/cards/${cardId}/comments`, data),
 
   updateComment: (cardId: string, commentId: string, data: { text: string }) =>
-    api.put(`/api/cards/${cardId}/comments/${commentId}`, data),
+    api.put(`/cards/${cardId}/comments/${commentId}`, data),
 
   addTimeEntry: (cardId: string, data: { hours: number; description?: string }) =>
-    api.post(`/api/cards/${cardId}/time`, data),
+    api.post(`/cards/${cardId}/time`, data),
 
   getMyAssignedCards: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/cards/assigned-to-me${query}`);
+    return api.get(`/cards/assigned-to-me${query}`);
   },
 
   // Activities
   getDashboardActivities: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/activities/dashboard${query}`);
+    return api.get(`/activities/dashboard${query}`);
   },
 
   getMyActivities: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/activities/my-activities${query}`);
+    return api.get(`/activities/my-activities${query}`);
   },
 
-  getActivityTypes: () => api.get('/api/activities/types'),
+  getActivityTypes: () => api.get('/activities/types'),
 
   getActivityStats: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/activities/stats${query}`);
+    return api.get(`/activities/stats${query}`);
   },
 };
 
@@ -240,18 +240,18 @@ export const projectsApi = {
 export const usersApi = {
   getUsers: (params?: Record<string, string>) => {
     const query = params ? `?${new URLSearchParams(params).toString()}` : '';
-    return api.get(`/api/users${query}`);
+    return api.get(`/users${query}`);
   },
 
-  getUser: (id: string) => api.get(`/api/users/${id}`),
+  getUser: (id: string) => api.get(`/users/${id}`),
 
-  createUser: (data: any) => api.post('/api/users', data),
+  createUser: (data: any) => api.post('/users', data),
 
-  updateUser: (id: string, data: any) => api.put(`/api/users/${id}`, data),
+  updateUser: (id: string, data: any) => api.put(`/users/${id}`, data),
 
-  deleteUser: (id: string) => api.delete(`/api/users/${id}`),
+  deleteUser: (id: string) => api.delete(`/users/${id}`),
 
-  getCurrentUser: () => api.get('/api/auth/me'),
+  getCurrentUser: () => api.get('/auth/me'),
 };
 
 export default api;
