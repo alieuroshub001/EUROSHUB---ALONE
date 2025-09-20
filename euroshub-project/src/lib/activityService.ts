@@ -40,6 +40,7 @@ export interface Activity {
     field?: string;
     comment?: string;
     additionalInfo?: any;
+    projectTitle?: string; // Added this property
   };
   metadata: {
     entityName?: string;

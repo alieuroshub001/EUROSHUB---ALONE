@@ -85,6 +85,22 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to safely get member name
+  const getMemberName = (member: TeamMember): string => {
+    return member.name || 'Unknown User';
+  };
+
+  // Helper function to safely get user name from various user objects
+  const getUserName = (user: { name: string } | { name: { name: string } } | any): string => {
+    if (typeof user.name === 'string') {
+      return user.name;
+    }
+    if (user.name && typeof user.name.name === 'string') {
+      return user.name.name;
+    }
+    return 'Unknown User';
+  };
+
   // Sync formData with task prop when it changes (for real-time updates)
   useEffect(() => {
     setFormData({
@@ -377,36 +393,39 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                         onClick={() => setShowAssigneeDropdown(false)}
                       />
                       <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {teamMembers.map((member) => (
-                          <label
-                            key={member.id}
-                            className="flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.assignees.includes(typeof member.name === 'string' ? member.name : member.name?.name || '')}
-                              onChange={() => handleToggleAssignee(typeof member.name === 'string' ? member.name : member.name?.name || '')}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
-                                {member.avatar ? (
-                                  <img
-                                    src={member.avatar}
-                                    alt={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
-                                    className="w-full h-full rounded-full object-cover"
-                                  />
-                                ) : (
-                                  (typeof member.name === 'string' ? member.name : member.name?.name || 'U').charAt(0).toUpperCase()
-                                )}
+                        {teamMembers.map((member) => {
+                          const memberName = getMemberName(member);
+                          return (
+                            <label
+                              key={member.id}
+                              className="flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.assignees.includes(memberName)}
+                                onChange={() => handleToggleAssignee(memberName)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <div className="flex items-center space-x-2">
+                                <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
+                                  {member.avatar ? (
+                                    <img
+                                      src={member.avatar}
+                                      alt={memberName}
+                                      className="w-full h-full rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    memberName.charAt(0).toUpperCase()
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{memberName}</p>
+                                  <p className="text-xs text-gray-500">{member.role}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}</p>
-                                <p className="text-xs text-gray-500">{member.role}</p>
-                              </div>
-                            </div>
-                          </label>
-                        ))}
+                            </label>
+                          );
+                        })}
                       </div>
                     </>
                   )}
@@ -416,7 +435,6 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                 {formData.assignees.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {formData.assignees.map((assigneeName) => {
-                      const member = teamMembers.find(m => m.name === assigneeName);
                       return (
                         <span
                           key={assigneeName}
@@ -512,30 +530,33 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
               {/* Comments List */}
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {formData.comments && formData.comments.length > 0 ? (
-                  formData.comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                          {comment.author.avatar ? (
-                            <img
-                              src={comment.author.avatar}
-                              alt={typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'Unknown User'}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-(typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'U').charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <p className="text-sm font-medium text-gray-900">{typeof comment.author.name === 'string' ? comment.author.name : comment.author.name?.name || 'Unknown User'}</p>
-                            <p className="text-xs text-gray-500">{formatDate(comment.createdAt)}</p>
+                  formData.comments.map((comment) => {
+                    const authorName = getUserName(comment.author);
+                    return (
+                      <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                            {comment.author.avatar ? (
+                              <img
+                                src={comment.author.avatar}
+                                alt={authorName}
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              authorName.charAt(0).toUpperCase()
+                            )}
                           </div>
-                          <p className="text-sm text-gray-700">{comment.content}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <p className="text-sm font-medium text-gray-900">{authorName}</p>
+                              <p className="text-xs text-gray-500">{formatDate(comment.createdAt)}</p>
+                            </div>
+                            <p className="text-sm text-gray-700">{comment.content}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
@@ -551,11 +572,11 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                     {currentUser.avatar ? (
                       <img
                         src={currentUser.avatar}
-                        alt={typeof currentUser.name === 'string' ? currentUser.name : currentUser.name?.name || 'Current User'}
+                        alt={currentUser.name}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
-(typeof currentUser.name === 'string' ? currentUser.name : currentUser.name?.name || 'U').charAt(0).toUpperCase()
+                      currentUser.name.charAt(0).toUpperCase()
                     )}
                   </div>
                   <div className="flex-1">
@@ -633,41 +654,44 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
               {/* Attachments List */}
               <div className="space-y-3">
                 {formData.attachments && formData.attachments.length > 0 ? (
-                  formData.attachments.map((attachment) => (
-                    <div key={attachment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                          {isImage(attachment.name) ? (
-                            <Image size={20} className="text-blue-600" />
-                          ) : (
-                            <Paperclip size={20} className="text-blue-600" />
-                          )}
+                  formData.attachments.map((attachment) => {
+                    const uploaderName = getUserName(attachment.uploadedBy);
+                    return (
+                      <div key={attachment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            {isImage(attachment.name) ? (
+                              <Image size={20} className="text-blue-600" />
+                            ) : (
+                              <Paperclip size={20} className="text-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(attachment.size)} • Uploaded by {uploaderName} • {formatDate(attachment.uploadedAt)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatFileSize(attachment.size)} • Uploaded by {typeof attachment.uploadedBy.name === 'string' ? attachment.uploadedBy.name : attachment.uploadedBy.name?.name || 'Unknown User'} • {formatDate(attachment.uploadedAt)}
-                          </p>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleDownloadAttachment(attachment)}
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                            title="Download"
+                          >
+                            <Download size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAttachment(attachment.id)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleDownloadAttachment(attachment)}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                          title="Download"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAttachment(attachment.id)}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Paperclip size={32} className="mx-auto mb-2 opacity-50" />

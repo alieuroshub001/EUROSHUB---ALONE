@@ -15,7 +15,7 @@ interface Task {
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high';
-  assignees?: Member[];
+  assignees?: string[]; // Changed from Member[] to string[]
   dueDate?: string;
   tags?: string[];
   comments: number;

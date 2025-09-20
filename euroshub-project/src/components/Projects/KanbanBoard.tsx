@@ -19,7 +19,7 @@ interface Task {
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high';
-  assignees?: Member[];
+  assignees?: string[]; // Keep as string[] to match TaskCard expectation
   dueDate?: string;
   tags?: string[];
   comments: number;
@@ -57,7 +57,7 @@ interface TaskData {
   tags: string[];
 }
 
-// Mock data
+// Mock data with string arrays for assignees
 const mockBoards: Board[] = [
   {
     id: '1',
@@ -80,7 +80,7 @@ const mockBoards: Board[] = [
             title: 'Research competitor websites',
             description: 'Analyze top 5 competitor websites for UX patterns and design trends',
             priority: 'medium',
-            assignees: [{ id: '1', name: 'John Doe' }],
+            assignees: ['John Doe'], // Keep as string array
             dueDate: '2024-12-25',
             tags: ['research', 'design'],
             comments: 3,
@@ -91,7 +91,7 @@ const mockBoards: Board[] = [
             title: 'Create wireframes for homepage',
             description: 'Design low-fidelity wireframes for the new homepage layout',
             priority: 'high',
-            assignees: [{ id: '2', name: 'Jane Smith' }],
+            assignees: ['Jane Smith'], // Keep as string array
             dueDate: '2024-12-20',
             tags: ['design', 'wireframes'],
             comments: 1,
@@ -109,7 +109,7 @@ const mockBoards: Board[] = [
             title: 'Develop navigation component',
             description: 'Build responsive navigation with mobile menu support',
             priority: 'high',
-            assignees: [{ id: '3', name: 'Mike Johnson' }],
+            assignees: ['Mike Johnson'], // Keep as string array
             dueDate: '2024-12-22',
             tags: ['development', 'frontend'],
             comments: 5,
@@ -127,7 +127,7 @@ const mockBoards: Board[] = [
             title: 'Review color scheme',
             description: 'Get approval on the new brand colors and typography',
             priority: 'low',
-            assignees: [{ id: '1', name: 'John Doe' }, { id: '2', name: 'Jane Smith' }],
+            assignees: ['John Doe', 'Jane Smith'], // Keep as string array
             dueDate: '2024-12-18',
             tags: ['review', 'design'],
             comments: 0,
@@ -145,7 +145,7 @@ const mockBoards: Board[] = [
             title: 'Setup project repository',
             description: 'Initialize Git repository and setup development environment',
             priority: 'medium',
-            assignees: [{ id: '3', name: 'Mike Johnson' }],
+            assignees: ['Mike Johnson'], // Keep as string array
             dueDate: '2024-12-15',
             tags: ['setup', 'development'],
             comments: 2,
@@ -308,10 +308,7 @@ const KanbanBoard: React.FC = () => {
     const newTask: Task = {
       id: Date.now().toString(),
       ...taskData,
-      assignees: taskData.assignees.map(name => {
-        const member = mockTeamMembers.find(m => m.name === name);
-        return member || { id: Date.now().toString(), name };
-      }),
+      // assignees are already strings from the form, no conversion needed
       comments: 0,
       attachments: 0
     };

@@ -42,10 +42,10 @@ const convertBackendCard = (card: Card): any => ({
     content: comment.text,
     createdAt: comment.createdAt
   })),
-  attachmentsData: card.attachments.map(attachment => {
+  attachmentsData: card.attachments.map((attachment, index) => {
     console.log('Attachment from backend:', attachment); // Debug log
     return {
-      id: attachment._id || attachment.id,
+      id: (attachment as any)._id || (attachment as any).id || `attachment-${index}-${Date.now()}`, // Generate fallback ID
       name: attachment.originalName,
       size: attachment.size,
       type: attachment.mimetype,
@@ -95,6 +95,17 @@ interface BoardData {
   description?: string;
   color: string;
 }
+
+// Helper function to safely get member name
+const getMemberName = (member: any): string => {
+  if (typeof member.name === 'string') {
+    return member.name;
+  }
+  if (member.name && typeof member.name.name === 'string') {
+    return member.name.name;
+  }
+  return 'Unknown User';
+};
 
 const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId, userRole }) => {
   const [project, setProject] = useState<Project | null>(null);
@@ -319,7 +330,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         assignedTo: taskData.assignees.map(name => {
           console.log('Create task - Looking for member with name:', name);
           const member = teamMembers.find(m => {
-            const memberName = typeof m.name === 'string' ? m.name : m.name?.name || '';
+            const memberName = getMemberName(m);
             console.log('Create task - Checking member:', memberName, 'against:', name);
             return memberName === name;
           });
@@ -388,7 +399,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         assignedTo: taskData.assignees.map(name => {
           console.log('Looking for member with name:', name);
           const member = teamMembers.find(m => {
-            const memberName = typeof m.name === 'string' ? m.name : m.name?.name || '';
+            const memberName = getMemberName(m);
             console.log('Checking member:', memberName, 'against:', name);
             return memberName === name;
           });
@@ -720,25 +731,26 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
               <h2 className="text-xl font-bold text-gray-900">{activeBoard.name}</h2>
             </div>
             <div className="flex -space-x-2">
-              {activeBoard.members?.slice(0, 5).map((member: any) => (
-                <div
-                  key={member.id}
-                  className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
-                  title={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
-                >
-                  {member.avatar ? (
-                    <img
-                      src={member.avatar}
-                      alt={typeof member.name === 'string' ? member.name : member.name?.name || 'Unknown User'}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    typeof member.name === 'string'
-                      ? member.name.split(' ').map((n: string) => n[0]).join('')
-                      : (member.name?.name || 'U').substring(0, 2)
-                  )}
-                </div>
-              ))}
+              {activeBoard.members?.slice(0, 5).map((member: any) => {
+                const memberName = getMemberName(member);
+                return (
+                  <div
+                    key={member.id}
+                    className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
+                    title={memberName}
+                  >
+                    {member.avatar ? (
+                      <img
+                        src={member.avatar}
+                        alt={memberName}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      memberName.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                );
+              })}
               {activeBoard.members && activeBoard.members.length > 5 && (
                 <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
                   +{activeBoard.members.length - 5}
