@@ -53,7 +53,7 @@ class SocketUtils {
 
   async notifyAccountStatusChange(userId, isActive, changedBy) {
     const status = isActive ? 'activated' : 'deactivated';
-    
+
     this.socketManager.notifyUser(userId, 'account-status-changed', {
       message: `Your account has been ${status}`,
       isActive,
@@ -65,6 +65,46 @@ class SocketUtils {
       },
       timestamp: new Date(),
       type: 'account'
+    });
+  }
+
+  async notifyUserDeleted(deletedUser, deletedBy) {
+    // Notify admins about user deletion
+    this.socketManager.notifyRole('admin', 'user-deleted', {
+      user: {
+        id: deletedUser._id,
+        firstName: deletedUser.firstName,
+        lastName: deletedUser.lastName,
+        email: deletedUser.email,
+        role: deletedUser.role
+      },
+      deletedBy: {
+        id: deletedBy._id,
+        firstName: deletedBy.firstName,
+        lastName: deletedBy.lastName,
+        role: deletedBy.role
+      },
+      timestamp: new Date(),
+      type: 'user-management'
+    });
+
+    // Notify superadmins about user deletion
+    this.socketManager.notifyRole('superadmin', 'user-deleted', {
+      user: {
+        id: deletedUser._id,
+        firstName: deletedUser.firstName,
+        lastName: deletedUser.lastName,
+        email: deletedUser.email,
+        role: deletedUser.role
+      },
+      deletedBy: {
+        id: deletedBy._id,
+        firstName: deletedBy.firstName,
+        lastName: deletedBy.lastName,
+        role: deletedBy.role
+      },
+      timestamp: new Date(),
+      type: 'user-management'
     });
   }
 

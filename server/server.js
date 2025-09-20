@@ -123,21 +123,12 @@ app.use((req, res, next) => {
   const userAgent = req.headers['user-agent'];
   const timestamp = new Date().toISOString();
 
-  console.log(`\n🔍 [${timestamp}] INCOMING REQUEST DETAILS:`);
-  console.log(`   Method: ${req.method}`);
-  console.log(`   Path: ${req.path}`);
-  console.log(`   Origin: ${origin || 'NO ORIGIN'}`);
-  console.log(`   User-Agent: ${userAgent ? userAgent.substring(0, 50) + '...' : 'NO USER-AGENT'}`);
-  console.log(`   Headers: ${JSON.stringify(req.headers, null, 2)}`);
-
   // Always set CORS headers for production
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Access-Control-Allow-Origin', 'https://euroshub-alone.vercel.app');
-    console.log(`   🔧 CORS: Set Origin Header to: https://euroshub-alone.vercel.app`);
   } else {
     // Development - allow any origin
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    console.log(`   🔧 CORS: Set Origin Header to: ${origin || '*'}`);
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -146,16 +137,11 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
-  console.log(`   🔧 CORS: All headers set successfully`);
-
   // Handle preflight requests immediately
   if (req.method === 'OPTIONS') {
-    console.log(`   ✅ CORS: Handling OPTIONS preflight request - responding with 200`);
     res.status(200).json({ success: true, message: 'CORS preflight successful', timestamp });
     return;
   }
-
-  console.log(`   ➡️  Proceeding to next middleware...\n`);
   next();
 });
 
@@ -169,35 +155,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Request/Response logging middleware
+// Minimal request logging middleware (only for errors or important routes)
 app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  const originalSend = res.send;
-  const originalJson = res.json;
-
-  console.log(`\n📥 [${timestamp}] REQUEST: ${req.method} ${req.path}`);
-  console.log(`   Origin: ${req.headers.origin || 'NO ORIGIN'}`);
-  console.log(`   Content-Type: ${req.headers['content-type'] || 'NOT SET'}`);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`   Body Keys: ${Object.keys(req.body).join(', ')}`);
+  // Only log non-health check requests and errors
+  if (!req.path.includes('/health') && !req.path.includes('/socket.io')) {
+    console.log(`🔧 ${req.method} ${req.path} from ${req.headers.origin || 'no-origin'}`);
   }
-
-  // Override res.send to log responses
-  res.send = function(body) {
-    const responseTimestamp = new Date().toISOString();
-    console.log(`📤 [${responseTimestamp}] RESPONSE: ${res.statusCode} for ${req.method} ${req.path}`);
-    console.log(`   Response Size: ${Buffer.byteLength(body)} bytes`);
-    return originalSend.call(this, body);
-  };
-
-  // Override res.json to log responses
-  res.json = function(body) {
-    const responseTimestamp = new Date().toISOString();
-    console.log(`📤 [${responseTimestamp}] JSON RESPONSE: ${res.statusCode} for ${req.method} ${req.path}`);
-    console.log(`   Response Body: ${JSON.stringify(body).substring(0, 200)}...`);
-    return originalJson.call(this, body);
-  };
-
   next();
 });
 
