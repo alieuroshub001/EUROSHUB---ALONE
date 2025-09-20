@@ -34,15 +34,20 @@ connectDB().catch(err => {
   console.log('⚠️  Server will continue without database connection');
 });
 
-// Initialize Socket.IO
-const socketManager = new SocketManager(server);
+// Initialize Socket.IO with error handling
+let socketManager, projectSocketManager;
+try {
+  socketManager = new SocketManager(server);
+  projectSocketManager = new ProjectSocketManager(socketManager);
 
-// Initialize Project Socket Manager
-const projectSocketManager = new ProjectSocketManager(socketManager);
-
-// Make socket manager available throughout the app
-app.set('socketManager', socketManager);
-app.set('projectSocketManager', projectSocketManager);
+  // Make socket manager available throughout the app
+  app.set('socketManager', socketManager);
+  app.set('projectSocketManager', projectSocketManager);
+  console.log('✅ Socket.IO initialized successfully');
+} catch (error) {
+  console.error('⚠️  Socket.IO initialization failed:', error.message);
+  console.log('🚀 Server will continue without Socket.IO');
+}
 
 // Security middleware
 app.use(helmet({
