@@ -160,6 +160,18 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Railway health check endpoint (expects /api)
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'EuroHub PM API is running successfully',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0',
+    cors: 'enabled'
+  });
+});
+
 // API Health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
