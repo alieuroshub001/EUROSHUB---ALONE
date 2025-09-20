@@ -5,6 +5,7 @@ const router = express.Router();
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Activity = require('../models/Activity');
+const automationService = require('../services/automationService');
 const { protect } = require('../middleware/auth');
 const {
   checkProjectAccess,
@@ -481,6 +482,16 @@ router.post('/:projectId/members', protect, checkProjectAccess, checkMemberManag
         { path: 'members.user', select: 'firstName lastName avatar email' },
         { path: 'members.addedBy', select: 'firstName lastName' }
       ]);
+
+      // Trigger automation for member addition
+      automationService.handleProjectMemberAdded(
+        project._id,
+        userId,
+        req.user.id,
+        role
+      ).catch(error => {
+        console.error('Automation error for member addition:', error);
+      });
 
       res.status(200).json({
         success: true,

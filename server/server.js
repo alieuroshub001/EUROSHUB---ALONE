@@ -20,8 +20,10 @@ const boardRoutes = require('./routes/boards');
 const listRoutes = require('./routes/lists');
 const cardRoutes = require('./routes/cards');
 const activityRoutes = require('./routes/activities');
+const automationRoutes = require('./routes/automation');
 const SocketManager = require('./config/socket');
 const ProjectSocketManager = require('./config/projectSocket');
+const automationService = require('./services/automationService');
 
 const app = express();
 const server = http.createServer(app);
@@ -135,6 +137,7 @@ app.use('/api/boards', boardRoutes);
 app.use('/api/lists', listRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/automation', automationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

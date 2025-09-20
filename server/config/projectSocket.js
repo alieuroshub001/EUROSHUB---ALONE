@@ -3,6 +3,7 @@ const Project = require('../models/Project');
 const Board = require('../models/Board');
 const List = require('../models/List');
 const Card = require('../models/Card');
+const automationService = require('../services/automationService');
 
 class ProjectSocketManager {
   constructor(socketManager) {

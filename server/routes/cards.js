@@ -4,6 +4,7 @@ const router = express.Router();
 const Card = require('../models/Card');
 const User = require('../models/User');
 const Activity = require('../models/Activity');
+const automationService = require('../services/automationService');
 const { protect } = require('../middleware/auth');
 const {
   checkListAccess,
@@ -90,8 +91,19 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
     }
 
     if (status && status !== card.status) {
-      changes.push({ field: 'status', oldValue: card.status, newValue: status });
+      const oldStatus = card.status;
+      changes.push({ field: 'status', oldValue: oldStatus, newValue: status });
       card.status = status;
+
+      // Trigger automation for status change
+      automationService.handleTaskStatusChange(
+        card._id,
+        oldStatus,
+        status,
+        req.user.id
+      ).catch(error => {
+        console.error('Automation error for status change:', error);
+      });
     }
 
     if (dueDate !== undefined) {
@@ -270,6 +282,15 @@ router.put('/:cardId/assign', protect, checkCardAccess, async (req, res) => {
       }
     });
 
+    // Trigger automation for task assignment
+    automationService.handleTaskAssignment(
+      card._id,
+      userIds,
+      req.user.id
+    ).catch(error => {
+      console.error('Automation error for task assignment:', error);
+    });
+
     // Populate for response
     await card.populate('assignedTo', 'firstName lastName avatar email');
 
@@ -393,6 +414,15 @@ router.post('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
         entityName: card.title,
         entityId: card._id
       }
+    });
+
+    // Trigger automation for comment notification
+    automationService.handleTaskComment(
+      card._id,
+      text,
+      req.user.id
+    ).catch(error => {
+      console.error('Automation error for comment notification:', error);
     });
 
     // Populate for response
@@ -589,6 +619,16 @@ router.put('/:cardId/move', protect, checkCardAccess, async (req, res) => {
         entityName: card.title,
         entityId: card._id
       }
+    });
+
+    // Trigger automation for card movement and status updates
+    automationService.handleCardMovedBetweenLists(
+      card._id,
+      oldListId,
+      targetListId,
+      req.user.id
+    ).catch(error => {
+      console.error('Automation error for card movement:', error);
     });
 
     res.status(200).json({
