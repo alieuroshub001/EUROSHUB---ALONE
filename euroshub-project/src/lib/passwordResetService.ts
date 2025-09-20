@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface PasswordResetRequest {
   id: string;
@@ -56,7 +56,7 @@ const getAuthHeaders = () => {
 export const passwordResetService = {
   async getPendingRequests(page: number = 1, limit: number = 50): Promise<{ requests: PasswordResetRequest[]; pagination: ApiResponse<never>['pagination'] }> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/password-reset/pending`, {
+      const response = await axios.get(`${API_BASE_URL}/password-reset/pending`, {
         headers: getAuthHeaders(),
         params: { page, limit },
         withCredentials: true,
@@ -77,7 +77,7 @@ export const passwordResetService = {
       if (status && status !== 'all') params.status = status;
       if (userEmail) params.userEmail = userEmail;
 
-      const response = await axios.get(`${API_BASE_URL}/api/password-reset/all`, {
+      const response = await axios.get(`${API_BASE_URL}/password-reset/all`, {
         headers: getAuthHeaders(),
         params,
         withCredentials: true,
@@ -94,7 +94,7 @@ export const passwordResetService = {
 
   async processRequest(requestData: ProcessRequestData): Promise<{ message: string; newPassword?: string }> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/password-reset/process`, requestData, {
+      const response = await axios.post(`${API_BASE_URL}/password-reset/process`, requestData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });

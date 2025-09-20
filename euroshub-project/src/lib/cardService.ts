@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface Comment {
   _id: string;
@@ -56,7 +56,7 @@ export const cardService = {
   // Comments
   async addComment(cardId: string, text: string, mentions: string[] = []): Promise<Comment> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/comments`, {
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/comments`, {
         text,
         mentions
       }, {
@@ -72,7 +72,7 @@ export const cardService = {
 
   async updateComment(cardId: string, commentId: string, text: string): Promise<Comment> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}/comments/${commentId}`, {
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}/comments/${commentId}`, {
         text
       }, {
         headers: getAuthHeaders(),
@@ -87,7 +87,7 @@ export const cardService = {
 
   async deleteComment(cardId: string, commentId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/cards/${cardId}/comments/${commentId}`, {
+      await axios.delete(`${API_BASE_URL}/cards/${cardId}/comments/${commentId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -103,7 +103,7 @@ export const cardService = {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/attachments`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/attachments`, formData, {
         headers: getFormDataHeaders(),
         withCredentials: true,
       });
@@ -119,7 +119,7 @@ export const cardService = {
       const formData = new FormData();
       formData.append('image', image);
 
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/images`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/images`, formData, {
         headers: getFormDataHeaders(),
         withCredentials: true,
       });
@@ -137,7 +137,7 @@ export const cardService = {
         formData.append('files', file);
       });
 
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/attachments/multiple`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/attachments/multiple`, formData, {
         headers: getFormDataHeaders(),
         withCredentials: true,
       });
@@ -150,7 +150,7 @@ export const cardService = {
 
   async deleteAttachment(cardId: string, attachmentId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/cards/${cardId}/attachments/${attachmentId}`, {
+      await axios.delete(`${API_BASE_URL}/cards/${cardId}/attachments/${attachmentId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -163,7 +163,7 @@ export const cardService = {
   // Card Details
   async getCard(cardId: string): Promise<any> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cards/${cardId}`, {
+      const response = await axios.get(`${API_BASE_URL}/cards/${cardId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -204,7 +204,7 @@ export const cardService = {
   // Download attachment with proper filename
   async downloadAttachment(cardId: string, attachmentId: string): Promise<void> {
     try {
-      const downloadUrl = `${API_BASE_URL}/api/cards/${cardId}/attachments/${attachmentId}/download`;
+      const downloadUrl = `${API_BASE_URL}/cards/${cardId}/attachments/${attachmentId}/download`;
 
       // Create a temporary link element and trigger download
       const link = document.createElement('a');

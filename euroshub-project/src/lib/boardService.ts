@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 // Types
 export interface Board {
@@ -273,7 +273,7 @@ export const boardService = {
       const params = new URLSearchParams();
       if (includeArchived) params.append('includeArchived', 'true');
 
-      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/boards?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/boards?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -286,7 +286,7 @@ export const boardService = {
 
   async getBoard(boardId: string): Promise<Board> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/boards/${boardId}`, {
+      const response = await axios.get(`${API_BASE_URL}/boards/${boardId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -299,7 +299,7 @@ export const boardService = {
 
   async createBoard(projectId: string, boardData: CreateBoardRequest): Promise<Board> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/projects/${projectId}/boards`, boardData, {
+      const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/boards`, boardData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -312,7 +312,7 @@ export const boardService = {
 
   async updateBoard(boardId: string, boardData: UpdateBoardRequest): Promise<Board> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/boards/${boardId}`, boardData, {
+      const response = await axios.put(`${API_BASE_URL}/boards/${boardId}`, boardData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -325,7 +325,7 @@ export const boardService = {
 
   async deleteBoard(boardId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/boards/${boardId}`, {
+      await axios.delete(`${API_BASE_URL}/boards/${boardId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -337,7 +337,7 @@ export const boardService = {
 
   async duplicateBoard(boardId: string, title?: string, includeCards: boolean = false): Promise<Board> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/boards/${boardId}/duplicate`,
+      const response = await axios.post(`${API_BASE_URL}/boards/${boardId}/duplicate`,
         { title, includeCards },
         {
           headers: getAuthHeaders(),
@@ -357,7 +357,7 @@ export const boardService = {
       const params = new URLSearchParams();
       if (!includeCards) params.append('includeCards', 'false');
 
-      const response = await axios.get(`${API_BASE_URL}/api/boards/${boardId}/lists?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/boards/${boardId}/lists?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -370,7 +370,7 @@ export const boardService = {
 
   async createList(boardId: string, listData: CreateListRequest): Promise<List> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/boards/${boardId}/lists`, listData, {
+      const response = await axios.post(`${API_BASE_URL}/boards/${boardId}/lists`, listData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -383,7 +383,7 @@ export const boardService = {
 
   async updateList(listId: string, listData: UpdateListRequest): Promise<List> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/lists/${listId}`, listData, {
+      const response = await axios.put(`${API_BASE_URL}/lists/${listId}`, listData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -396,7 +396,7 @@ export const boardService = {
 
   async deleteList(listId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/lists/${listId}`, {
+      await axios.delete(`${API_BASE_URL}/lists/${listId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -408,7 +408,7 @@ export const boardService = {
 
   async moveAllCards(listId: string, targetListId: string): Promise<{ movedCount: number }> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/lists/${listId}/move-all-cards`,
+      const response = await axios.post(`${API_BASE_URL}/lists/${listId}/move-all-cards`,
         { targetListId },
         {
           headers: getAuthHeaders(),
@@ -432,7 +432,7 @@ export const boardService = {
         });
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/lists/${listId}/cards?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/lists/${listId}/cards?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -445,7 +445,7 @@ export const boardService = {
 
   async getCard(cardId: string): Promise<Card> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cards/${cardId}`, {
+      const response = await axios.get(`${API_BASE_URL}/cards/${cardId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -458,7 +458,7 @@ export const boardService = {
 
   async createCard(listId: string, cardData: CreateCardRequest): Promise<Card> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/lists/${listId}/cards`, cardData, {
+      const response = await axios.post(`${API_BASE_URL}/lists/${listId}/cards`, cardData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -471,7 +471,7 @@ export const boardService = {
 
   async updateCard(cardId: string, cardData: UpdateCardRequest): Promise<Card> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}`, cardData, {
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}`, cardData, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -484,7 +484,7 @@ export const boardService = {
 
   async deleteCard(cardId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/cards/${cardId}`, {
+      await axios.delete(`${API_BASE_URL}/cards/${cardId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -496,7 +496,7 @@ export const boardService = {
 
   async moveCard(cardId: string, targetListId: string, position?: number): Promise<Card> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}/move`,
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}/move`,
         { targetListId, position },
         {
           headers: getAuthHeaders(),
@@ -512,7 +512,7 @@ export const boardService = {
 
   async assignUsers(cardId: string, userIds: string[]): Promise<Card['assignedTo']> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}/assign`,
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}/assign`,
         { userIds },
         {
           headers: getAuthHeaders(),
@@ -528,7 +528,7 @@ export const boardService = {
 
   async unassignUsers(cardId: string, userIds: string[]): Promise<Card['assignedTo']> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}/unassign`,
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}/unassign`,
         { userIds },
         {
           headers: getAuthHeaders(),
@@ -544,7 +544,7 @@ export const boardService = {
 
   async addComment(cardId: string, text: string, mentions: string[] = []): Promise<Card['comments'][0]> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/comments`,
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/comments`,
         { text, mentions },
         {
           headers: getAuthHeaders(),
@@ -560,7 +560,7 @@ export const boardService = {
 
   async updateComment(cardId: string, commentId: string, text: string): Promise<Card['comments'][0]> {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/cards/${cardId}/comments/${commentId}`,
+      const response = await axios.put(`${API_BASE_URL}/cards/${cardId}/comments/${commentId}`,
         { text },
         {
           headers: getAuthHeaders(),
@@ -576,7 +576,7 @@ export const boardService = {
 
   async deleteComment(cardId: string, commentId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/api/cards/${cardId}/comments/${commentId}`, {
+      await axios.delete(`${API_BASE_URL}/cards/${cardId}/comments/${commentId}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -588,7 +588,7 @@ export const boardService = {
 
   async addTimeEntry(cardId: string, hours: number, description: string = ''): Promise<Card['timeTracking']> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/cards/${cardId}/time`,
+      const response = await axios.post(`${API_BASE_URL}/cards/${cardId}/time`,
         { hours, description },
         {
           headers: getAuthHeaders(),
@@ -611,7 +611,7 @@ export const boardService = {
         });
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/cards/assigned-to-me?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/cards/assigned-to-me?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });

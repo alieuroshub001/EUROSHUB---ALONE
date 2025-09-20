@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface User {
   id: string;
@@ -39,7 +39,7 @@ export interface LoginError {
 export const authAPI = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email,
         password
       }, {
@@ -97,7 +97,7 @@ export const authAPI = {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, {
+      await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
         withCredentials: true,
         headers
       });
@@ -141,9 +141,9 @@ export const authAPI = {
         return null;
       }
 
-      console.log('getMe: Making request to', `${API_BASE_URL}/api/auth/me`);
+      console.log('getMe: Making request to', `${API_BASE_URL}/auth/me`);
 
-      const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+      const response = await axios.get(`${API_BASE_URL}/auth/me`, {
         withCredentials: true,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -176,7 +176,7 @@ export const authAPI = {
 
   resendVerificationEmail: async (email: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/resend-verification`, {
+      const response = await axios.post(`${API_BASE_URL}/auth/resend-verification`, {
         email
       });
       return response.data;
@@ -191,7 +191,7 @@ export const authAPI = {
 
   verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/auth/verify-email/${token}`);
+      const response = await axios.get(`${API_BASE_URL}/auth/verify-email/${token}`);
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message: string } } };
@@ -204,7 +204,7 @@ export const authAPI = {
 
   requestPasswordReset: async (email: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/request-password-reset`, {
+      const response = await axios.post(`${API_BASE_URL}/auth/request-password-reset`, {
         email
       });
       return response.data;

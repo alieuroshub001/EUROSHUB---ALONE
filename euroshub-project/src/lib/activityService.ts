@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 // Types
 export interface Activity {
@@ -125,7 +125,7 @@ export const activityService = {
         if (options.skip) params.append('skip', options.skip.toString());
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/activities/dashboard?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/activities/dashboard?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -149,8 +149,8 @@ export const activityService = {
       }
 
       const endpoint = userId
-        ? `${API_BASE_URL}/api/activities/user/${userId}?${params.toString()}`
-        : `${API_BASE_URL}/api/activities/my-activities?${params.toString()}`;
+        ? `${API_BASE_URL}/activities/user/${userId}?${params.toString()}`
+        : `${API_BASE_URL}/activities/my-activities?${params.toString()}`;
 
       const response = await axios.get(endpoint, {
         headers: getAuthHeaders(),
@@ -180,7 +180,7 @@ export const activityService = {
         if (options.endDate) params.append('endDate', options.endDate);
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/activities?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/activities?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -193,7 +193,7 @@ export const activityService = {
 
   async getActivityTypes(): Promise<ActivityTypeInfo[]> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/activities/types`, {
+      const response = await axios.get(`${API_BASE_URL}/activities/types`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
@@ -209,7 +209,7 @@ export const activityService = {
       const params = new URLSearchParams();
       params.append('period', period);
 
-      const response = await axios.get(`${API_BASE_URL}/api/activities/stats?${params.toString()}`, {
+      const response = await axios.get(`${API_BASE_URL}/activities/stats?${params.toString()}`, {
         headers: getAuthHeaders(),
         withCredentials: true,
       });
