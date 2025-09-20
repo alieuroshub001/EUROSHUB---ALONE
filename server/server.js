@@ -257,6 +257,8 @@ console.log('  - NODE_ENV:', process.env.NODE_ENV || 'not set');
 console.log('  - PORT:', PORT);
 console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? 'set' : 'not set');
 console.log('  - JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'not set');
+console.log('  - EMAIL_SERVICE:', process.env.EMAIL_SERVICE || 'not set');
+console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN || 'not set');
 
 // Railway requires binding to 0.0.0.0 and the PORT environment variable
 const HOST = process.env.RAILWAY_STATIC_URL ? '0.0.0.0' : '0.0.0.0';
