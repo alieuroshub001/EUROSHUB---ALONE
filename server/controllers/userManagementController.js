@@ -163,21 +163,27 @@ exports.createUser = async (req, res) => {
       isEmailVerified: false
     });
 
-    // Send welcome email with credentials
+    // Send welcome email with credentials (non-blocking)
     let emailSent = false;
-    try {
-      await emailService.sendWelcomeEmail({
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        tempPassword,
-        role: newUser.role,
-        verificationToken: emailVerificationToken
-      });
-      emailSent = true;
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-    }
+
+    // Send email asynchronously without blocking user creation response
+    setImmediate(async () => {
+      try {
+        console.log(`📧 Attempting to send welcome email to ${newUser.email}...`);
+        await emailService.sendWelcomeEmail({
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          tempPassword,
+          role: newUser.role,
+          verificationToken: emailVerificationToken
+        });
+        console.log(`📧 Welcome email sent successfully to ${newUser.email}`);
+      } catch (emailError) {
+        console.error(`📧 Failed to send welcome email to ${newUser.email}:`, emailError.message);
+        // TODO: Add to email retry queue
+      }
+    });
 
     // Send real-time notification
     try {
@@ -189,7 +195,7 @@ exports.createUser = async (req, res) => {
 
     const responseData = {
       success: true,
-      message: `User created successfully. ${emailSent ? 'Credentials sent to email.' : 'Failed to send email - please provide credentials manually.'}`,
+      message: `User created successfully! Welcome email with temporary password is being sent to ${newUser.email}.`,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,

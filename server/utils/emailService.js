@@ -33,6 +33,17 @@ const createTransporter = () => {
     });
 
     console.log('📧 Email transporter created successfully');
+
+    // Test the connection (non-blocking)
+    setImmediate(async () => {
+      try {
+        await transporter.verify();
+        console.log('📧 Email connection verified successfully');
+      } catch (verifyError) {
+        console.error('📧 Email connection verification failed:', verifyError.message);
+      }
+    });
+
     return transporter;
   } catch (error) {
     console.error('📧 Email transporter creation failed:', error.message);
