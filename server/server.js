@@ -81,7 +81,7 @@ app.use('/api/auth/forgot-password', authLimiter);
 // CORS should come before general rate limiting
 // CORS configuration
 app.use(cors({
-  origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

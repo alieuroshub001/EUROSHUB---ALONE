@@ -6,7 +6,7 @@ class SocketManager {
   constructor(server) {
     this.io = new Server(server, {
       cors: {
-        origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+        origin: process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000',
         methods: ['GET', 'POST'],
         credentials: true
       },
