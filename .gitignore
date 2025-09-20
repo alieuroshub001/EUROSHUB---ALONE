@@ -17,6 +17,7 @@ build/
 .env.vercel
 .env.*.local
 .claude
+.env.railway
 
 # --- Logs ---
 logs
