@@ -383,6 +383,56 @@ const sendPasswordResetRejected = async ({ email, firstName, lastName, reason, p
   await transporter.sendMail(mailOptions);
 };
 
+// Automation service email methods (stubbed to prevent crashes)
+const sendDueDateReminderNotification = async () => {
+  console.log('📧 Due date reminder email (stubbed)');
+};
+
+const sendProjectMemberAddedNotification = async () => {
+  console.log('📧 Project member added email (stubbed)');
+};
+
+const sendTaskAssignmentNotification = async () => {
+  console.log('📧 Task assignment email (stubbed)');
+};
+
+const sendTaskStatusChangeNotification = async () => {
+  console.log('📧 Task status change email (stubbed)');
+};
+
+const sendTaskCommentNotification = async () => {
+  console.log('📧 Task comment email (stubbed)');
+};
+
+const sendDigestNotification = async () => {
+  console.log('📧 Digest email (stubbed)');
+};
+
+const generateEmailTemplate = (subject, content, actionUrl = '', actionText = '') => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>${subject}</h2>
+      <div>${content}</div>
+      ${actionUrl ? `<a href="${actionUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">${actionText}</a>` : ''}
+    </div>
+  `;
+};
+
+const sendEmail = async (to, subject, html) => {
+  try {
+    const transporter = createTransport();
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USERNAME,
+      to,
+      subject,
+      html
+    });
+    console.log(`📧 Email sent to ${to}: ${subject}`);
+  } catch (error) {
+    console.error('📧 Email send error:', error.message);
+  }
+};
+
 module.exports = {
   sendWelcomeEmail,
   sendPasswordResetEmail,
@@ -390,5 +440,13 @@ module.exports = {
   sendVerificationEmail,
   notifyAdminsPasswordResetRequest,
   sendPasswordResetSuccess,
-  sendPasswordResetRejected
+  sendPasswordResetRejected,
+  sendDueDateReminderNotification,
+  sendProjectMemberAddedNotification,
+  sendTaskAssignmentNotification,
+  sendTaskStatusChangeNotification,
+  sendTaskCommentNotification,
+  sendDigestNotification,
+  generateEmailTemplate,
+  sendEmail
 };
