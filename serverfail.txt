@@ -1,0 +1,52 @@
+https://euroshub-alone-production.up.railway.app/api/auth/login
+
+Application failed to respond
+This error appears to be caused by the application.
+
+If this is your project, check out your deploy logs to see what went wrong. Refer to our docs on Fixing Common Errors for help, or reach out over our Help Station.
+
+If you are a visitor, please contact the application owner or try again later.
+
+Request ID:
+qQAvhHAVSfGHZDmm0ubPiw
+
+Go to Railway
+
+
+You reached the start of the range
+Sep 20, 2025, 2:20 PM
+OPTIONS
+/api/auth/login
+502
+162ms
+GET
+/api/auth/login
+502
+162ms
+
+https://euroshub-alone-production.up.railway.app/api/auth/login' from origin 'https://euroshub-alone.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+You reached the start of the range
+Sep 20, 2025, 2:20 PM
+Starting Container
+npm warn config production Use `--omit=dev` instead.
+> euroshub-server@1.0.0 start
+> node server.js
+⚠️  Email service setup failed: nodemailer.createTransporter is not a function
+Automation service cron jobs initialized
+✅ Automation service initialized
+🔌 Socket.IO CORS origin: https://euroshub-alone.vercel.app
+✅ Socket.IO initialized successfully
+🔧 CORS Configuration: Using custom middleware with hardcoded origins
+🚀 Starting server...
+📊 Environment variables check:
+  - NODE_ENV: production
+  - PORT: 5000
+  - MONGODB_URI: set
+  - JWT_SECRET: set
+✅ Server running in production mode
+🌐 Listening on 0.0.0.0:5000
+🔗 Socket.IO enabled for real-time communication
+🌐 Health check: http://0.0.0.0:5000/api/health
+🚀 Railway URL: https://euroshub-alone-production.up.railway.app
+MongoDB Connected: ac-uvimtog-shard-00-01.yyoerl5.mongodb.net

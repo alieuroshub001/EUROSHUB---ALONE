@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const automationService = require('../services/automationService');
-const emailService = require('../services/emailService');
+const emailService = require('../utils/emailService');
 const { protect } = require('../middleware/auth');
 
 /**

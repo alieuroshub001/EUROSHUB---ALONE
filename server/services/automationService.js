@@ -1,4 +1,4 @@
-const emailService = require('./emailService');
+const emailService = require('../utils/emailService');
 const User = require('../models/User');
 const Card = require('../models/Card');
 const List = require('../models/List');
