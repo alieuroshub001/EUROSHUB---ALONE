@@ -196,6 +196,7 @@ exports.createUser = async (req, res) => {
     const responseData = {
       success: true,
       message: `User created successfully! Welcome email with temporary password is being sent to ${newUser.email}.`,
+      tempPassword: tempPassword, // Include temp password in response as fallback
       user: {
         id: newUser._id,
         firstName: newUser.firstName,

@@ -47,6 +47,13 @@ try {
 }
 
 const app = express();
+
+// Configure trust proxy for Railway
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // Trust Railway's proxy
+  console.log('🔧 Trust proxy enabled for Railway');
+}
+
 const server = http.createServer(app);
 
 // Connect to database with error handling
