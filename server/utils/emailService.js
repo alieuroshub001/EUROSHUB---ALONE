@@ -12,25 +12,51 @@ const createTransporter = () => {
       return null;
     }
 
-    const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
+    // Try different SMTP configurations for Railway compatibility
+    const smtpConfig = {
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD
       },
       // Enhanced timeout configuration for Railway
-      connectionTimeout: 30000, // 30 seconds
-      greetingTimeout: 30000,
-      socketTimeout: 30000,
-      // Additional Gmail-specific settings
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      requireTLS: true,
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 60000,
+      socketTimeout: 60000,
       tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
       }
+    };
+
+    // Try different SMTP configurations based on Railway constraints
+    if (process.env.NODE_ENV === 'production') {
+      // Railway-optimized configuration
+      Object.assign(smtpConfig, {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use SSL
+        pool: true,
+        maxConnections: 1,
+        maxMessages: 3
+      });
+    } else {
+      // Development configuration
+      Object.assign(smtpConfig, {
+        service: 'gmail',
+        port: 587,
+        secure: false,
+        requireTLS: true
+      });
+    }
+
+    console.log(`📧 Using SMTP config:`, {
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      service: smtpConfig.service
     });
+
+    const transporter = nodemailer.createTransport(smtpConfig);
 
     console.log('📧 Email transporter created successfully');
 
