@@ -1,4 +1,28 @@
 const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
+
+// Initialize SendGrid if API key is available
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('📧 SendGrid initialized as backup email service');
+}
+
+// SendGrid email sending function
+const sendEmailViaSendGrid = async (to, subject, html) => {
+  if (!process.env.SENDGRID_API_KEY) {
+    throw new Error('SendGrid API key not configured');
+  }
+
+  const msg = {
+    to,
+    from: process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL || 'noreply@euroshub.com',
+    subject,
+    html
+  };
+
+  await sgMail.send(msg);
+  console.log(`📧 SendGrid email sent successfully to ${to}`);
+};
 
 const createTransporter = () => {
   try {
@@ -156,7 +180,20 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
     await transporter.sendMail(mailOptions);
     console.log(`📧 Welcome email sent successfully to ${email}`);
   } catch (error) {
-    console.error(`📧 Failed to send welcome email to ${email}:`, error.message);
+    console.error(`📧 SMTP failed for ${email}:`, error.message);
+
+    // Try SendGrid as fallback
+    if (process.env.SENDGRID_API_KEY) {
+      try {
+        console.log(`📧 Trying SendGrid fallback for ${email}...`);
+        await sendEmailViaSendGrid(email, 'Welcome to EurosHub - Account Created', mailOptions.html);
+        console.log(`📧 SendGrid fallback successful for ${email}`);
+        return; // Success with SendGrid
+      } catch (sendGridError) {
+        console.error(`📧 SendGrid fallback failed for ${email}:`, sendGridError.message);
+      }
+    }
+
     throw error;
   }
 };
