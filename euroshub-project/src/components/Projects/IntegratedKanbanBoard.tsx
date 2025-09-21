@@ -824,6 +824,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
                 onAssignUser={handleAssignUser}
+                onClickTask={handleEditTask}
               />
             ))}
           </div>

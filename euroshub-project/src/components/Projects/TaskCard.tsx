@@ -35,6 +35,7 @@ interface TaskCardProps {
   onEdit?: (taskId: string, taskData: any) => void;
   onDelete?: (taskId: string) => void;
   onAssign?: (taskId: string, userIds: string[]) => void;
+  onClick?: (taskId: string, taskData: any) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
@@ -42,7 +43,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   isDragging = false,
   onEdit,
   onDelete,
-  onAssign
+  onAssign,
+  onClick
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const {
@@ -91,13 +93,33 @@ const TaskCard: React.FC<TaskCardProps> = ({
     new Date(task.dueDate) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) &&
     new Date(task.dueDate) >= new Date();
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger onClick if clicking on interactive elements
+    if (e.target !== e.currentTarget &&
+        (e.target as HTMLElement).closest('button, a, input, select, textarea')) {
+      return;
+    }
+
+    if (onClick) {
+      onClick(task.id, {
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        assignees: task.assignees || [],
+        dueDate: task.dueDate,
+        tags: task.tags || []
+      });
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded-lg border border-gray-200 border-l-4 p-4 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all duration-200 ${getPriorityColor(task.priority)}`}
+      onClick={handleCardClick}
+      className={`bg-white rounded-lg border border-gray-200 border-l-4 p-4 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all duration-200 ${getPriorityColor(task.priority)} ${onClick ? 'hover:bg-gray-50' : ''}`}
     >
       {/* Task Header */}
       <div className="flex items-start justify-between mb-3">
