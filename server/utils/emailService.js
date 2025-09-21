@@ -6,6 +6,8 @@ const createTransporter = () => {
     console.log('📧 Email service:', process.env.EMAIL_SERVICE);
     console.log('📧 Email username:', process.env.EMAIL_USERNAME ? 'SET' : 'NOT SET');
     console.log('📧 Email password:', process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET');
+    console.log('📧 SMTP_PORT env var:', process.env.SMTP_PORT || 'NOT SET');
+    console.log('📧 NODE_ENV:', process.env.NODE_ENV);
 
     if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
       console.error('📧 Missing email credentials');
@@ -34,6 +36,10 @@ const createTransporter = () => {
       const railwayPorts = [2587, 2525, 25, 465, 587];
       const selectedPort = process.env.SMTP_PORT || 2587;
 
+      console.log(`📧 Raw SMTP_PORT value: '${process.env.SMTP_PORT}'`);
+      console.log(`📧 Selected port: ${selectedPort}`);
+      console.log(`📧 Port after parseInt: ${parseInt(selectedPort)}`);
+
       Object.assign(smtpConfig, {
         host: 'smtp.gmail.com',
         port: parseInt(selectedPort),
@@ -44,7 +50,12 @@ const createTransporter = () => {
         requireTLS: selectedPort != 465
       });
 
-      console.log(`📧 Trying Railway port: ${selectedPort}`);
+      console.log(`📧 Final SMTP config before transporter:`, {
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        requireTLS: smtpConfig.requireTLS
+      });
     } else {
       // Development configuration
       Object.assign(smtpConfig, {
