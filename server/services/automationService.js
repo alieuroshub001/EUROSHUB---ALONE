@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Card = require('../models/Card');
 const List = require('../models/List');
 const Project = require('../models/Project');
+const mongoose = require('mongoose');
 const cron = require('node-cron');
 
 class AutomationService {
@@ -510,6 +511,112 @@ class AutomationService {
       await emailService.sendEmail(email, subject, htmlContent);
     } catch (error) {
       console.error('Error sending project summary email:', error);
+    }
+  }
+
+  async handleChecklistUpdate(cardId, userId) {
+    try {
+      const card = await Card.findById(cardId)
+        .populate('list', 'title listType')
+        .populate('board', 'title');
+
+      if (!card) {
+        console.error('Card not found for checklist automation');
+        return;
+      }
+
+      const checklist = card.checklist || [];
+      if (checklist.length === 0) return;
+
+      const completedCount = checklist.filter(item => item.completed).length;
+      const completionRate = completedCount / checklist.length;
+
+      console.log(`Card ${card.title} checklist: ${completedCount}/${checklist.length} completed (${Math.round(completionRate * 100)}%)`);
+
+      const List = mongoose.model('List');
+      const lists = await List.find({ board: card.board }).sort({ position: 1 });
+
+      let targetListId = null;
+      let newStatus = card.status;
+
+      if (completedCount === 0) {
+        const todoList = lists.find(list => list.listType === 'todo');
+        if (todoList && card.list.toString() !== todoList._id.toString()) {
+          targetListId = todoList._id;
+          newStatus = 'open';
+          console.log(`Moving card ${card.title} to To Do (no subtasks completed)`);
+        }
+      } else if (completedCount > 0 && completedCount < checklist.length) {
+        const inProgressList = lists.find(list => list.listType === 'in_progress');
+        if (inProgressList && card.list.toString() !== inProgressList._id.toString()) {
+          targetListId = inProgressList._id;
+          newStatus = 'in_progress';
+          console.log(`Moving card ${card.title} to In Progress (partial completion: ${Math.round(completionRate * 100)}%)`);
+        }
+      } else if (completedCount === checklist.length) {
+        const doneList = lists.find(list => list.listType === 'done');
+        if (doneList && card.list.toString() !== doneList._id.toString()) {
+          targetListId = doneList._id;
+          newStatus = 'completed';
+          console.log(`Moving card ${card.title} to Done (all subtasks completed)`);
+        }
+      }
+
+      if (targetListId) {
+        const oldListId = card.list;
+        const oldStatus = card.status;
+
+        await card.moveToList(targetListId);
+        card.status = newStatus;
+
+        if (newStatus === 'completed') {
+          card.completedAt = new Date();
+          card.completedBy = userId;
+        } else if (oldStatus === 'completed' && newStatus !== 'completed') {
+          card.completedAt = null;
+          card.completedBy = null;
+        }
+
+        await card.save();
+
+        await this.handleCardMovedBetweenLists(cardId, oldListId, targetListId, userId);
+
+        console.log(`Card ${card.title} automatically moved from ${card.list.title} to ${targetListId} due to checklist automation`);
+      }
+
+    } catch (error) {
+      console.error('Error in checklist automation:', error);
+    }
+  }
+
+  async handleNewTaskCreation(cardId, userId) {
+    try {
+      const card = await Card.findById(cardId)
+        .populate('list', 'title listType')
+        .populate('board', 'title');
+
+      if (!card) {
+        console.error('Card not found for new task automation');
+        return;
+      }
+
+      const List = mongoose.model('List');
+      const lists = await List.find({ board: card.board }).sort({ position: 1 });
+      const todoList = lists.find(list => list.listType === 'todo');
+
+      if (todoList && card.list.toString() !== todoList._id.toString()) {
+        console.log(`Moving new task ${card.title} to To Do list`);
+
+        const oldListId = card.list;
+        await card.moveToList(todoList._id);
+        card.status = 'open';
+        await card.save();
+
+        console.log(`New task ${card.title} automatically moved to To Do`);
+      }
+
+    } catch (error) {
+      console.error('Error in new task automation:', error);
     }
   }
 }

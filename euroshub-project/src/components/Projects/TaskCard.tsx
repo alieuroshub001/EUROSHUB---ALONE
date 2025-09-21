@@ -55,6 +55,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onAssign,
   onClick
 }) => {
+  console.log('=== TASK CARD DEBUG ===');
+  console.log('Task received:', JSON.stringify(task, null, 2));
+  console.log('Task subtasks:', task.subtasks);
+  console.log('Task subtasks length:', task.subtasks?.length || 0);
+  console.log('=== END TASK CARD DEBUG ===');
+
   const [showMenu, setShowMenu] = useState(false);
   const {
     attributes,

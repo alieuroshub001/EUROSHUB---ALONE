@@ -4,6 +4,7 @@ const router = express.Router();
 const List = require('../models/List');
 const Card = require('../models/Card');
 const Activity = require('../models/Activity');
+const automationService = require('../services/automationService');
 const { protect } = require('../middleware/auth');
 const {
   checkBoardAccess,
@@ -780,6 +781,14 @@ router.post('/:listId/cards', protect, checkListAccess, async (req, res) => {
         entityName: card.title,
         entityId: card._id
       }
+    });
+
+    // Trigger automation for new task creation
+    automationService.handleNewTaskCreation(
+      card._id,
+      req.user.id
+    ).catch(error => {
+      console.error('Automation error for new task creation:', error);
     });
 
     // Populate for response

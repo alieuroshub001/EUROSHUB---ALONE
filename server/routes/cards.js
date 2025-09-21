@@ -60,7 +60,8 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
       dueDate,
       startDate,
       labels,
-      customFields
+      customFields,
+      checklist
     } = req.body;
 
     // Check if user has permission to update card
@@ -132,6 +133,30 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
     if (customFields && JSON.stringify(customFields) !== JSON.stringify(card.customFields)) {
       changes.push({ field: 'customFields', oldValue: [...card.customFields], newValue: customFields });
       card.customFields = customFields;
+    }
+
+    if (checklist && JSON.stringify(checklist) !== JSON.stringify(card.checklist)) {
+      // Clean checklist data to handle frontend-backend data format differences
+      const cleanedChecklist = checklist.map(item => ({
+        text: item.text,
+        completed: Boolean(item.completed),
+        completedAt: item.completedAt || null,
+        // Convert empty strings to null for ObjectId fields
+        completedBy: item.completedBy && item.completedBy !== '' ? item.completedBy : null
+      }));
+
+      changes.push({ field: 'checklist', oldValue: [...card.checklist], newValue: cleanedChecklist });
+      card.checklist = cleanedChecklist;
+
+      // Trigger automation for checklist changes
+      setImmediate(() => {
+        automationService.handleChecklistUpdate(
+          card._id,
+          req.user.id
+        ).catch(error => {
+          console.error('Automation error for checklist update:', error);
+        });
+      });
     }
 
     await card.save();
@@ -1125,6 +1150,328 @@ router.get('/:cardId/attachments/:attachmentId/download', protect, checkCardAcce
     res.status(500).json({
       success: false,
       message: 'Error downloading attachment'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/checklist
+ * @desc    Add checklist item to card
+ * @access  Private
+ */
+router.post('/:cardId/checklist', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { text, completed = false } = req.body;
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Checklist item text is required'
+      });
+    }
+
+    // Check if user has permission to add checklist items
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add checklist items to this card'
+      });
+    }
+
+    // Add checklist item
+    const checklistItem = {
+      text: text.trim(),
+      completed,
+      completedAt: completed ? new Date() : null,
+      completedBy: completed ? req.user.id : null
+    };
+
+    card.checklist.push(checklistItem);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_checklist_item_added',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        checklistItem: text.trim()
+      }
+    });
+
+    // Populate for response
+    await card.populate([
+      { path: 'assignedTo', select: 'firstName lastName avatar' },
+      { path: 'createdBy', select: 'firstName lastName avatar' },
+      { path: 'checklist.completedBy', select: 'firstName lastName avatar' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: card,
+      message: 'Checklist item added successfully'
+    });
+  } catch (error) {
+    console.error('Add checklist item error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding checklist item'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/checklist/bulk
+ * @desc    Add multiple checklist items to card
+ * @access  Private
+ */
+router.post('/:cardId/checklist/bulk', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Items array is required'
+      });
+    }
+
+    // Check if user has permission to add checklist items
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add checklist items to this card'
+      });
+    }
+
+    // Validate and prepare checklist items
+    const checklistItems = items.map(item => {
+      if (!item.text || item.text.trim().length === 0) {
+        throw new Error('All checklist items must have text');
+      }
+
+      return {
+        text: item.text.trim(),
+        completed: item.completed || false,
+        completedAt: item.completed ? new Date() : null,
+        completedBy: item.completed ? req.user.id : null
+      };
+    });
+
+    // Add all checklist items
+    card.checklist.push(...checklistItems);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_checklist_items_added',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        itemCount: items.length
+      }
+    });
+
+    // Populate for response
+    await card.populate([
+      { path: 'assignedTo', select: 'firstName lastName avatar' },
+      { path: 'createdBy', select: 'firstName lastName avatar' },
+      { path: 'checklist.completedBy', select: 'firstName lastName avatar' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: card,
+      message: `${items.length} checklist items added successfully`
+    });
+  } catch (error) {
+    console.error('Add checklist items error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error adding checklist items'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/cards/:cardId/checklist/:itemId
+ * @desc    Update checklist item
+ * @access  Private
+ */
+router.put('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { itemId } = req.params;
+    const { text, completed } = req.body;
+
+    // Check if user has permission to update checklist items
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update checklist items on this card'
+      });
+    }
+
+    // Find the checklist item
+    const checklistItem = card.checklist.id(itemId);
+    if (!checklistItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Checklist item not found'
+      });
+    }
+
+    // Update the checklist item
+    if (text !== undefined) {
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Checklist item text cannot be empty'
+        });
+      }
+      checklistItem.text = text.trim();
+    }
+
+    if (completed !== undefined) {
+      checklistItem.completed = completed;
+      if (completed) {
+        checklistItem.completedAt = new Date();
+        checklistItem.completedBy = req.user.id;
+      } else {
+        checklistItem.completedAt = null;
+        checklistItem.completedBy = null;
+      }
+    }
+
+    await card.save();
+
+    // Trigger automation for checklist changes
+    if (completed !== undefined) {
+      automationService.handleChecklistUpdate(
+        card._id,
+        req.user.id
+      ).catch(error => {
+        console.error('Automation error for checklist update:', error);
+      });
+    }
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_checklist_item_updated',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        checklistItem: checklistItem.text
+      }
+    });
+
+    // Populate for response
+    await card.populate([
+      { path: 'assignedTo', select: 'firstName lastName avatar' },
+      { path: 'createdBy', select: 'firstName lastName avatar' },
+      { path: 'checklist.completedBy', select: 'firstName lastName avatar' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: card,
+      message: 'Checklist item updated successfully'
+    });
+  } catch (error) {
+    console.error('Update checklist item error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating checklist item'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/cards/:cardId/checklist/:itemId
+ * @desc    Delete checklist item
+ * @access  Private
+ */
+router.delete('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { itemId } = req.params;
+
+    // Check if user has permission to delete checklist items
+    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete checklist items from this card'
+      });
+    }
+
+    // Find the checklist item
+    const checklistItem = card.checklist.id(itemId);
+    if (!checklistItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Checklist item not found'
+      });
+    }
+
+    const itemText = checklistItem.text;
+
+    // Remove the checklist item
+    card.checklist.pull(itemId);
+    await card.save();
+
+    // Log activity
+    await Activity.logActivity({
+      type: 'card_checklist_item_deleted',
+      user: req.user.id,
+      project: card.project,
+      board: card.board,
+      list: card.list,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        checklistItem: itemText
+      }
+    });
+
+    // Populate for response
+    await card.populate([
+      { path: 'assignedTo', select: 'firstName lastName avatar' },
+      { path: 'createdBy', select: 'firstName lastName avatar' },
+      { path: 'checklist.completedBy', select: 'firstName lastName avatar' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: card,
+      message: 'Checklist item deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete checklist item error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting checklist item'
     });
   }
 });

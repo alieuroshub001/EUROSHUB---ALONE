@@ -59,13 +59,34 @@ const convertBackendCard = (card: Card): any => ({
       uploadedAt: card.createdAt // Using card creation date as fallback
     };
   }),
-  subtasks: card.subtasks?.map(subtask => ({
-    id: subtask._id || subtask.id,
-    title: subtask.title,
-    completed: subtask.completed,
-    createdAt: subtask.createdAt,
-    completedAt: subtask.completedAt
-  })) || [],
+  subtasks: (() => {
+    console.log('=== CONVERT BACKEND CARD SUBTASKS DEBUG ===');
+    console.log('Card object received:', card);
+    console.log('Card checklist field:', card.checklist);
+    console.log('Card checklist type:', typeof card.checklist);
+    console.log('Card checklist length:', card.checklist?.length);
+
+    // Backend uses checklist field for subtasks
+    const checklist = card.checklist || [];
+    console.log('Processed checklist:', checklist);
+
+    const convertedSubtasks = checklist.map((item, index) => {
+      console.log(`Converting checklist item ${index}:`, item);
+      const converted = {
+        id: item._id || `checklist-${index}`,
+        title: item.text,
+        completed: item.completed,
+        createdAt: card.createdAt, // Use card creation date as fallback
+        completedAt: item.completedAt
+      };
+      console.log(`Converted to subtask:`, converted);
+      return converted;
+    });
+
+    console.log('Final converted subtasks:', convertedSubtasks);
+    console.log('=== END CONVERT BACKEND CARD SUBTASKS DEBUG ===');
+    return convertedSubtasks;
+  })(),
   status: card.status,
   isOverdue: card.isOverdue,
   checklistCompletion: card.checklistCompletion
@@ -137,6 +158,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [originalProjectMembers, setOriginalProjectMembers] = useState<any[]>([]);
   const [showEditTask, setShowEditTask] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [showManageMembers, setShowManageMembers] = useState<boolean>(false);
@@ -160,6 +182,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         setLoading(true);
         const projectData = await projectService.getProject(projectId);
         setProject(projectData);
+
+        // Store original project members for modals
+        setOriginalProjectMembers(projectData.members);
 
         // Set team members from project members
         const members = projectData.members.map(member => ({
@@ -207,12 +232,52 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         const boardsData = await boardService.getProjectBoards(project._id);
         console.log('Raw boards data from API:', boardsData);
 
+        // Check if cards have subtasks in the raw data
+        boardsData.forEach((board, boardIndex) => {
+          console.log(`Board ${boardIndex} (${board.title}):`, board);
+          if (board.lists) {
+            board.lists.forEach((list, listIndex) => {
+              console.log(`  List ${listIndex} (${list.title}):`, list);
+              if (list.cards) {
+                list.cards.forEach((card, cardIndex) => {
+                  console.log(`=== LOAD BOARDS CARD DEBUG ===`);
+                  console.log(`Card ${cardIndex} (${card.title}):`, card);
+                  console.log(`Card checklist:`, card.checklist);
+                  console.log(`Card subtasks:`, card.subtasks);
+                  console.log(`Card checklist length:`, card.checklist?.length || 0);
+                  console.log(`=== END LOAD BOARDS CARD DEBUG ===`);
+                });
+              }
+            });
+          }
+        });
+
         const convertedBoards = boardsData.map(convertBackendBoard);
         console.log('Converted boards:', convertedBoards);
 
-        // Keep board members as they are stored in the backend
-        // Don't automatically assign all project members to all boards
-        const boardsWithMembers = convertedBoards;
+        // Apply stored board member preferences or default to empty for selective assignment
+        const boardMemberPrefs = JSON.parse(localStorage.getItem('boardMemberPreferences') || '{}');
+
+        const boardsWithMembers = convertedBoards.map(board => {
+          const savedMemberIds = boardMemberPrefs[board.id] || [];
+          const boardMembers = savedMemberIds.map((memberId: string) => {
+            const teamMember = teamMembers.find(m => m.id === memberId);
+            if (teamMember) {
+              return {
+                id: teamMember.id,
+                name: teamMember.name || 'Unknown User',
+                avatar: teamMember.avatar,
+                role: teamMember.role
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          return {
+            ...board,
+            members: boardMembers
+          };
+        });
 
         console.log('Boards with members:', boardsWithMembers);
         setBoards(boardsWithMembers);
@@ -250,6 +315,24 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
 
         // Update task status if needed
         await boardService.updateCard(taskId, { status: newStatus });
+
+        // Auto-move task to appropriate column when completed
+        if (allCompleted && activeBoard) {
+          // Find the "Done" or "Completed" column
+          const completedColumn = activeBoard.columns.find((col: any) =>
+            col.listType === 'done' ||
+            col.title.toLowerCase().includes('done') ||
+            col.title.toLowerCase().includes('completed')
+          );
+
+          if (completedColumn) {
+            try {
+              await boardService.moveCard(taskId, completedColumn.id);
+            } catch (error) {
+              console.error('Failed to auto-move completed task:', error);
+            }
+          }
+        }
 
         // Don't refresh here to avoid infinite loops - the parent will handle refreshing
       }
@@ -289,31 +372,33 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     try {
       if (!activeBoard) return;
 
-      // Update board members via API
-      await boardService.updateBoardMembers(activeBoard.id, memberIds);
+      // Since the backend doesn't currently support individual board member management,
+      // we'll handle this on the frontend for now
+      console.log(`Updating board ${activeBoard.id} members to:`, memberIds);
+
+      // Map member IDs to member objects
+      const updatedMembers = memberIds.map(memberId => {
+        const teamMember = teamMembers.find(m => m.id === memberId);
+        if (teamMember) {
+          return {
+            id: teamMember.id,
+            name: teamMember.name || 'Unknown User',
+            avatar: teamMember.avatar,
+            role: teamMember.role
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      // Store board member preferences in localStorage for persistence
+      const boardMemberPrefs = JSON.parse(localStorage.getItem('boardMemberPreferences') || '{}');
+      boardMemberPrefs[activeBoard.id] = memberIds;
+      localStorage.setItem('boardMemberPreferences', JSON.stringify(boardMemberPrefs));
 
       // Update local state
       const updatedBoard = {
         ...activeBoard,
-        members: memberIds.map(memberId => {
-          const teamMember = teamMembers.find(m => m.user?._id === memberId || m.id === memberId);
-          if (teamMember?.user) {
-            return {
-              id: teamMember.user._id,
-              name: `${teamMember.user.firstName} ${teamMember.user.lastName}`,
-              avatar: teamMember.user.avatar,
-              role: teamMember.role
-            };
-          } else if (teamMember) {
-            return {
-              id: teamMember.id,
-              name: teamMember.name || 'Unknown User',
-              avatar: teamMember.avatar,
-              role: teamMember.role
-            };
-          }
-          return null;
-        }).filter(Boolean)
+        members: updatedMembers
       };
 
       setActiveBoard(updatedBoard);
@@ -418,13 +503,20 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
 
       // Get selected members or use empty array for selective assignment
       const selectedMembers = boardData.selectedMembers
-        ? teamMembers.filter(member => boardData.selectedMembers?.includes(member.user?._id || member._id))
+        ? teamMembers.filter(member => boardData.selectedMembers?.includes(member.id))
         : [];
 
       const newBoard = {
         ...convertBackendBoard(newBoardData),
         members: selectedMembers
       };
+
+      // Save selected members to localStorage for persistence
+      if (boardData.selectedMembers && boardData.selectedMembers.length > 0) {
+        const boardMemberPrefs = JSON.parse(localStorage.getItem('boardMemberPreferences') || '{}');
+        boardMemberPrefs[newBoard.id] = boardData.selectedMembers;
+        localStorage.setItem('boardMemberPreferences', JSON.stringify(boardMemberPrefs));
+      }
 
       console.log('Converted board:', newBoard);
       setBoards(prevBoards => [...prevBoards, newBoard]);
@@ -460,18 +552,81 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           return member?.id;
         }).filter(Boolean),
         dueDate: taskData.dueDate || undefined,
-        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' })),
-        subtasks: taskData.subtasks || []
+        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' }))
+        // Note: checklist will be added via separate update call since create API doesn't support it
       };
 
-      console.log('Create task data being sent:', createData);
+      // Prepare checklist data for update call
+      const checklistData = (taskData.subtasks || []).map(subtask => ({
+        text: subtask.title,
+        completed: subtask.completed,
+        completedAt: subtask.completedAt,
+        completedBy: ''
+      }));
+
+      console.log('Creating task with subtasks:', taskData.subtasks);
+      console.log('Create task data being sent to backend:', createData);
+      console.log('Prepared checklist data for update:', checklistData);
 
       const newCardData = await boardService.createCard(selectedColumn, createData);
-      const newTask = convertBackendCard(newCardData);
+      console.log('New card data received from backend:', newCardData);
+      console.log('Backend card subtasks:', newCardData.subtasks);
+      console.log('Full backend card object:', JSON.stringify(newCardData, null, 2));
+
+      let finalCardData = newCardData;
+
+      // Always add checklist via dedicated API if subtasks exist (backend create doesn't support checklist)
+      if (taskData.subtasks && taskData.subtasks.length > 0) {
+        console.log('Adding checklist items via dedicated checklist API (backend create API limitation)');
+        try {
+          // Try bulk checklist addition first
+          console.log('Attempting bulk checklist addition with items:', JSON.stringify(checklistData, null, 2));
+          const bulkUpdatedData = await boardService.addChecklistItems(newCardData._id, checklistData);
+          console.log('Successfully added checklist items via bulk API:', bulkUpdatedData.checklist);
+          finalCardData = bulkUpdatedData;
+        } catch (bulkError) {
+          console.warn('Bulk checklist addition failed, trying individual additions:', bulkError);
+
+          try {
+            // Fallback to individual item addition
+            let currentCardData = newCardData;
+            for (const item of checklistData) {
+              console.log('Adding individual checklist item:', item.text);
+              currentCardData = await boardService.addChecklistItem(currentCardData._id, item.text);
+              console.log('Added item, current checklist length:', currentCardData.checklist?.length || 0);
+            }
+            console.log('Successfully added all checklist items individually');
+            finalCardData = currentCardData;
+          } catch (individualError) {
+            console.error('Failed to add checklist items individually:', individualError);
+
+            // Final fallback to generic update
+            try {
+              console.log('Trying generic update as final fallback');
+              const updateData = { checklist: checklistData };
+              const updatedCardData = await boardService.updateCard(newCardData._id, updateData);
+              console.log('Generic update result:', updatedCardData.checklist);
+              finalCardData = updatedCardData;
+            } catch (updateError) {
+              console.error('All checklist addition methods failed:', updateError);
+              console.log('Using original card without checklist');
+            }
+          }
+        }
+      }
+
+      console.log('=== SUBTASKS DEBUG: Converting backend card to frontend task ===');
+      console.log('Final card data before conversion:', JSON.stringify(finalCardData, null, 2));
+      console.log('Final card checklist before conversion:', finalCardData.checklist);
+
+      const newTask = convertBackendCard(finalCardData);
+      console.log('Final converted task:', JSON.stringify(newTask, null, 2));
+      console.log('Final converted task subtasks:', newTask.subtasks);
+      console.log('=== END SUBTASKS DEBUG ===');
 
       // Check and update task completion status for new task
       if (taskData.subtasks && taskData.subtasks.length > 0) {
-        await checkAndUpdateTaskCompletion(newCardData._id, taskData.subtasks);
+        await checkAndUpdateTaskCompletion(finalCardData._id, taskData.subtasks);
       }
 
       // Send notifications to assigned users for new task
@@ -488,7 +643,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           // Send notification asynchronously (don't block UI)
           notificationService.notifyTaskAssignment(
             assignedUserIds,
-            newCardData._id,
+            finalCardData._id,
             taskData.title,
             project._id,
             project.title,
@@ -571,13 +726,23 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         }).filter(Boolean),
         dueDate: taskData.dueDate || undefined,
         labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' })),
-        subtasks: taskData.subtasks || []
+        // Send subtasks as checklist since backend uses checklist field
+        checklist: (taskData.subtasks || []).map(subtask => ({
+          text: subtask.title,
+          completed: subtask.completed,
+          completedAt: subtask.completedAt,
+          completedBy: ''
+        }))
       };
 
       console.log('Update data being sent:', updateData);
+      console.log('Updating task with subtasks:', taskData.subtasks);
 
       const updatedCardData = await boardService.updateCard(taskId, updateData);
+      console.log('Updated card data received from backend:', updatedCardData);
+      console.log('Updated backend card subtasks:', updatedCardData.subtasks);
       const updatedTask = convertBackendCard(updatedCardData);
+      console.log('Updated converted task subtasks:', updatedTask.subtasks);
 
       // Check and update task completion status based on subtasks
       if (taskData.subtasks) {
@@ -946,7 +1111,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
               setShowCreateBoard(false);
             }}
             onSubmit={handleCreateBoard}
-            projectMembers={teamMembers}
+            projectMembers={originalProjectMembers}
           />
         )}
       </div>
@@ -1085,7 +1250,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
             setShowCreateBoard(false);
           }}
           onSubmit={handleCreateBoard}
-          projectMembers={teamMembers}
+          projectMembers={originalProjectMembers}
         />
       )}
 
@@ -1120,7 +1285,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           onUpdateMembers={handleUpdateBoardMembers}
           boardName={activeBoard.name}
           currentBoardMembers={activeBoard.members || []}
-          availableMembers={teamMembers}
+          availableMembers={originalProjectMembers}
         />
       )}
     </div>

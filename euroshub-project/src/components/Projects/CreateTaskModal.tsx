@@ -1,12 +1,20 @@
 'use client';
 
 import { useState, ChangeEvent, KeyboardEvent, FormEvent } from 'react';
-import { X, Calendar, User, Tag, AlertCircle } from 'lucide-react';
+import { X, Calendar, User, Tag, AlertCircle, Plus, Check, Trash2, CheckSquare } from 'lucide-react';
 
 interface Member {
   id?: string;
   _id?: string;
   name: string;
+}
+
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
 }
 
 interface TaskData {
@@ -16,6 +24,7 @@ interface TaskData {
   assignees: string[];
   dueDate?: string;
   tags: string[];
+  subtasks?: Subtask[];
 }
 
 interface CreateTaskModalProps {
@@ -54,14 +63,24 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     priority: 'medium',
     assignees: [],
     dueDate: '',
-    tags: []
+    tags: [],
+    subtasks: []
   });
 
   const [tagInput, setTagInput] = useState<string>('');
+  const [newSubtask, setNewSubtask] = useState<string>('');
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.title.trim()) {
+      console.log('=== CREATE TASK MODAL DEBUG ===');
+      console.log('Form data being submitted:', JSON.stringify(formData, null, 2));
+      console.log('Subtasks in form data:', formData.subtasks);
+      console.log('Number of subtasks:', formData.subtasks?.length || 0);
+      formData.subtasks?.forEach((subtask, index) => {
+        console.log(`Subtask ${index + 1}:`, subtask);
+      });
+      console.log('=== END CREATE TASK MODAL DEBUG ===');
       onSubmit(formData);
     }
   };
@@ -104,6 +123,69 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault();
       addTag(tagInput.trim().toLowerCase());
+    }
+  };
+
+  // Subtask management functions
+  const addSubtask = () => {
+    if (newSubtask.trim()) {
+      const subtask: Subtask = {
+        id: Date.now().toString(),
+        title: newSubtask.trim(),
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+
+      console.log('=== ADD SUBTASK DEBUG ===');
+      console.log('Adding new subtask:', subtask);
+      console.log('Current subtasks before adding:', formData.subtasks);
+
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          subtasks: [...(prev.subtasks || []), subtask]
+        };
+        console.log('New form data after adding subtask:', newFormData.subtasks);
+        console.log('=== END ADD SUBTASK DEBUG ===');
+        return newFormData;
+      });
+      setNewSubtask('');
+    }
+  };
+
+  const toggleSubtask = (subtaskId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: prev.subtasks?.map(subtask =>
+        subtask.id === subtaskId
+          ? {
+              ...subtask,
+              completed: !subtask.completed,
+              completedAt: !subtask.completed ? new Date().toISOString() : undefined
+            }
+          : subtask
+      ) || []
+    }));
+  };
+
+  const removeSubtask = (subtaskId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: prev.subtasks?.filter(subtask => subtask.id !== subtaskId) || []
+    }));
+  };
+
+  const calculateCompletionRate = (): number => {
+    const subtasks = formData.subtasks || [];
+    if (subtasks.length === 0) return 0;
+    const completedCount = subtasks.filter(subtask => subtask.completed).length;
+    return Math.round((completedCount / subtasks.length) * 100);
+  };
+
+  const handleSubtaskInputKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newSubtask.trim()) {
+      e.preventDefault();
+      addSubtask();
     }
   };
 
@@ -295,6 +377,109 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       </button>
                     </span>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Subtasks */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              <CheckSquare size={16} className="inline mr-1" />
+              Subtasks
+              {formData.subtasks && formData.subtasks.length > 0 && (
+                <span className="ml-2 text-xs text-gray-500">
+                  ({calculateCompletionRate()}% complete)
+                </span>
+              )}
+            </label>
+
+            <div className="space-y-3">
+              {/* Add New Subtask */}
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  onKeyPress={handleSubtaskInputKeyPress}
+                  placeholder="Add a subtask..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={addSubtask}
+                  disabled={!newSubtask.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              {/* Subtasks List */}
+              <div className="space-y-2">
+                {formData.subtasks && formData.subtasks.length > 0 ? (
+                  formData.subtasks.map((subtask) => (
+                    <div
+                      key={subtask.id}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                        subtask.completed
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSubtask(subtask.id)}
+                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          subtask.completed
+                            ? 'bg-green-500 border-green-500 text-white'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {subtask.completed && <Check size={14} />}
+                      </button>
+                      <span
+                        className={`flex-1 text-sm ${
+                          subtask.completed
+                            ? 'text-gray-500 line-through'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {subtask.title}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeSubtask(subtask.id)}
+                        className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                        title="Delete subtask"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    No subtasks added. Break down your task into smaller steps!
+                  </div>
+                )}
+              </div>
+
+              {/* Completion Progress */}
+              {formData.subtasks && formData.subtasks.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Progress</span>
+                    <span className="text-sm text-gray-600">{calculateCompletionRate()}% Complete</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${calculateCompletionRate()}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {formData.subtasks.filter(s => s.completed).length} of {formData.subtasks.length} completed
+                  </div>
                 </div>
               )}
             </div>

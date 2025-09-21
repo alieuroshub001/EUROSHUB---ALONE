@@ -34,6 +34,7 @@ const listRoutes = require('./routes/lists');
 const cardRoutes = require('./routes/cards');
 const activityRoutes = require('./routes/activities');
 const automationRoutes = require('./routes/automation');
+const notificationRoutes = require('./routes/notifications');
 const SocketManager = require('./config/socket');
 const ProjectSocketManager = require('./config/projectSocket');
 // Initialize automation service with error handling
@@ -233,6 +234,7 @@ app.use('/api/lists', listRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

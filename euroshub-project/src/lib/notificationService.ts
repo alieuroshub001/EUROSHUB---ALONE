@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 const getAuthHeaders = () => {
   const token = getAuthToken();
@@ -33,10 +33,12 @@ export const notificationService = {
       const response = await axios.post(`${API_BASE_URL}/notifications/task-assignment`, notificationData, {
         headers: getAuthHeaders(),
         withCredentials: true,
+        timeout: 5000, // 5 second timeout
       });
       return response.data.success || true;
     } catch (error: unknown) {
-      console.error('Failed to send task assignment notification:', error);
+      // Log warning instead of error to reduce console noise
+      console.warn('Task assignment notification service unavailable:', (error as any)?.code || 'Network error');
       // Don't throw error to avoid breaking task assignment flow
       return false;
     }
@@ -48,10 +50,12 @@ export const notificationService = {
       const response = await axios.post(`${API_BASE_URL}/notifications/email`, notificationData, {
         headers: getAuthHeaders(),
         withCredentials: true,
+        timeout: 5000, // 5 second timeout
       });
       return response.data.success || true;
     } catch (error: unknown) {
-      console.error('Failed to send email notification:', error);
+      // Log warning instead of error to reduce console noise
+      console.warn('Email notification service unavailable:', (error as any)?.code || 'Network error');
       // Don't throw error to avoid breaking main functionality
       return false;
     }

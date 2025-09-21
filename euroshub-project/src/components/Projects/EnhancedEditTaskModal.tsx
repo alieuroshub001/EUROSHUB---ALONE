@@ -75,6 +75,21 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   teamMembers,
   currentUser
 }) => {
+  // Debug logging to check task data
+  console.log('=== ENHANCED EDIT TASK MODAL DEBUG ===');
+  console.log('Task received in modal:', task);
+  console.log('Task subtasks:', task.subtasks);
+  console.log('Task subtasks length:', task.subtasks?.length || 0);
+  console.log('=== END ENHANCED EDIT TASK MODAL DEBUG ===');
+
+  // Debug what we're trying to set in formData
+  console.log('=== FORM DATA INITIALIZATION DEBUG ===');
+  console.log('task.subtasks before setting formData:', task.subtasks);
+  console.log('task.subtasks || []:', task.subtasks || []);
+  console.log('typeof task.subtasks:', typeof task.subtasks);
+  console.log('Array.isArray(task.subtasks):', Array.isArray(task.subtasks));
+  console.log('=== END FORM DATA INITIALIZATION DEBUG ===');
+
   const [formData, setFormData] = useState<TaskData>({
     title: task.title,
     description: task.description || '',
@@ -87,9 +102,31 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
     subtasks: task.subtasks || []
   });
 
+  // Debug the formData subtasks
+  console.log('=== FORM DATA SUBTASKS DEBUG ===');
+  console.log('formData.subtasks:', formData.subtasks);
+  console.log('formData.subtasks length:', formData.subtasks?.length || 0);
+  console.log('=== END FORM DATA SUBTASKS DEBUG ===');
+
   const [newTag, setNewTag] = useState('');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [newComment, setNewComment] = useState('');
+
+  // Force update subtasks if they get lost
+  useEffect(() => {
+    console.log('=== USEEFFECT SUBTASKS FIX ===');
+    console.log('task.subtasks in useEffect:', task.subtasks);
+    console.log('formData.subtasks in useEffect:', formData.subtasks);
+
+    if (task.subtasks && task.subtasks.length > 0 && (!formData.subtasks || formData.subtasks.length === 0)) {
+      console.log('Fixing lost subtasks in useEffect');
+      setFormData(prev => ({
+        ...prev,
+        subtasks: task.subtasks || []
+      }));
+    }
+    console.log('=== END USEEFFECT SUBTASKS FIX ===');
+  }, [task.subtasks, formData.subtasks]);
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'attachments' | 'subtasks'>('details');
   const [newSubtask, setNewSubtask] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -244,9 +281,17 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   };
 
   // Subtask management functions
-  const addSubtask = () => {
+  const addSubtask = async () => {
+    console.log('=== ADD SUBTASK CALLED ===');
+    console.log('newSubtask value:', newSubtask);
+    console.log('newSubtask.trim():', newSubtask.trim());
+    console.log('=== END ADD SUBTASK CALLED ===');
+
     if (newSubtask.trim()) {
-      const subtask: Subtask = {
+      console.log('Adding subtask:', newSubtask.trim());
+
+      // Add to local state immediately for UI responsiveness
+      const tempSubtask: Subtask = {
         id: Date.now().toString(),
         title: newSubtask.trim(),
         completed: false,
@@ -255,13 +300,32 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
 
       setFormData(prev => ({
         ...prev,
-        subtasks: [...(prev.subtasks || []), subtask]
+        subtasks: [...(prev.subtasks || []), tempSubtask]
       }));
       setNewSubtask('');
+
+      // Save to backend immediately
+      try {
+        const updatedTaskData = {
+          ...formData,
+          subtasks: [...(formData.subtasks || []), tempSubtask]
+        };
+        console.log('Saving subtask to backend:', updatedTaskData);
+        await onSubmit(task.id, updatedTaskData);
+        console.log('Subtask saved successfully');
+      } catch (error) {
+        console.error('Failed to save subtask:', error);
+        // Revert the local state if backend save fails
+        setFormData(prev => ({
+          ...prev,
+          subtasks: prev.subtasks?.filter(s => s.id !== tempSubtask.id) || []
+        }));
+      }
     }
   };
 
-  const toggleSubtask = (subtaskId: string) => {
+  const toggleSubtask = async (subtaskId: string) => {
+    // Update local state immediately for UI responsiveness
     setFormData(prev => {
       const updatedSubtasks = prev.subtasks?.map(subtask =>
         subtask.id === subtaskId
@@ -273,24 +337,52 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
           : subtask
       ) || [];
 
-      // Auto-submit form if all subtasks are completed
-      const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
-      if (allCompleted && updatedSubtasks.length > 0) {
-        // Trigger a save to update the task completion status
-        setTimeout(() => {
-          const form = document.querySelector('form');
-          if (form) {
-            const event = new Event('submit', { bubbles: true, cancelable: true });
-            form.dispatchEvent(event);
-          }
-        }, 100);
-      }
-
       return {
         ...prev,
         subtasks: updatedSubtasks
       };
     });
+
+    // Save to backend immediately
+    try {
+      const updatedSubtasks = formData.subtasks?.map(subtask =>
+        subtask.id === subtaskId
+          ? {
+              ...subtask,
+              completed: !subtask.completed,
+              completedAt: !subtask.completed ? new Date().toISOString() : undefined
+            }
+          : subtask
+      ) || [];
+
+      const updatedTaskData = {
+        ...formData,
+        subtasks: updatedSubtasks
+      };
+
+      console.log('Saving subtask toggle to backend:', subtaskId, updatedTaskData);
+      await onSubmit(task.id, updatedTaskData);
+      console.log('Subtask toggle saved successfully');
+    } catch (error) {
+      console.error('Failed to save subtask toggle:', error);
+      // Revert the toggle if backend save fails
+      setFormData(prev => {
+        const revertedSubtasks = prev.subtasks?.map(subtask =>
+          subtask.id === subtaskId
+            ? {
+                ...subtask,
+                completed: !subtask.completed,
+                completedAt: subtask.completed ? new Date().toISOString() : undefined
+              }
+            : subtask
+        ) || [];
+
+        return {
+          ...prev,
+          subtasks: revertedSubtasks
+        };
+      });
+    }
   };
 
   const removeSubtask = (subtaskId: string) => {
@@ -840,6 +932,14 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
 
               {/* Subtasks List */}
               <div className="space-y-2">
+                {(() => {
+                  console.log('=== SUBTASKS RENDER DEBUG ===');
+                  console.log('Rendering subtasks list, activeTab:', activeTab);
+                  console.log('formData.subtasks in render:', formData.subtasks);
+                  console.log('formData.subtasks?.length:', formData.subtasks?.length);
+                  console.log('=== END SUBTASKS RENDER DEBUG ===');
+                  return null;
+                })()}
                 {formData.subtasks && formData.subtasks.length > 0 ? (
                   formData.subtasks.map((subtask) => (
                     <div
