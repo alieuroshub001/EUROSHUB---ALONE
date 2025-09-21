@@ -1,17 +1,31 @@
 'use client';
 
-import { useState, ChangeEvent, FormEvent } from 'react';
-import { X, Palette, Briefcase } from 'lucide-react';
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react';
+import { X, Palette, Briefcase, Users, UserCheck } from 'lucide-react';
+
+interface Member {
+  _id: string;
+  user: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+    email: string;
+  } | null;
+  role: string;
+}
 
 interface BoardData {
   name: string;
   description?: string;
   color: string;
+  selectedMembers?: string[];
 }
 
 interface CreateBoardModalProps {
   onClose: () => void;
   onSubmit: (boardData: BoardData) => void;
+  projectMembers?: Member[];
 }
 
 const boardColors: string[] = [
@@ -19,12 +33,14 @@ const boardColors: string[] = [
   '#EF4444', '#EC4899', '#6B7280', '#14B8A6', '#F97316'
 ];
 
-const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }) => {
+const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit, projectMembers = [] }) => {
   const [formData, setFormData] = useState<BoardData>({
     name: '',
     description: '',
-    color: '#0fb8af'
+    color: '#0fb8af',
+    selectedMembers: []
   });
+  const [showMemberSelection, setShowMemberSelection] = useState(false);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -43,6 +59,24 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
 
   const handleColorSelect = (color: string) => {
     setFormData(prev => ({ ...prev, color }));
+  };
+
+  const toggleMember = (memberId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedMembers: prev.selectedMembers?.includes(memberId)
+        ? prev.selectedMembers.filter(id => id !== memberId)
+        : [...(prev.selectedMembers || []), memberId]
+    }));
+  };
+
+  const selectAllMembers = () => {
+    const allMemberIds = projectMembers.filter(m => m.user).map(m => m.user!._id);
+    setFormData(prev => ({ ...prev, selectedMembers: allMemberIds }));
+  };
+
+  const clearAllMembers = () => {
+    setFormData(prev => ({ ...prev, selectedMembers: [] }));
   };
 
   return (
@@ -134,6 +168,96 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               ))}
             </div>
           </div>
+
+          {/* Member Selection */}
+          {projectMembers.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  <Users size={16} className="inline mr-2" />
+                  Board Members
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowMemberSelection(!showMemberSelection)}
+                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  {showMemberSelection ? 'Hide' : 'Show'} ({formData.selectedMembers?.length || 0} selected)
+                </button>
+              </div>
+
+              {showMemberSelection && (
+                <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600">Select members to add to this board</p>
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={selectAllMembers}
+                        className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearAllMembers}
+                        className="text-xs text-gray-600 hover:text-gray-800 transition-colors"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {projectMembers.filter(member => member.user).map((member) => {
+                      const isSelected = formData.selectedMembers?.includes(member.user!._id) || false;
+                      return (
+                        <label
+                          key={member._id}
+                          className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleMember(member.user!._id)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
+                              {member.user?.avatar ? (
+                                <img
+                                  src={member.user.avatar}
+                                  alt={`${member.user.firstName} ${member.user.lastName}`}
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                `${member.user!.firstName[0]}${member.user!.lastName[0]}`
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {member.user!.firstName} {member.user!.lastName}
+                              </p>
+                              <p className="text-xs text-gray-500">{member.role}</p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <UserCheck size={16} className="text-green-600" />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {formData.selectedMembers?.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-2">
+                      No members selected. Board will be created without members.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end space-x-3 pt-4">

@@ -94,6 +94,7 @@ interface BoardData {
   name: string;
   description?: string;
   color: string;
+  selectedMembers?: string[];
 }
 
 // Helper function to safely get member name
@@ -190,11 +191,9 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         const convertedBoards = boardsData.map(convertBackendBoard);
         console.log('Converted boards:', convertedBoards);
 
-        // Add members to each board from project
-        const boardsWithMembers = convertedBoards.map(board => ({
-          ...board,
-          members: teamMembers
-        }));
+        // Keep board members as they are stored in the backend
+        // Don't automatically assign all project members to all boards
+        const boardsWithMembers = convertedBoards;
 
         console.log('Boards with members:', boardsWithMembers);
         setBoards(boardsWithMembers);
@@ -299,9 +298,14 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const newBoardData = await boardService.createBoard(project._id, createData);
       console.log('Board created successfully:', newBoardData);
 
+      // Get selected members or use empty array for selective assignment
+      const selectedMembers = boardData.selectedMembers
+        ? teamMembers.filter(member => boardData.selectedMembers?.includes(member.user?._id || member._id))
+        : [];
+
       const newBoard = {
         ...convertBackendBoard(newBoardData),
-        members: teamMembers
+        members: selectedMembers
       };
 
       console.log('Converted board:', newBoard);
@@ -635,9 +639,10 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
         false
       );
 
+      // Keep original members when duplicating board
       const newBoard = {
         ...convertBackendBoard(duplicatedBoard),
-        members: teamMembers
+        members: activeBoard.members || []
       };
 
       setBoards(prevBoards => [...prevBoards, newBoard]);
@@ -711,6 +716,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
               setShowCreateBoard(false);
             }}
             onSubmit={handleCreateBoard}
+            projectMembers={teamMembers}
           />
         )}
       </div>
@@ -839,6 +845,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
             setShowCreateBoard(false);
           }}
           onSubmit={handleCreateBoard}
+          projectMembers={teamMembers}
         />
       )}
 
