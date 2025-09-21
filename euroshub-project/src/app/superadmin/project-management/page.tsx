@@ -331,7 +331,7 @@ export default function SuperAdminProjectManagement() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<ProjectFilters>({
     page: 1,
