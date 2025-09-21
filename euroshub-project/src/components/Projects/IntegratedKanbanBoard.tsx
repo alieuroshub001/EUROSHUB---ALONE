@@ -229,6 +229,60 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     }
   }, [project, teamMembers]);
 
+  // Auto-completion logic
+  const checkAndUpdateTaskCompletion = useCallback(async (taskId: string, subtasks: Subtask[]) => {
+    try {
+      if (subtasks.length > 0) {
+        const allCompleted = subtasks.every(s => s.completed);
+        const hasCompleted = subtasks.some(s => s.completed);
+
+        // Determine the appropriate status
+        let newStatus: 'open' | 'in_progress' | 'completed';
+        if (allCompleted) {
+          newStatus = 'completed';
+        } else if (hasCompleted) {
+          newStatus = 'in_progress';
+        } else {
+          newStatus = 'open';
+        }
+
+        // Update task status if needed
+        await boardService.updateCard(taskId, { status: newStatus });
+
+        // Don't refresh here to avoid infinite loops - the parent will handle refreshing
+      }
+    } catch (error) {
+      console.error('Failed to update task completion status:', error);
+    }
+  }, []);
+
+  const checkAndUpdateProjectCompletion = useCallback(async () => {
+    try {
+      if (!project || !boards || boards.length === 0) return;
+
+      // Get all tasks across all boards
+      const allTasks: any[] = [];
+      boards.forEach(board => {
+        board.columns.forEach((column: any) => {
+          allTasks.push(...column.tasks);
+        });
+      });
+
+      if (allTasks.length === 0) return;
+
+      // Check if all tasks are completed
+      const allTasksCompleted = allTasks.every(task => task.status === 'completed');
+
+      if (allTasksCompleted && project.status !== 'completed') {
+        // Update project status to completed
+        await projectService.updateProject(project._id, { status: 'completed' });
+        console.log('Project automatically marked as completed - all tasks are done!');
+      }
+    } catch (error) {
+      console.error('Failed to update project completion status:', error);
+    }
+  }, [project, boards]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     if (!activeBoard) return;
@@ -359,13 +413,19 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           return member?.id;
         }).filter(Boolean),
         dueDate: taskData.dueDate || undefined,
-        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' }))
+        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' })),
+        subtasks: taskData.subtasks || []
       };
 
       console.log('Create task data being sent:', createData);
 
       const newCardData = await boardService.createCard(selectedColumn, createData);
       const newTask = convertBackendCard(newCardData);
+
+      // Check and update task completion status for new task
+      if (taskData.subtasks && taskData.subtasks.length > 0) {
+        await checkAndUpdateTaskCompletion(newCardData._id, taskData.subtasks);
+      }
 
       // Send notifications to assigned users for new task
       if (project && currentUser && taskData.assignees.length > 0) {
@@ -463,13 +523,19 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           return member?.id;
         }).filter(Boolean),
         dueDate: taskData.dueDate || undefined,
-        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' }))
+        labels: taskData.tags.map(tag => ({ name: tag, color: '#6B7280' })),
+        subtasks: taskData.subtasks || []
       };
 
       console.log('Update data being sent:', updateData);
 
       const updatedCardData = await boardService.updateCard(taskId, updateData);
       const updatedTask = convertBackendCard(updatedCardData);
+
+      // Check and update task completion status based on subtasks
+      if (taskData.subtasks) {
+        await checkAndUpdateTaskCompletion(taskId, taskData.subtasks);
+      }
 
       // Check for newly assigned users and send notifications
       if (project && currentUser && taskData.title) {

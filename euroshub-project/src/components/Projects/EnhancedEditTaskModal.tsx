@@ -262,9 +262,8 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
   };
 
   const toggleSubtask = (subtaskId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      subtasks: prev.subtasks?.map(subtask =>
+    setFormData(prev => {
+      const updatedSubtasks = prev.subtasks?.map(subtask =>
         subtask.id === subtaskId
           ? {
               ...subtask,
@@ -272,8 +271,26 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
               completedAt: !subtask.completed ? new Date().toISOString() : undefined
             }
           : subtask
-      ) || []
-    }));
+      ) || [];
+
+      // Auto-submit form if all subtasks are completed
+      const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
+      if (allCompleted && updatedSubtasks.length > 0) {
+        // Trigger a save to update the task completion status
+        setTimeout(() => {
+          const form = document.querySelector('form');
+          if (form) {
+            const event = new Event('submit', { bubbles: true, cancelable: true });
+            form.dispatchEvent(event);
+          }
+        }, 100);
+      }
+
+      return {
+        ...prev,
+        subtasks: updatedSubtasks
+      };
+    });
   };
 
   const removeSubtask = (subtaskId: string) => {
