@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Search,
@@ -24,6 +25,7 @@ interface ProjectFilters {
 }
 
 const ProjectManagement = () => {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +141,11 @@ const ProjectManagement = () => {
       setSelectedProject(updatedProject);
       setProjects(projects.map(p => p._id === selectedProject._id ? updatedProject : p));
     }
+  };
+
+  // Handle view project details
+  const handleViewDetails = (projectId: string) => {
+    router.push(`/projects/${projectId}`);
   };
 
   // Filter change handlers
@@ -371,6 +378,7 @@ const ProjectManagement = () => {
                   setSelectedProject(project);
                   setCurrentView('kanban');
                 }}
+                onViewDetails={handleViewDetails}
               />
             ))}
           </div>

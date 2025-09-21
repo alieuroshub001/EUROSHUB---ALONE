@@ -14,7 +14,8 @@ import {
   DollarSign,
   Flag,
   Star,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import { Project } from '@/types/project';
 import { format } from 'date-fns';
@@ -26,6 +27,7 @@ interface ProjectCardProps {
   onDelete: (projectId: string) => void;
   onManageMembers: (project: Project) => void;
   onOpenKanban: () => void;
+  onViewDetails?: (projectId: string) => void;
 }
 
 const ProjectCard = ({
@@ -34,7 +36,8 @@ const ProjectCard = ({
   onUpdate,
   onDelete,
   onManageMembers,
-  onOpenKanban
+  onOpenKanban,
+  onViewDetails
 }: ProjectCardProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
@@ -144,6 +147,16 @@ const ProjectCard = ({
             )}
 
             <div className="flex items-center space-x-2">
+              {onViewDetails && (
+                <button
+                  onClick={() => onViewDetails(project._id)}
+                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  title="View Project Details"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 onClick={onOpenKanban}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -357,9 +370,20 @@ const ProjectCard = ({
             <span>Open Board</span>
           </button>
 
+          {onViewDetails && (
+            <button
+              onClick={() => onViewDetails(project._id)}
+              className="flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              title="View Project Details"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             onClick={() => onManageMembers(project)}
             className="flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Manage Members"
           >
             <UserPlus className="w-4 h-4" />
           </button>
