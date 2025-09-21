@@ -623,5 +623,21 @@ export const boardService = {
       const err = error as { response?: { data?: { message?: string } } };
       throw new Error(err.response?.data?.message || 'Failed to fetch assigned cards');
     }
+  },
+
+  async updateBoardMembers(boardId: string, memberIds: string[]): Promise<Board> {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/boards/${boardId}/members`,
+        { memberIds },
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true,
+        }
+      );
+      return response.data.data;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      throw new Error(err.response?.data?.message || 'Failed to update board members');
+    }
   }
 };

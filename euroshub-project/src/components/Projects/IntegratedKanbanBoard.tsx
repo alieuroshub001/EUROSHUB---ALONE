@@ -9,6 +9,7 @@ import TaskCard from './TaskCard';
 import CreateBoardModal from './CreateBoardModal';
 import CreateTaskModal from './CreateTaskModal';
 import EnhancedEditTaskModal from './EnhancedEditTaskModal';
+import ManageBoardMembersModal from './ManageBoardMembersModal';
 import { cardService } from '@/lib/cardService';
 import { boardService, Board, List, Card, CreateBoardRequest, CreateCardRequest } from '../../lib/boardService';
 import { projectService, Project } from '../../lib/projectService';
@@ -138,6 +139,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showEditTask, setShowEditTask] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [showManageMembers, setShowManageMembers] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   const sensors = useSensors(
@@ -282,6 +284,51 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       console.error('Failed to update project completion status:', error);
     }
   }, [project, boards]);
+
+  const handleUpdateBoardMembers = useCallback(async (memberIds: string[]) => {
+    try {
+      if (!activeBoard) return;
+
+      // Update board members via API
+      await boardService.updateBoardMembers(activeBoard.id, memberIds);
+
+      // Update local state
+      const updatedBoard = {
+        ...activeBoard,
+        members: memberIds.map(memberId => {
+          const teamMember = teamMembers.find(m => m.user?._id === memberId || m.id === memberId);
+          if (teamMember?.user) {
+            return {
+              id: teamMember.user._id,
+              name: `${teamMember.user.firstName} ${teamMember.user.lastName}`,
+              avatar: teamMember.user.avatar,
+              role: teamMember.role
+            };
+          } else if (teamMember) {
+            return {
+              id: teamMember.id,
+              name: teamMember.name || 'Unknown User',
+              avatar: teamMember.avatar,
+              role: teamMember.role
+            };
+          }
+          return null;
+        }).filter(Boolean)
+      };
+
+      setActiveBoard(updatedBoard);
+      setBoards(prevBoards =>
+        prevBoards.map(board =>
+          board.id === activeBoard.id ? updatedBoard : board
+        )
+      );
+
+      console.log('Board members updated successfully');
+    } catch (error) {
+      console.error('Failed to update board members:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update board members');
+    }
+  }, [activeBoard, teamMembers]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
@@ -949,9 +996,18 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Users size={16} />
-              <span>{activeBoard.members?.length || 0} members</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Users size={16} />
+                <span>{activeBoard.members?.length || 0} members</span>
+              </div>
+              <button
+                onClick={() => setShowManageMembers(true)}
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                title="Manage board members"
+              >
+                Manage
+              </button>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Calendar size={16} />
@@ -1055,6 +1111,16 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           onDeleteAttachment={handleDeleteAttachment}
           teamMembers={teamMembers}
           currentUser={currentUser}
+        />
+      )}
+
+      {showManageMembers && activeBoard && (
+        <ManageBoardMembersModal
+          onClose={() => setShowManageMembers(false)}
+          onUpdateMembers={handleUpdateBoardMembers}
+          boardName={activeBoard.name}
+          currentBoardMembers={activeBoard.members || []}
+          availableMembers={teamMembers}
         />
       )}
     </div>
