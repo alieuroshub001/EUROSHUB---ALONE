@@ -1,27 +1,34 @@
 const nodemailer = require('nodemailer');
-const sgMail = require('@sendgrid/mail');
+const { Resend } = require('resend');
 
-// Initialize SendGrid if API key is available
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log('📧 SendGrid initialized as backup email service');
+// Initialize Resend if API key is available
+let resend;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+  console.log('📧 Resend initialized as backup email service');
 }
 
-// SendGrid email sending function
-const sendEmailViaSendGrid = async (to, subject, html) => {
-  if (!process.env.SENDGRID_API_KEY) {
-    throw new Error('SendGrid API key not configured');
+// Resend email sending function
+const sendEmailViaResend = async (to, subject, html) => {
+  if (!process.env.RESEND_API_KEY || !resend) {
+    throw new Error('Resend API key not configured');
   }
 
-  const msg = {
-    to,
-    from: process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL || 'noreply@euroshub.com',
+  const fromEmail = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || 'noreply@euroshub.com';
+
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
+    to: [to],
     subject,
     html
-  };
+  });
 
-  await sgMail.send(msg);
-  console.log(`📧 SendGrid email sent successfully to ${to}`);
+  if (error) {
+    throw new Error(`Resend API error: ${error.message}`);
+  }
+
+  console.log(`📧 Resend email sent successfully to ${to}, ID: ${data.id}`);
+  return data;
 };
 
 const createTransporter = () => {
@@ -182,15 +189,15 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
   } catch (error) {
     console.error(`📧 SMTP failed for ${email}:`, error.message);
 
-    // Try SendGrid as fallback
-    if (process.env.SENDGRID_API_KEY) {
+    // Try Resend as fallback
+    if (process.env.RESEND_API_KEY) {
       try {
-        console.log(`📧 Trying SendGrid fallback for ${email}...`);
-        await sendEmailViaSendGrid(email, 'Welcome to EurosHub - Account Created', mailOptions.html);
-        console.log(`📧 SendGrid fallback successful for ${email}`);
-        return; // Success with SendGrid
-      } catch (sendGridError) {
-        console.error(`📧 SendGrid fallback failed for ${email}:`, sendGridError.message);
+        console.log(`📧 Trying Resend fallback for ${email}...`);
+        await sendEmailViaResend(email, 'Welcome to EurosHub - Account Created', mailOptions.html);
+        console.log(`📧 Resend fallback successful for ${email}`);
+        return; // Success with Resend
+      } catch (resendError) {
+        console.error(`📧 Resend fallback failed for ${email}:`, resendError.message);
       }
     }
 
