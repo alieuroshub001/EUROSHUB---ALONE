@@ -13,6 +13,7 @@ import { cardService } from '@/lib/cardService';
 import { boardService, Board, List, Card, CreateBoardRequest, CreateCardRequest } from '../../lib/boardService';
 import { projectService, Project } from '../../lib/projectService';
 import { userService } from '../../lib/userService';
+import { notificationService } from '../../lib/notificationService';
 
 interface IntegratedKanbanBoardProps {
   projectId: string;
@@ -350,6 +351,31 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const newCardData = await boardService.createCard(selectedColumn, createData);
       const newTask = convertBackendCard(newCardData);
 
+      // Send notifications to assigned users for new task
+      if (project && currentUser && taskData.assignees.length > 0) {
+        const assignedUserIds = taskData.assignees.map(name => {
+          const member = teamMembers.find(m => {
+            const memberName = getMemberName(m);
+            return memberName === name;
+          });
+          return member?.id;
+        }).filter(Boolean);
+
+        if (assignedUserIds.length > 0) {
+          // Send notification asynchronously (don't block UI)
+          notificationService.notifyTaskAssignment(
+            assignedUserIds,
+            newCardData._id,
+            taskData.title,
+            project._id,
+            project.title,
+            currentUser._id || currentUser.id
+          ).catch(err => {
+            console.error('Failed to send task creation assignment notifications:', err);
+          });
+        }
+      }
+
       const updatedBoard = {
         ...activeBoard,
         columns: activeBoard.columns.map((col: any) => {
@@ -371,7 +397,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task');
     }
-  }, [activeBoard, selectedColumn, teamMembers]);
+  }, [activeBoard, selectedColumn, teamMembers, project, currentUser]);
 
   const handleEditTask = useCallback((taskId: string, taskData?: TaskData) => {
     // Find the task to edit
@@ -396,6 +422,16 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     try {
       console.log('handleUpdateTask called with:', { taskId, taskData, teamMembers });
 
+      // Find current task assignees for comparison
+      let currentAssignees: string[] = [];
+      for (const col of activeBoard.columns) {
+        const task = col.tasks.find((t: any) => t.id === taskId);
+        if (task) {
+          currentAssignees = task.assignees || [];
+          break;
+        }
+      }
+
       const updateData: any = {
         title: taskData.title,
         description: taskData.description,
@@ -419,6 +455,35 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
       const updatedCardData = await boardService.updateCard(taskId, updateData);
       const updatedTask = convertBackendCard(updatedCardData);
 
+      // Check for newly assigned users and send notifications
+      if (project && currentUser && taskData.title) {
+        const newAssignees = taskData.assignees.filter(name => !currentAssignees.includes(name));
+
+        if (newAssignees.length > 0) {
+          const newlyAssignedUserIds = newAssignees.map(name => {
+            const member = teamMembers.find(m => {
+              const memberName = getMemberName(m);
+              return memberName === name;
+            });
+            return member?.id;
+          }).filter(Boolean);
+
+          if (newlyAssignedUserIds.length > 0) {
+            // Send notification asynchronously (don't block UI)
+            notificationService.notifyTaskAssignment(
+              newlyAssignedUserIds,
+              taskId,
+              taskData.title,
+              project._id,
+              project.title,
+              currentUser._id || currentUser.id
+            ).catch(err => {
+              console.error('Failed to send task assignment notifications:', err);
+            });
+          }
+        }
+      }
+
       const updatedBoard = {
         ...activeBoard,
         columns: activeBoard.columns.map((col: any) => ({
@@ -438,7 +503,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task');
     }
-  }, [activeBoard, teamMembers]);
+  }, [activeBoard, teamMembers, project, currentUser]);
 
   const handleAddComment = useCallback(async (taskId: string, comment: string) => {
     try {
@@ -590,7 +655,43 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
 
   const handleAssignUser = useCallback(async (taskId: string, userIds: string[]) => {
     try {
+      // Find the task to get its title and current assignees
+      let taskTitle = '';
+      let currentAssignees: string[] = [];
+
+      for (const col of activeBoard.columns) {
+        const task = col.tasks.find((t: any) => t.id === taskId);
+        if (task) {
+          taskTitle = task.title;
+          currentAssignees = task.assignees || [];
+          break;
+        }
+      }
+
       const updatedAssignees = await boardService.assignUsers(taskId, userIds);
+
+      // Send email notifications to newly assigned users
+      if (project && currentUser && taskTitle) {
+        // Get user IDs of newly assigned users (exclude already assigned ones)
+        const newlyAssignedUserIds = updatedAssignees
+          .filter(user => user && !currentAssignees.includes(`${user.firstName || ''} ${user.lastName || ''}`.trim()))
+          .map(user => user!._id)
+          .filter(Boolean);
+
+        if (newlyAssignedUserIds.length > 0) {
+          // Send notification asynchronously (don't block UI)
+          notificationService.notifyTaskAssignment(
+            newlyAssignedUserIds,
+            taskId,
+            taskTitle,
+            project._id,
+            project.title,
+            currentUser._id || currentUser.id
+          ).catch(err => {
+            console.error('Failed to send task assignment notifications:', err);
+          });
+        }
+      }
 
       const updatedBoard = {
         ...activeBoard,
@@ -615,7 +716,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign users');
     }
-  }, [activeBoard]);
+  }, [activeBoard, project, currentUser]);
 
   const handleAddTask = useCallback((columnId: string) => {
     setSelectedColumn(columnId);
