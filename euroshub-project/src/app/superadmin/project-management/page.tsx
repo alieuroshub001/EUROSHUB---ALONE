@@ -103,7 +103,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {/* Project Title */}
       <h3
         className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm cursor-pointer"
-        onClick={() => onView(project._id)}
+        onClick={() => onEdit(project._id)}
       >
         {project.title}
       </h3>
@@ -201,7 +201,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow p-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+          <h3
+            className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
+            onClick={() => onEdit(project._id)}
+          >
             {project.title}
           </h3>
           <p className="text-gray-600 text-sm line-clamp-2">
