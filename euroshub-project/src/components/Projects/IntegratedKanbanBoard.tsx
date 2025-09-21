@@ -58,6 +58,13 @@ const convertBackendCard = (card: Card): any => ({
       uploadedAt: card.createdAt // Using card creation date as fallback
     };
   }),
+  subtasks: card.subtasks?.map(subtask => ({
+    id: subtask._id || subtask.id,
+    title: subtask.title,
+    completed: subtask.completed,
+    createdAt: subtask.createdAt,
+    completedAt: subtask.completedAt
+  })) || [],
   status: card.status,
   isOverdue: card.isOverdue,
   checklistCompletion: card.checklistCompletion
@@ -82,6 +89,14 @@ const convertBackendBoard = (board: Board): any => ({
   columns: board.lists?.map(convertBackendList) || []
 });
 
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
 interface TaskData {
   title: string;
   description?: string;
@@ -89,6 +104,7 @@ interface TaskData {
   assignees: string[];
   dueDate?: string;
   tags: string[];
+  subtasks?: Subtask[];
 }
 
 interface BoardData {

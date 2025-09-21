@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Calendar, User, Tag, AlertCircle, MessageSquare, Paperclip, Image, Send, Download, Trash2 } from 'lucide-react';
+import { X, Calendar, User, Tag, AlertCircle, MessageSquare, Paperclip, Image, Send, Download, Trash2, Plus, Check, Square, CheckSquare } from 'lucide-react';
+
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
 
 interface TaskData {
   title: string;
@@ -12,6 +20,7 @@ interface TaskData {
   tags: string[];
   comments?: Comment[];
   attachments?: Attachment[];
+  subtasks?: Subtask[];
 }
 
 interface Comment {
@@ -74,13 +83,15 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
     dueDate: task.dueDate || '',
     tags: task.tags,
     comments: task.commentsData || [],
-    attachments: task.attachmentsData || []
+    attachments: task.attachmentsData || [],
+    subtasks: task.subtasks || []
   });
 
   const [newTag, setNewTag] = useState('');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'attachments'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'attachments' | 'subtasks'>('details');
+  const [newSubtask, setNewSubtask] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +243,53 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
     }
   };
 
+  // Subtask management functions
+  const addSubtask = () => {
+    if (newSubtask.trim()) {
+      const subtask: Subtask = {
+        id: Date.now().toString(),
+        title: newSubtask.trim(),
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        subtasks: [...(prev.subtasks || []), subtask]
+      }));
+      setNewSubtask('');
+    }
+  };
+
+  const toggleSubtask = (subtaskId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: prev.subtasks?.map(subtask =>
+        subtask.id === subtaskId
+          ? {
+              ...subtask,
+              completed: !subtask.completed,
+              completedAt: !subtask.completed ? new Date().toISOString() : undefined
+            }
+          : subtask
+      ) || []
+    }));
+  };
+
+  const removeSubtask = (subtaskId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: prev.subtasks?.filter(subtask => subtask.id !== subtaskId) || []
+    }));
+  };
+
+  const calculateCompletionRate = (): number => {
+    const subtasks = formData.subtasks || [];
+    if (subtasks.length === 0) return 0;
+    const completedCount = subtasks.filter(subtask => subtask.completed).length;
+    return Math.round((completedCount / subtasks.length) * 100);
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-50 border-red-200 text-red-700';
@@ -299,6 +357,20 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
               }`}
             >
               Attachments ({formData.attachments?.length || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('subtasks')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'subtasks'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Subtasks ({formData.subtasks?.length || 0}) {formData.subtasks && formData.subtasks.length > 0 && (
+                <span className="ml-1 text-xs">
+                  ({calculateCompletionRate()}%)
+                </span>
+              )}
             </button>
           </nav>
         </div>
@@ -696,6 +768,113 @@ const EnhancedEditTaskModal: React.FC<EnhancedEditTaskModalProps> = ({
                   <div className="text-center py-8 text-gray-500">
                     <Paperclip size={32} className="mx-auto mb-2 opacity-50" />
                     <p>No attachments yet. Upload files to get started!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'subtasks' && (
+            <div className="space-y-6">
+              {/* Completion Progress */}
+              {formData.subtasks && formData.subtasks.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Progress</span>
+                    <span className="text-sm text-gray-600">{calculateCompletionRate()}% Complete</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${calculateCompletionRate()}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {formData.subtasks.filter(s => s.completed).length} of {formData.subtasks.length} completed
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Subtask */}
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  placeholder="Add a new subtask..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSubtask();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={addSubtask}
+                  disabled={!newSubtask.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <Plus size={16} />
+                  <span>Add</span>
+                </button>
+              </div>
+
+              {/* Subtasks List */}
+              <div className="space-y-2">
+                {formData.subtasks && formData.subtasks.length > 0 ? (
+                  formData.subtasks.map((subtask) => (
+                    <div
+                      key={subtask.id}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                        subtask.completed
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSubtask(subtask.id)}
+                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          subtask.completed
+                            ? 'bg-green-500 border-green-500 text-white'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {subtask.completed && <Check size={14} />}
+                      </button>
+                      <span
+                        className={`flex-1 text-sm ${
+                          subtask.completed
+                            ? 'text-gray-500 line-through'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {subtask.title}
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs text-gray-400">
+                          {subtask.completed && subtask.completedAt
+                            ? new Date(subtask.completedAt).toLocaleDateString()
+                            : new Date(subtask.createdAt).toLocaleDateString()
+                          }
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSubtask(subtask.id)}
+                          className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                          title="Delete subtask"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckSquare size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>No subtasks yet. Add subtasks to break down this task!</p>
                   </div>
                 )}
               </div>

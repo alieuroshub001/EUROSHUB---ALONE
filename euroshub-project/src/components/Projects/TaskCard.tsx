@@ -17,6 +17,14 @@ import {
   UserPlus
 } from 'lucide-react';
 
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -27,6 +35,7 @@ interface Task {
   tags?: string[];
   comments: number;
   attachments: number;
+  subtasks?: Subtask[];
 }
 
 interface TaskCardProps {
@@ -92,6 +101,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isDueSoon = task.dueDate &&
     new Date(task.dueDate) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) &&
     new Date(task.dueDate) >= new Date();
+
+  const calculateCompletionRate = (): number => {
+    const subtasks = task.subtasks || [];
+    if (subtasks.length === 0) return 0;
+    const completedCount = subtasks.filter(subtask => subtask.completed).length;
+    return Math.round((completedCount / subtasks.length) * 100);
+  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger onClick if clicking on interactive elements
@@ -230,6 +246,25 @@ const TaskCard: React.FC<TaskCardProps> = ({
               +{task.tags.length - 3}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Subtasks Progress */}
+      {task.subtasks && task.subtasks.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500">Progress</span>
+            <span className="text-xs text-gray-600">{calculateCompletionRate()}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div
+              className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${calculateCompletionRate()}%` }}
+            />
+          </div>
+          <div className="text-xs text-gray-400 mt-1">
+            {task.subtasks.filter(s => s.completed).length} of {task.subtasks.length} subtasks
+          </div>
         </div>
       )}
 
