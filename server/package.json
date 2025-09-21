@@ -23,7 +23,6 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
