@@ -126,21 +126,11 @@ const createTransporter = () => {
 };
 
 const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role, verificationToken }) => {
-  try {
-    console.log(`📧 Sending welcome email to ${email}...`);
-    const transporter = createTransporter();
+  console.log(`📧 Sending welcome email to ${email}...`);
 
-    if (!transporter) {
-      throw new Error('Email transporter not available');
-    }
-
-    const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: 'Welcome to EurosHub - Account Created',
-      html: `
+  const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
+  const emailSubject = 'Welcome to EurosHub - Account Created';
+  const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
           <h1 style="color: #333; margin: 0;">Welcome to EurosHub</h1>
@@ -181,7 +171,20 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
           <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
         </div>
       </div>
-    `
+    `;
+
+  try {
+    const transporter = createTransporter();
+
+    if (!transporter) {
+      throw new Error('Email transporter not available');
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: emailSubject,
+      html: emailHtml
     };
 
     await transporter.sendMail(mailOptions);
@@ -193,7 +196,7 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
     if (process.env.RESEND_API_KEY) {
       try {
         console.log(`📧 Trying Resend fallback for ${email}...`);
-        await sendEmailViaResend(email, 'Welcome to EurosHub - Account Created', mailOptions.html);
+        await sendEmailViaResend(email, emailSubject, emailHtml);
         console.log(`📧 Resend fallback successful for ${email}`);
         return; // Success with Resend
       } catch (resendError) {
