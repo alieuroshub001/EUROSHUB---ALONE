@@ -144,7 +144,8 @@ export const authAPI = {
         return null;
       }
 
-      console.log('getMe: Making request to', `${API_BASE_URL}/auth/me`);
+      console.log('🔍 getMe: API_BASE_URL:', API_BASE_URL);
+      console.log('🔍 getMe: Making request to', `${API_BASE_URL}/auth/me`);
 
       const response = await axios.get(`${API_BASE_URL}/auth/me`, {
         withCredentials: true,

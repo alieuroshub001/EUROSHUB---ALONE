@@ -39,10 +39,11 @@ export default function DashboardLayout({
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const userData = await authAPI.getMe();
-        console.log('DashboardLayout: getMe result:', userData);
+        console.log('🔍 DashboardLayout: getMe result:', userData);
+        console.log('🔍 DashboardLayout: API URL being used:', process.env.NEXT_PUBLIC_API_URL);
 
         if (!userData) {
-          console.log('DashboardLayout: No user data, redirecting to login');
+          console.log('❌ DashboardLayout: No user data, redirecting to login');
           router.push('/');
           return;
         }
