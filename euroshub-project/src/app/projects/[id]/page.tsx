@@ -10,7 +10,7 @@ import {
   MoreVertical,
   Edit
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import IntegratedKanbanBoard from '../../../components/Projects/IntegratedKanbanBoard';
 import { projectService, Project } from '../../../lib/projectService';
 import { activityService, Activity as ActivityType } from '../../../lib/activityService';
