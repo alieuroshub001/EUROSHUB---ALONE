@@ -49,10 +49,11 @@ export default function DashboardLayout({
 
         // Check if user has the required role
         if (userData.role !== role) {
-          console.log('DashboardLayout: Role mismatch. Expected:', role, 'Got:', userData.role);
+          console.log('🔒 DashboardLayout: Role mismatch. Expected:', role, 'Got:', userData.role);
+          console.log('🔒 DashboardLayout: User data:', userData);
           // Redirect to user's correct dashboard instead of login
           const correctPath = getRoleDashboardPath(userData.role);
-          console.log('DashboardLayout: Redirecting to correct dashboard:', correctPath);
+          console.log('🔒 DashboardLayout: Redirecting to correct dashboard:', correctPath);
           router.push(correctPath);
           return;
         }

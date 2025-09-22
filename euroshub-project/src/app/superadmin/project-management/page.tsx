@@ -380,6 +380,8 @@ export default function SuperAdminProjectManagement() {
   };
 
   const handleViewProject = (projectId: string) => {
+    console.log('🔍 ViewProject clicked for project ID:', projectId);
+    console.log('🔍 Navigating to:', `/superadmin/project-management/projects/${projectId}`);
     router.push(`/superadmin/project-management/projects/${projectId}`);
   };
 
