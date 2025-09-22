@@ -17,9 +17,11 @@ import { activityService, Activity as ActivityType } from '../../../../../lib/ac
 type ViewMode = 'overview' | 'boards' | 'activity' | 'settings';
 
 export default function ProjectDetail() {
+  console.log('🔍 ProjectDetail: Component mounting...');
   const router = useRouter();
   const params = useParams();
   const projectId = params?.projectId as string;
+  console.log('🔍 ProjectDetail: Project ID from params:', projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [activities, setActivities] = useState<ActivityType[]>([]);
@@ -35,17 +37,22 @@ export default function ProjectDetail() {
 
   const loadProjectData = async () => {
     try {
+      console.log('🔍 ProjectDetail: Loading project data for ID:', projectId);
       setLoading(true);
       setError(null);
 
+      console.log('🔍 ProjectDetail: Calling projectService.getProject...');
       const [projectData, projectActivities] = await Promise.all([
         projectService.getProject(projectId),
         projectService.getProjectActivities(projectId, { limit: 20 })
       ]);
 
+      console.log('🔍 ProjectDetail: Project data loaded successfully:', projectData?.title);
+
       setProject(projectData);
       setActivities(projectActivities);
     } catch (err) {
+      console.error('❌ ProjectDetail: Error loading project data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load project');
     } finally {
       setLoading(false);
