@@ -732,6 +732,37 @@ router.post('/:listId/cards', protect, checkListAccess, async (req, res) => {
       });
     }
 
+    // Validate due date against project dates
+    if (dueDate) {
+      const Project = require('../models/Project');
+      const project = await Project.findById(list.project);
+
+      if (!project) {
+        return res.status(400).json({
+          success: false,
+          message: 'Associated project not found'
+        });
+      }
+
+      const taskDueDate = new Date(dueDate);
+
+      // Check if due date is before project start date
+      if (project.startDate && taskDueDate < project.startDate) {
+        return res.status(400).json({
+          success: false,
+          message: `Task due date cannot be before project start date (${project.startDate.toISOString().split('T')[0]})`
+        });
+      }
+
+      // Check if due date is after project end date (if project has end date)
+      if (project.endDate && taskDueDate > project.endDate) {
+        return res.status(400).json({
+          success: false,
+          message: `Task due date cannot be after project end date (${project.endDate.toISOString().split('T')[0]})`
+        });
+      }
+    }
+
     // Validate assigned users if provided
     if (assignedTo && assignedTo.length > 0) {
       const User = require('../models/User');

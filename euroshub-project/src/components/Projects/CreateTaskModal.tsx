@@ -32,6 +32,11 @@ interface CreateTaskModalProps {
   onSubmit: (taskData: TaskData) => void;
   columnTitle?: string;
   teamMembers?: Member[];
+  project?: {
+    startDate?: string;
+    endDate?: string;
+    title?: string;
+  };
 }
 
 interface Priority {
@@ -55,7 +60,8 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   onClose,
   onSubmit,
   columnTitle,
-  teamMembers = []
+  teamMembers = [],
+  project
 }) => {
   const [formData, setFormData] = useState<TaskData>({
     title: '',
@@ -286,8 +292,23 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 type="date"
                 value={formData.dueDate}
                 onChange={handleChange}
+                min={project?.startDate ? new Date(project.startDate).toISOString().split('T')[0] : undefined}
+                max={project?.endDate ? new Date(project.endDate).toISOString().split('T')[0] : undefined}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               />
+              {project && (project.startDate || project.endDate) && (
+                <p className="mt-1 text-xs text-gray-500">
+                  {project.startDate && project.endDate && (
+                    <>Must be between {new Date(project.startDate).toLocaleDateString()} and {new Date(project.endDate).toLocaleDateString()}</>
+                  )}
+                  {project.startDate && !project.endDate && (
+                    <>Must be after {new Date(project.startDate).toLocaleDateString()}</>
+                  )}
+                  {!project.startDate && project.endDate && (
+                    <>Must be before {new Date(project.endDate).toLocaleDateString()}</>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 

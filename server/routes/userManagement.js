@@ -24,7 +24,6 @@ const createUserValidation = [
     .withMessage('Last name must be between 2 and 50 characters'),
   body('email')
     .isEmail()
-    .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('role')
     .isIn(['superadmin', 'admin', 'hr', 'employee', 'client'])
@@ -68,7 +67,6 @@ const updateUserValidation = [
   body('email')
     .optional()
     .isEmail()
-    .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('role')
     .optional()

@@ -404,6 +404,60 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
+    // Clean up user references in other collections
+    const Project = require('../models/Project');
+    const Board = require('../models/Board');
+    const Card = require('../models/Card');
+    const Activity = require('../models/Activity');
+
+    // Remove user from project members arrays
+    await Project.updateMany(
+      { 'members.user': id },
+      { $pull: { members: { user: id } } }
+    );
+
+    // Update projects where user is the owner (transfer to a superadmin or archive)
+    const orphanedProjects = await Project.find({ owner: id });
+    for (const project of orphanedProjects) {
+      // Find a suitable superadmin to transfer ownership
+      const superadmin = await User.findOne({ role: 'superadmin', isActive: true });
+      if (superadmin) {
+        project.owner = superadmin._id;
+        await project.save();
+      } else {
+        // If no superadmin found, archive the project
+        project.isArchived = true;
+        await project.save();
+      }
+    }
+
+    // Update boards where user is the creator
+    await Board.updateMany(
+      { createdBy: id },
+      { $unset: { createdBy: 1 } }
+    );
+
+    // Update cards where user is assigned or created by this user
+    await Card.updateMany(
+      { $or: [{ assignedTo: id }, { createdBy: id }] },
+      { $unset: { assignedTo: 1, createdBy: 1 } }
+    );
+
+    // Remove user from card checklist items that were completed by this user
+    await Card.updateMany(
+      { 'checklist.completedBy': id },
+      { $unset: { 'checklist.$[].completedBy': 1 } }
+    );
+
+    // Clean up activities related to this user
+    await Activity.deleteMany({
+      $or: [
+        { user: id },
+        { 'data.userId': id },
+        { 'data.assignedTo': id }
+      ]
+    });
+
     // Delete user
     await User.findByIdAndDelete(id);
 
@@ -417,7 +471,7 @@ exports.deleteUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'User deleted successfully'
+      message: 'User deleted successfully and all references cleaned up'
     });
   } catch (error) {
     console.error('Delete user error:', error);

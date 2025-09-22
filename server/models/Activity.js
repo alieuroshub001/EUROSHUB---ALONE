@@ -20,7 +20,7 @@ const activitySchema = new mongoose.Schema({
       'card_due_date_set', 'card_due_date_changed', 'card_comment_added',
       'card_attachment_added', 'card_attachment_removed', 'card_attachment_deleted',
       'card_image_added', 'card_label_added', 'card_label_removed',
-      'card_checklist_item_completed'
+      'card_checklist_item_completed', 'card_checklist_items_added'
     ],
     required: true
   },
@@ -108,7 +108,8 @@ activitySchema.virtual('description').get(function() {
     'card_attachment_removed': 'removed attachment from card',
     'card_label_added': 'added label to card',
     'card_label_removed': 'removed label from card',
-    'card_checklist_item_completed': 'completed checklist item'
+    'card_checklist_item_completed': 'completed checklist item',
+    'card_checklist_items_added': 'added checklist items to card'
   };
 
   return descriptions[this.type] || 'performed action';

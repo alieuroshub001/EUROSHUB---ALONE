@@ -474,7 +474,8 @@ const KanbanBoard: React.FC = () => {
           onClose={() => setShowCreateTask(false)}
           onSubmit={handleCreateTask}
           columnTitle={activeBoard.columns.find(col => col.id === selectedColumn)?.title}
-          teamMembers={mockTeamMembers}
+          teamMembers={activeBoard.members || []}
+          project={undefined}
         />
       )}
     </div>

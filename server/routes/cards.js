@@ -51,7 +51,7 @@ router.get('/:cardId', protect, checkCardAccess, async (req, res) => {
  */
 router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
   try {
-    const card = req.card;
+    let card = req.card;
     const {
       title,
       description,
@@ -109,6 +109,36 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
 
     if (dueDate !== undefined) {
       const newDueDate = dueDate ? new Date(dueDate) : null;
+
+      // Validate due date against project dates if setting a new due date
+      if (newDueDate) {
+        const Project = require('../models/Project');
+        const project = await Project.findById(card.project);
+
+        if (!project) {
+          return res.status(400).json({
+            success: false,
+            message: 'Associated project not found'
+          });
+        }
+
+        // Check if due date is before project start date
+        if (project.startDate && newDueDate < project.startDate) {
+          return res.status(400).json({
+            success: false,
+            message: `Task due date cannot be before project start date (${project.startDate.toISOString().split('T')[0]})`
+          });
+        }
+
+        // Check if due date is after project end date (if project has end date)
+        if (project.endDate && newDueDate > project.endDate) {
+          return res.status(400).json({
+            success: false,
+            message: `Task due date cannot be after project end date (${project.endDate.toISOString().split('T')[0]})`
+          });
+        }
+      }
+
       if ((newDueDate && !card.dueDate) || (!newDueDate && card.dueDate) ||
           (newDueDate && card.dueDate && newDueDate.getTime() !== card.dueDate.getTime())) {
         changes.push({ field: 'dueDate', oldValue: card.dueDate, newValue: newDueDate });
@@ -136,30 +166,184 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
     }
 
     if (checklist && JSON.stringify(checklist) !== JSON.stringify(card.checklist)) {
-      // Clean checklist data to handle frontend-backend data format differences
-      const cleanedChecklist = checklist.map(item => ({
-        text: item.text,
-        completed: Boolean(item.completed),
-        completedAt: item.completedAt || null,
-        // Convert empty strings to null for ObjectId fields
-        completedBy: item.completedBy && item.completedBy !== '' ? item.completedBy : null
-      }));
+      try {
+        console.log('Processing checklist update for card:', card._id);
+        console.log('Checklist items received:', checklist.length);
 
-      changes.push({ field: 'checklist', oldValue: [...card.checklist], newValue: cleanedChecklist });
-      card.checklist = cleanedChecklist;
+        // Clean checklist data to handle frontend-backend data format differences
+        const mongoose = require('mongoose');
+        const cleanedChecklist = checklist.map((item, index) => {
+          try {
+            if (!item || typeof item !== 'object') {
+              throw new Error(`Invalid checklist item at index ${index}: ${JSON.stringify(item)}`);
+            }
 
-      // Trigger automation for checklist changes
-      setImmediate(() => {
-        automationService.handleChecklistUpdate(
-          card._id,
-          req.user.id
-        ).catch(error => {
-          console.error('Automation error for checklist update:', error);
+            if (!item.text || typeof item.text !== 'string') {
+              throw new Error(`Invalid text for checklist item at index ${index}: ${JSON.stringify(item.text)}`);
+            }
+
+            const cleanedItem = {
+              text: item.text.trim(),
+              completed: Boolean(item.completed),
+              completedAt: item.completed && item.completedAt ? new Date(item.completedAt) : (item.completed ? new Date() : null),
+              completedBy: null
+            };
+
+            // Handle completedBy field - ensure it's a valid ObjectId or null
+            if (item.completedBy) {
+              try {
+                if (typeof item.completedBy === 'string' && item.completedBy.trim() !== '') {
+                  // Validate ObjectId format
+                  if (mongoose.Types.ObjectId.isValid(item.completedBy)) {
+                    cleanedItem.completedBy = new mongoose.Types.ObjectId(item.completedBy);
+                  } else {
+                    console.warn(`Invalid ObjectId string for checklist item ${index}:`, item.completedBy);
+                  }
+                } else if (item.completedBy instanceof mongoose.Types.ObjectId) {
+                  cleanedItem.completedBy = item.completedBy;
+                } else if (typeof item.completedBy === 'object' && item.completedBy._id) {
+                  // Handle case where completedBy is a populated user object
+                  if (mongoose.Types.ObjectId.isValid(item.completedBy._id)) {
+                    cleanedItem.completedBy = new mongoose.Types.ObjectId(item.completedBy._id);
+                  }
+                }
+              } catch (completedByError) {
+                console.warn(`Error processing completedBy for checklist item ${index}:`, completedByError.message);
+                // Leave completedBy as null if conversion fails
+              }
+            }
+
+            // Set completedBy to current user if marking as completed but no completedBy is set
+            if (cleanedItem.completed && !cleanedItem.completedBy) {
+              cleanedItem.completedBy = new mongoose.Types.ObjectId(req.user.id);
+            }
+
+            return cleanedItem;
+          } catch (itemError) {
+            console.error(`Error processing checklist item at index ${index}:`, itemError.message);
+            console.error('Problematic item:', JSON.stringify(item));
+            throw itemError;
+          }
         });
-      });
+
+        console.log('Successfully cleaned checklist items:', cleanedChecklist.length);
+
+        changes.push({ field: 'checklist', oldValue: [...card.checklist], newValue: cleanedChecklist });
+        card.checklist = cleanedChecklist;
+
+        // Trigger automation for checklist changes
+        setImmediate(() => {
+          automationService.handleChecklistUpdate(
+            card._id,
+            req.user.id
+          ).catch(error => {
+            console.error('Automation error for checklist update:', error);
+          });
+        });
+
+      } catch (checklistError) {
+        console.error('Error processing checklist update:', checklistError.message);
+        console.error('Original checklist data:', JSON.stringify(checklist));
+        return res.status(400).json({
+          success: false,
+          message: `Error processing checklist: ${checklistError.message}`
+        });
+      }
     }
 
-    await card.save();
+    // Handle version conflicts with retry logic
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        await card.save();
+        break; // Success, exit retry loop
+      } catch (error) {
+        if (error.name === 'VersionError' && retries > 1) {
+          console.log(`Version conflict detected, retrying... (${4 - retries}/3)`);
+          // Refresh card data from database
+          const freshCard = await Card.findById(card._id);
+          if (freshCard) {
+            // Re-apply the changes to the fresh card
+            if (title && title !== freshCard.title) {
+              freshCard.title = title;
+            }
+            if (description !== undefined && description !== freshCard.description) {
+              freshCard.description = description;
+            }
+            if (priority && priority !== freshCard.priority) {
+              freshCard.priority = priority;
+            }
+            if (status && status !== freshCard.status) {
+              freshCard.status = status;
+            }
+            if (dueDate !== undefined) {
+              const newDueDate = dueDate ? new Date(dueDate) : null;
+              freshCard.dueDate = newDueDate;
+            }
+            if (startDate !== undefined) {
+              const newStartDate = startDate ? new Date(startDate) : null;
+              freshCard.startDate = newStartDate;
+            }
+            if (labels && JSON.stringify(labels) !== JSON.stringify(freshCard.labels)) {
+              freshCard.labels = labels;
+            }
+            if (customFields && JSON.stringify(customFields) !== JSON.stringify(freshCard.customFields)) {
+              freshCard.customFields = customFields;
+            }
+            if (checklist && JSON.stringify(checklist) !== JSON.stringify(freshCard.checklist)) {
+              try {
+                const mongoose = require('mongoose');
+                const cleanedChecklist = checklist.map((item, index) => {
+                  const cleanedItem = {
+                    text: item.text ? item.text.trim() : '',
+                    completed: Boolean(item.completed),
+                    completedAt: item.completed && item.completedAt ? new Date(item.completedAt) : (item.completed ? new Date() : null),
+                    completedBy: null
+                  };
+
+                  // Handle completedBy field - ensure it's a valid ObjectId or null
+                  if (item.completedBy) {
+                    try {
+                      if (typeof item.completedBy === 'string' && item.completedBy.trim() !== '') {
+                        // Validate ObjectId format
+                        if (mongoose.Types.ObjectId.isValid(item.completedBy)) {
+                          cleanedItem.completedBy = new mongoose.Types.ObjectId(item.completedBy);
+                        }
+                      } else if (item.completedBy instanceof mongoose.Types.ObjectId) {
+                        cleanedItem.completedBy = item.completedBy;
+                      } else if (typeof item.completedBy === 'object' && item.completedBy._id) {
+                        // Handle case where completedBy is a populated user object
+                        if (mongoose.Types.ObjectId.isValid(item.completedBy._id)) {
+                          cleanedItem.completedBy = new mongoose.Types.ObjectId(item.completedBy._id);
+                        }
+                      }
+                    } catch (error) {
+                      console.warn('Invalid completedBy ObjectId in retry:', item.completedBy, error.message);
+                      // Leave completedBy as null if conversion fails
+                    }
+                  }
+
+                  // Set completedBy to current user if marking as completed but no completedBy is set
+                  if (cleanedItem.completed && !cleanedItem.completedBy) {
+                    cleanedItem.completedBy = new mongoose.Types.ObjectId(req.user.id);
+                  }
+
+                  return cleanedItem;
+                });
+                freshCard.checklist = cleanedChecklist;
+              } catch (retryChecklistError) {
+                console.error('Error processing checklist in retry:', retryChecklistError.message);
+                // Skip checklist update in retry if there's an error
+              }
+            }
+            card = freshCard; // Use the fresh card for next retry
+          }
+          retries--;
+        } else {
+          throw error; // Re-throw if it's not a version error or no retries left
+        }
+      }
+    }
 
     // Log activity if there were changes
     if (changes.length > 0) {
@@ -841,6 +1025,16 @@ router.post('/:cardId/attachments', protect, checkCardAccess, (req, res, next) =
     card.attachments.push(attachment);
     await card.save();
 
+    // Trigger notification for attachment added
+    automationService.handleAttachmentAdded(
+      card._id,
+      req.file.originalname,
+      req.user.id,
+      'file'
+    ).catch(error => {
+      console.error('Automation error for attachment added:', error);
+    });
+
     // Log activity
     await Activity.logActivity({
       type: 'card_attachment_added',
@@ -912,6 +1106,16 @@ router.post('/:cardId/images', protect, checkCardAccess, uploadImage.single('ima
 
     card.attachments.push(attachment);
     await card.save();
+
+    // Trigger notification for image added
+    automationService.handleAttachmentAdded(
+      card._id,
+      req.file.originalname,
+      req.user.id,
+      'image'
+    ).catch(error => {
+      console.error('Automation error for image added:', error);
+    });
 
     // Log activity
     await Activity.logActivity({
@@ -1075,8 +1279,18 @@ router.post('/:cardId/attachments/multiple', protect, checkCardAccess, (req, res
     card.attachments.push(...newAttachments);
     await card.save();
 
-    // Log activity for each file
+    // Trigger notifications for each file
     for (const file of req.files) {
+      automationService.handleAttachmentAdded(
+        card._id,
+        file.originalname,
+        req.user.id,
+        'file'
+      ).catch(error => {
+        console.error('Automation error for multiple attachment added:', error);
+      });
+
+      // Log activity for each file
       await Activity.logActivity({
         type: 'card_attachment_added',
         user: req.user.id,
@@ -1270,6 +1484,15 @@ router.post('/:cardId/checklist/bulk', protect, checkCardAccess, async (req, res
     // Add all checklist items
     card.checklist.push(...checklistItems);
     await card.save();
+
+    // Trigger notification for subtasks added
+    automationService.handleSubtasksAdded(
+      card._id,
+      checklistItems,
+      req.user.id
+    ).catch(error => {
+      console.error('Automation error for subtasks added:', error);
+    });
 
     // Log activity
     await Activity.logActivity({

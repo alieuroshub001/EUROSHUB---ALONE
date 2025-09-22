@@ -1259,7 +1259,12 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           onClose={() => setShowCreateTask(false)}
           onSubmit={handleCreateTask}
           columnTitle={activeBoard.columns.find((col: any) => col.id === selectedColumn)?.title}
-          teamMembers={teamMembers}
+          teamMembers={activeBoard.members || []}
+          project={project ? {
+            startDate: project.startDate,
+            endDate: project.endDate,
+            title: project.title
+          } : undefined}
         />
       )}
 
@@ -1274,7 +1279,7 @@ const IntegratedKanbanBoard: React.FC<IntegratedKanbanBoardProps> = ({ projectId
           onAddComment={handleAddComment}
           onUploadFile={handleUploadFile}
           onDeleteAttachment={handleDeleteAttachment}
-          teamMembers={teamMembers}
+          teamMembers={activeBoard.members || []}
           currentUser={currentUser}
         />
       )}

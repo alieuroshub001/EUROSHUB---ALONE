@@ -20,7 +20,6 @@ exports.validateCreateUser = [
     .withMessage('Last name must be between 2 and 50 characters'),
   body('email')
     .isEmail()
-    .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('role')
     .isIn(['superadmin', 'admin', 'client', 'hr', 'employee'])

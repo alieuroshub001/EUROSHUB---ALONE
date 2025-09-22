@@ -9,6 +9,7 @@ const cron = require('node-cron');
 class AutomationService {
   constructor() {
     this.setupCronJobs();
+    this.checklistLocks = new Set(); // Track cards currently being processed
   }
 
   setupCronJobs() {
@@ -47,7 +48,7 @@ class AutomationService {
         member.email,
         `${member.firstName} ${member.lastName}`,
         project.title,
-        projectId,
+        project.description,
         `${addedBy.firstName} ${addedBy.lastName}`,
         role
       );
@@ -79,9 +80,8 @@ class AutomationService {
             assignee.email,
             `${assignee.firstName} ${assignee.lastName}`,
             card.title,
-            cardId,
+            card.description,
             card.project.title,
-            card.project._id,
             `${assignedBy.firstName} ${assignedBy.lastName}`,
             card.dueDate
           );
@@ -124,9 +124,7 @@ class AutomationService {
           user.email,
           `${user.firstName} ${user.lastName}`,
           card.title,
-          cardId,
           card.project.title,
-          card.project._id,
           oldStatus,
           newStatus,
           `${changedBy.firstName} ${changedBy.lastName}`
@@ -168,12 +166,11 @@ class AutomationService {
         await emailService.sendTaskCommentNotification(
           user.email,
           `${user.firstName} ${user.lastName}`,
+          `${commentor.firstName} ${commentor.lastName}`,
           card.title,
-          cardId,
           card.project.title,
-          card.project._id,
           commentText,
-          `${commentor.firstName} ${commentor.lastName}`
+          cardId
         );
       }
 
@@ -224,10 +221,9 @@ class AutomationService {
                 assignee.email,
                 `${assignee.firstName} ${assignee.lastName}`,
                 task.title,
-                task._id,
                 task.project.title,
-                task.project._id,
-                task.dueDate
+                task.dueDate,
+                daysUntilDue
               );
             }
           }
@@ -515,18 +511,41 @@ class AutomationService {
   }
 
   async handleChecklistUpdate(cardId, userId) {
+    const cardIdStr = cardId.toString();
     try {
+      // Check if this card is already being processed
+      if (this.checklistLocks.has(cardIdStr)) {
+        console.log(`Checklist automation already in progress for card ${cardId}, skipping...`);
+        return;
+      }
+
+      // Lock this card
+      this.checklistLocks.add(cardIdStr);
+      console.log(`Locked card ${cardId} for checklist automation`);
+
+      // Set a timeout to automatically release the lock after 30 seconds
+      setTimeout(() => {
+        if (this.checklistLocks.has(cardIdStr)) {
+          console.warn(`Force releasing lock for card ${cardId} after timeout`);
+          this.checklistLocks.delete(cardIdStr);
+        }
+      }, 30000);
+
       const card = await Card.findById(cardId)
         .populate('list', 'title listType')
         .populate('board', 'title');
 
       if (!card) {
         console.error('Card not found for checklist automation');
+        this.checklistLocks.delete(cardIdStr);
         return;
       }
 
       const checklist = card.checklist || [];
-      if (checklist.length === 0) return;
+      if (checklist.length === 0) {
+        this.checklistLocks.delete(cardIdStr);
+        return;
+      }
 
       const completedCount = checklist.filter(item => item.completed).length;
       const completionRate = completedCount / checklist.length;
@@ -584,8 +603,14 @@ class AutomationService {
         console.log(`Card ${card.title} automatically moved from ${card.list.title} to ${targetListId} due to checklist automation`);
       }
 
+      // Release the lock
+      this.checklistLocks.delete(cardIdStr);
+      console.log(`Released lock for card ${cardId}`);
+
     } catch (error) {
       console.error('Error in checklist automation:', error);
+      // Release the lock even on error
+      this.checklistLocks.delete(cardIdStr);
     }
   }
 
@@ -617,6 +642,256 @@ class AutomationService {
 
     } catch (error) {
       console.error('Error in new task automation:', error);
+    }
+  }
+
+  async handleSubtasksAdded(cardId, subtasks, addedById) {
+    try {
+      const card = await Card.findById(cardId)
+        .populate('project', 'title')
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('watchers', 'firstName lastName email');
+
+      const addedBy = await User.findById(addedById);
+
+      if (!card || !addedBy) {
+        console.error('Missing data for subtasks added notification');
+        return;
+      }
+
+      // Get all users to notify (assignees + watchers, excluding the person who added subtasks)
+      const usersToNotify = new Set();
+
+      card.assignedTo.forEach(user => usersToNotify.add(user));
+      card.watchers.forEach(user => usersToNotify.add(user));
+
+      // Remove the person who added the subtasks
+      const filteredUsers = Array.from(usersToNotify).filter(
+        user => user._id.toString() !== addedById.toString()
+      );
+
+      for (const user of filteredUsers) {
+        await emailService.sendSubtasksAddedNotification(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          card.title,
+          card.project.title,
+          subtasks,
+          `${addedBy.firstName} ${addedBy.lastName}`
+        );
+      }
+
+      console.log(`Subtasks added notifications sent for card ${card.title}`);
+    } catch (error) {
+      console.error('Error sending subtasks added notification:', error);
+    }
+  }
+
+  async handleAttachmentAdded(cardId, attachmentName, uploadedById, attachmentType = 'file') {
+    try {
+      const card = await Card.findById(cardId)
+        .populate('project', 'title')
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('watchers', 'firstName lastName email');
+
+      const uploadedBy = await User.findById(uploadedById);
+
+      if (!card || !uploadedBy) {
+        console.error('Missing data for attachment added notification');
+        return;
+      }
+
+      // Get all users to notify (assignees + watchers, excluding the person who uploaded)
+      const usersToNotify = new Set();
+
+      card.assignedTo.forEach(user => usersToNotify.add(user));
+      card.watchers.forEach(user => usersToNotify.add(user));
+
+      // Remove the person who uploaded the attachment
+      const filteredUsers = Array.from(usersToNotify).filter(
+        user => user._id.toString() !== uploadedById.toString()
+      );
+
+      for (const user of filteredUsers) {
+        await emailService.sendAttachmentAddedNotification(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          card.title,
+          card.project.title,
+          attachmentName,
+          `${uploadedBy.firstName} ${uploadedBy.lastName}`,
+          attachmentType
+        );
+      }
+
+      console.log(`Attachment added notifications sent for card ${card.title}`);
+    } catch (error) {
+      console.error('Error sending attachment added notification:', error);
+    }
+  }
+
+  async sendDailyDigest() {
+    try {
+      console.log('Sending daily digest emails...');
+
+      // Get all active users
+      const users = await User.find({
+        isActive: true,
+        emailVerified: true
+      }).select('firstName lastName email');
+
+      for (const user of users) {
+        try {
+          // Get user's assigned tasks
+          const assignedTasks = await Card.find({
+            assignedTo: user._id,
+            status: { $nin: ['completed'] },
+            isArchived: false
+          })
+            .populate('project', 'title')
+            .select('title project dueDate');
+
+          // Get tasks due soon (next 7 days)
+          const now = new Date();
+          const weekFromNow = new Date(now);
+          weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+          const dueTasks = assignedTasks.filter(task =>
+            task.dueDate && task.dueDate <= weekFromNow
+          );
+
+          // Get completed tasks from yesterday
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          yesterday.setHours(0, 0, 0, 0);
+          const todayStart = new Date(now);
+          todayStart.setHours(0, 0, 0, 0);
+
+          const completedTasks = await Card.find({
+            assignedTo: user._id,
+            status: 'completed',
+            updatedAt: { $gte: yesterday, $lt: todayStart }
+          })
+            .populate('project', 'title')
+            .select('title project');
+
+          // Get recent comments on user's tasks (last 24 hours)
+          const userTaskIds = assignedTasks.map(task => task._id);
+          const tasksWithComments = await Card.find({
+            _id: { $in: userTaskIds },
+            'comments.createdAt': { $gte: yesterday }
+          })
+            .populate('comments.author', 'firstName lastName')
+            .select('title comments');
+
+          const newComments = [];
+          tasksWithComments.forEach(task => {
+            task.comments.forEach(comment => {
+              if (comment.createdAt >= yesterday && comment.author._id.toString() !== user._id.toString()) {
+                newComments.push({
+                  task: task.title,
+                  author: `${comment.author.firstName} ${comment.author.lastName}`,
+                  text: comment.text
+                });
+              }
+            });
+          });
+
+          const digestData = {
+            assignedTasks: assignedTasks.map(task => ({
+              title: task.title,
+              project: task.project.title
+            })),
+            dueTasks: dueTasks.map(task => ({
+              title: task.title,
+              project: task.project.title,
+              dueDate: task.dueDate
+            })),
+            completedTasks: completedTasks.map(task => ({
+              title: task.title,
+              project: task.project.title
+            })),
+            newComments: newComments.slice(0, 5) // Limit to 5 most recent
+          };
+
+          // Only send digest if there's meaningful content
+          if (assignedTasks.length > 0 || dueTasks.length > 0 || completedTasks.length > 0 || newComments.length > 0) {
+            await emailService.sendDigestNotification(
+              user.email,
+              `${user.firstName} ${user.lastName}`,
+              digestData
+            );
+
+            console.log(`Daily digest sent to ${user.email}`);
+          }
+        } catch (userError) {
+          console.error(`Error sending digest to ${user.email}:`, userError);
+          // Continue with other users
+        }
+      }
+
+      console.log('Daily digest batch completed');
+    } catch (error) {
+      console.error('Error sending daily digest:', error);
+    }
+  }
+
+  async sendWeeklyProjectSummary() {
+    try {
+      console.log('Sending weekly project summaries...');
+
+      // Get all active projects
+      const projects = await Project.find({ status: 'active' })
+        .populate('members.user', 'firstName lastName email')
+        .populate('owner', 'firstName lastName email');
+
+      for (const project of projects) {
+        try {
+          // Get project statistics for the past week
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+
+          const [totalTasks, completedTasks, newTasks] = await Promise.all([
+            Card.countDocuments({ project: project._id, isArchived: false }),
+            Card.countDocuments({
+              project: project._id,
+              status: 'completed',
+              updatedAt: { $gte: weekAgo }
+            }),
+            Card.countDocuments({
+              project: project._id,
+              createdAt: { $gte: weekAgo }
+            })
+          ]);
+
+          const projectSummary = {
+            projectTitle: project.title,
+            totalTasks,
+            completedTasks,
+            newTasks,
+            weeklyProgress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+          };
+
+          // Send to project owner and all members
+          const recipients = [project.owner, ...project.members.map(m => m.user)];
+
+          for (const recipient of recipients) {
+            if (recipient && recipient.email) {
+              // For now, we'll use the digest function to send weekly summary
+              // You could create a separate weekly summary email template if needed
+              console.log(`Weekly summary prepared for ${recipient.email} - Project: ${project.title}`);
+            }
+          }
+
+        } catch (projectError) {
+          console.error(`Error processing project ${project.title}:`, projectError);
+          // Continue with other projects
+        }
+      }
+
+      console.log('Weekly project summary batch completed');
+    } catch (error) {
+      console.error('Error sending weekly project summaries:', error);
     }
   }
 }
