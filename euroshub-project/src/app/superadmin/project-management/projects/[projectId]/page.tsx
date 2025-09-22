@@ -18,10 +18,13 @@ type ViewMode = 'overview' | 'boards' | 'activity' | 'settings';
 
 export default function ProjectDetail() {
   console.log('🔍 ProjectDetail: Component mounting...');
+
   const router = useRouter();
   const params = useParams();
   const projectId = params?.projectId as string;
+
   console.log('🔍 ProjectDetail: Project ID from params:', projectId);
+  console.log('🔍 ProjectDetail: Params object:', params);
 
   const [project, setProject] = useState<Project | null>(null);
   const [activities, setActivities] = useState<ActivityType[]>([]);
