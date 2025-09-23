@@ -23,12 +23,36 @@ router.get('/:cardId', protect, checkCardAccess, async (req, res) => {
 
     // Populate card details
     await card.populate([
-      { path: 'assignedTo', select: 'firstName lastName avatar email' },
-      { path: 'createdBy', select: 'firstName lastName avatar' },
-      { path: 'watchers', select: 'firstName lastName avatar' },
-      { path: 'completedBy', select: 'firstName lastName avatar' },
-      { path: 'comments.author', select: 'firstName lastName avatar' },
-      { path: 'timeTracking.entries.user', select: 'firstName lastName avatar' }
+      {
+        path: 'assignedTo',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'watchers',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'completedBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'comments.author',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'timeTracking.entries.user',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     res.status(200).json({
@@ -364,8 +388,16 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
 
     // Populate for response
     await card.populate([
-      { path: 'assignedTo', select: 'firstName lastName avatar' },
-      { path: 'createdBy', select: 'firstName lastName avatar' }
+      {
+        path: 'assignedTo',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     res.status(200).json({
@@ -501,7 +533,11 @@ router.put('/:cardId/assign', protect, checkCardAccess, async (req, res) => {
     });
 
     // Populate for response
-    await card.populate('assignedTo', 'firstName lastName avatar email');
+    await card.populate({
+      path: 'assignedTo',
+      select: 'firstName lastName avatar email',
+      match: { _id: { $ne: null } }
+    });
 
     res.status(200).json({
       success: true,
@@ -565,7 +601,11 @@ router.put('/:cardId/unassign', protect, checkCardAccess, async (req, res) => {
     });
 
     // Populate for response
-    await card.populate('assignedTo', 'firstName lastName avatar email');
+    await card.populate({
+      path: 'assignedTo',
+      select: 'firstName lastName avatar email',
+      match: { _id: { $ne: null } }
+    });
 
     res.status(200).json({
       success: true,
@@ -635,7 +675,11 @@ router.post('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
     });
 
     // Populate for response
-    await card.populate('comments.author', 'firstName lastName avatar');
+    await card.populate({
+      path: 'comments.author',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
     const newComment = card.comments[card.comments.length - 1];
 
@@ -676,7 +720,11 @@ router.put('/:cardId/comments/:commentId', protect, checkCardAccess, async (req,
       await card.save();
 
       // Populate for response
-      await card.populate('comments.author', 'firstName lastName avatar');
+      await card.populate({
+      path: 'comments.author',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
       const updatedComment = card.comments.id(commentId);
 
@@ -764,7 +812,11 @@ router.post('/:cardId/time', protect, checkCardAccess, async (req, res) => {
     await card.save();
 
     // Populate for response
-    await card.populate('timeTracking.entries.user', 'firstName lastName avatar');
+    await card.populate({
+      path: 'timeTracking.entries.user',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
     res.status(201).json({
       success: true,
@@ -945,8 +997,16 @@ router.get('/assigned-to-me', protect, async (req, res) => {
     const skip = (page - 1) * limit;
 
     const cards = await Card.find(query)
-      .populate('assignedTo', 'firstName lastName avatar')
-      .populate('createdBy', 'firstName lastName avatar')
+      .populate({
+        path: 'assignedTo',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
       .populate('list', 'title')
       .populate('board', 'title')
       .populate('project', 'title')
@@ -1051,7 +1111,11 @@ router.post('/:cardId/attachments', protect, checkCardAccess, (req, res, next) =
     });
 
     // Populate for response
-    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+    await card.populate({
+      path: 'attachments.uploadedBy',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
     const newAttachment = card.attachments[card.attachments.length - 1];
 
@@ -1133,7 +1197,11 @@ router.post('/:cardId/images', protect, checkCardAccess, uploadImage.single('ima
     });
 
     // Populate for response
-    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+    await card.populate({
+      path: 'attachments.uploadedBy',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
     const newAttachment = card.attachments[card.attachments.length - 1];
 
@@ -1307,7 +1375,11 @@ router.post('/:cardId/attachments/multiple', protect, checkCardAccess, (req, res
     }
 
     // Populate for response
-    await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
+    await card.populate({
+      path: 'attachments.uploadedBy',
+      select: 'firstName lastName avatar',
+      match: { _id: { $ne: null } }
+    });
 
     const addedAttachments = card.attachments.slice(-req.files.length);
 

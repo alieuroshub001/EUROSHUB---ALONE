@@ -27,7 +27,11 @@ router.get('/projects/:projectId/boards', protect, checkProjectAccess, async (re
     }
 
     const boards = await Board.find(query)
-      .populate('createdBy', 'firstName lastName avatar')
+      .populate({
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
       .populate({
         path: 'lists',
         match: { isArchived: false },
@@ -37,8 +41,16 @@ router.get('/projects/:projectId/boards', protect, checkProjectAccess, async (re
           match: { isArchived: false },
           options: { sort: { position: 1 } },
           populate: [
-            { path: 'assignedTo', select: 'firstName lastName avatar email' },
-            { path: 'createdBy', select: 'firstName lastName avatar' }
+            {
+              path: 'assignedTo',
+              select: 'firstName lastName avatar email',
+              match: { _id: { $ne: null } }
+            },
+            {
+              path: 'createdBy',
+              select: 'firstName lastName avatar',
+              match: { _id: { $ne: null } }
+            }
           ]
         }
       })
@@ -106,7 +118,11 @@ router.get('/:boardId', protect, checkBoardAccess, async (req, res) => {
 
     // Populate board with lists and cards
     await board.populate([
-      { path: 'createdBy', select: 'firstName lastName avatar' },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
       {
         path: 'lists',
         match: { isArchived: false },
@@ -116,8 +132,16 @@ router.get('/:boardId', protect, checkBoardAccess, async (req, res) => {
           match: { isArchived: false },
           options: { sort: { position: 1 } },
           populate: [
-            { path: 'assignedTo', select: 'firstName lastName avatar' },
-            { path: 'createdBy', select: 'firstName lastName avatar' }
+            {
+              path: 'assignedTo',
+              select: 'firstName lastName avatar',
+              match: { _id: { $ne: null } }
+            },
+            {
+              path: 'createdBy',
+              select: 'firstName lastName avatar',
+              match: { _id: { $ne: null } }
+            }
           ]
         }
       }
@@ -227,7 +251,11 @@ router.post('/projects/:projectId/boards', protect, checkProjectAccess, checkPro
 
     // Populate for response
     await board.populate([
-      { path: 'createdBy', select: 'firstName lastName avatar' },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
       {
         path: 'lists',
         options: { sort: { position: 1 } }
@@ -577,7 +605,11 @@ router.post('/:boardId/duplicate', protect, checkBoardAccess, async (req, res) =
 
     // Populate for response
     await newBoard.populate([
-      { path: 'createdBy', select: 'firstName lastName avatar' },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
       {
         path: 'lists',
         options: { sort: { position: 1 } }

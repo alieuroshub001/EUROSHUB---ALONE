@@ -62,10 +62,26 @@ router.get('/', protect, async (req, res) => {
 
     // Get projects
     const projects = await Project.find(query)
-      .populate('owner', 'firstName lastName avatar')
-      .populate('client', 'firstName lastName email')
-      .populate('members.user', 'firstName lastName avatar')
-      .populate('members.addedBy', 'firstName lastName')
+      .populate({
+        path: 'owner',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
+      .populate({
+        path: 'client',
+        select: 'firstName lastName email',
+        match: { _id: { $ne: null } }
+      })
+      .populate({
+        path: 'members.user',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
+      .populate({
+        path: 'members.addedBy',
+        select: 'firstName lastName',
+        match: { _id: { $ne: null } }
+      })
       .sort(sortOptions)
       .limit(limit * 1)
       .skip(skip);
@@ -111,10 +127,26 @@ router.get('/:projectId', protect, checkProjectAccess, async (req, res) => {
 
     // Populate project details
     await project.populate([
-      { path: 'owner', select: 'firstName lastName avatar email' },
-      { path: 'client', select: 'firstName lastName email' },
-      { path: 'members.user', select: 'firstName lastName avatar email' },
-      { path: 'members.addedBy', select: 'firstName lastName' }
+      {
+        path: 'owner',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'client',
+        select: 'firstName lastName email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.user',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.addedBy',
+        select: 'firstName lastName',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     const projectObj = project.toObject();
@@ -202,8 +234,16 @@ router.post('/', protect, checkProjectCreatePermission, async (req, res) => {
 
     // Populate for response
     await project.populate([
-      { path: 'owner', select: 'firstName lastName avatar' },
-      { path: 'client', select: 'firstName lastName email' }
+      {
+        path: 'owner',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'client',
+        select: 'firstName lastName email',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     res.status(201).json({
@@ -343,9 +383,21 @@ router.put('/:projectId', protect, checkProjectAccess, checkProjectPermission('w
 
     // Populate for response
     await project.populate([
-      { path: 'owner', select: 'firstName lastName avatar' },
-      { path: 'client', select: 'firstName lastName email' },
-      { path: 'members.user', select: 'firstName lastName avatar' }
+      {
+        path: 'owner',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'client',
+        select: 'firstName lastName email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.user',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     res.status(200).json({
@@ -410,9 +462,21 @@ router.get('/:projectId/members', protect, checkProjectAccess, async (req, res) 
 
     // Populate members
     await project.populate([
-      { path: 'members.user', select: 'firstName lastName avatar email' },
-      { path: 'members.addedBy', select: 'firstName lastName' },
-      { path: 'owner', select: 'firstName lastName avatar email' }
+      {
+        path: 'members.user',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.addedBy',
+        select: 'firstName lastName',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'owner',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      }
     ]);
 
     res.status(200).json({
@@ -480,8 +544,16 @@ router.post('/:projectId/members', protect, checkProjectAccess, checkMemberManag
 
       // Populate for response
       await project.populate([
-        { path: 'members.user', select: 'firstName lastName avatar email' },
-        { path: 'members.addedBy', select: 'firstName lastName' }
+        {
+          path: 'members.user',
+          select: 'firstName lastName avatar email',
+          match: { _id: { $ne: null } }
+        },
+        {
+          path: 'members.addedBy',
+          select: 'firstName lastName',
+          match: { _id: { $ne: null } }
+        }
       ]);
 
       // Trigger automation for member addition
@@ -552,8 +624,16 @@ router.put('/:projectId/members/:memberId', protect, checkProjectAccess, checkMe
 
       // Populate for response
       await project.populate([
-        { path: 'members.user', select: 'firstName lastName avatar email' },
-        { path: 'members.addedBy', select: 'firstName lastName' }
+        {
+          path: 'members.user',
+          select: 'firstName lastName avatar email',
+          match: { _id: { $ne: null } }
+        },
+        {
+          path: 'members.addedBy',
+          select: 'firstName lastName',
+          match: { _id: { $ne: null } }
+        }
       ]);
 
       res.status(200).json({
@@ -605,8 +685,16 @@ router.delete('/:projectId/members/:memberId', protect, checkProjectAccess, chec
 
       // Populate for response
       await project.populate([
-        { path: 'members.user', select: 'firstName lastName avatar email' },
-        { path: 'members.addedBy', select: 'firstName lastName' }
+        {
+          path: 'members.user',
+          select: 'firstName lastName avatar email',
+          match: { _id: { $ne: null } }
+        },
+        {
+          path: 'members.addedBy',
+          select: 'firstName lastName',
+          match: { _id: { $ne: null } }
+        }
       ]);
 
       res.status(200).json({
@@ -722,7 +810,11 @@ router.get('/:projectId/boards', protect, checkProjectAccess, async (req, res) =
     }
 
     const boards = await Board.find(query)
-      .populate('createdBy', 'firstName lastName avatar')
+      .populate({
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      })
       .populate({
         path: 'lists',
         match: { isArchived: false },
@@ -732,8 +824,16 @@ router.get('/:projectId/boards', protect, checkProjectAccess, async (req, res) =
           match: { isArchived: false },
           options: { sort: { position: 1 } },
           populate: [
-            { path: 'assignedTo', select: 'firstName lastName avatar email' },
-            { path: 'createdBy', select: 'firstName lastName avatar' }
+            {
+              path: 'assignedTo',
+              select: 'firstName lastName avatar email',
+              match: { _id: { $ne: null } }
+            },
+            {
+              path: 'createdBy',
+              select: 'firstName lastName avatar',
+              match: { _id: { $ne: null } }
+            }
           ]
         }
       })
@@ -813,7 +913,11 @@ router.post('/:projectId/boards', protect, checkProjectAccess, checkProjectPermi
 
     // Populate for response
     await board.populate([
-      { path: 'createdBy', select: 'firstName lastName avatar' },
+      {
+        path: 'createdBy',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
+      },
       {
         path: 'lists',
         options: { sort: { position: 1 } }

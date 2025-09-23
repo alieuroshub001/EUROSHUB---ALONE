@@ -27,7 +27,7 @@ const validatePasswordResetRequest = [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
-    .normalizeEmail()
+    // .normalizeEmail() // Removed this as it removes dots from Gmail addresses
 ];
 
 // Public routes

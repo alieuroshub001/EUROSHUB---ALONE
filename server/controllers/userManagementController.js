@@ -416,6 +416,17 @@ exports.deleteUser = async (req, res) => {
       { $pull: { members: { user: id } } }
     );
 
+    // Clean up addedBy references in project members
+    const projectsWithMembers = await Project.find({ 'members.addedBy': id });
+    for (const project of projectsWithMembers) {
+      project.members.forEach(member => {
+        if (member.addedBy && member.addedBy.toString() === id) {
+          member.addedBy = undefined;
+        }
+      });
+      await project.save();
+    }
+
     // Update projects where user is the owner (transfer to a superadmin or archive)
     const orphanedProjects = await Project.find({ owner: id });
     for (const project of orphanedProjects) {
@@ -437,17 +448,81 @@ exports.deleteUser = async (req, res) => {
       { $unset: { createdBy: 1 } }
     );
 
-    // Update cards where user is assigned or created by this user
-    await Card.updateMany(
-      { $or: [{ assignedTo: id }, { createdBy: id }] },
-      { $unset: { assignedTo: 1, createdBy: 1 } }
-    );
+    // Clean up card references comprehensively
+    const cardsToUpdate = await Card.find({
+      $or: [
+        { assignedTo: id },
+        { createdBy: id },
+        { watchers: id },
+        { completedBy: id },
+        { archivedBy: id },
+        { 'checklist.completedBy': id },
+        { 'attachments.uploadedBy': id },
+        { 'comments.author': id },
+        { 'comments.mentions': id },
+        { 'timeTracking.entries.user': id }
+      ]
+    });
 
-    // Remove user from card checklist items that were completed by this user
-    await Card.updateMany(
-      { 'checklist.completedBy': id },
-      { $unset: { 'checklist.$[].completedBy': 1 } }
-    );
+    for (const card of cardsToUpdate) {
+      // Remove from assignedTo array
+      card.assignedTo = card.assignedTo.filter(userId => userId && userId.toString() !== id);
+
+      // Remove from watchers array
+      card.watchers = card.watchers.filter(userId => userId && userId.toString() !== id);
+
+      // Clear single user references
+      if (card.createdBy && card.createdBy.toString() === id) {
+        card.createdBy = undefined;
+      }
+      if (card.completedBy && card.completedBy.toString() === id) {
+        card.completedBy = undefined;
+      }
+      if (card.archivedBy && card.archivedBy.toString() === id) {
+        card.archivedBy = undefined;
+      }
+
+      // Clean checklist completed by references
+      if (card.checklist && card.checklist.length > 0) {
+        card.checklist.forEach(item => {
+          if (item.completedBy && item.completedBy.toString() === id) {
+            item.completedBy = undefined;
+          }
+        });
+      }
+
+      // Clean attachment uploaded by references
+      if (card.attachments && card.attachments.length > 0) {
+        card.attachments.forEach(attachment => {
+          if (attachment.uploadedBy && attachment.uploadedBy.toString() === id) {
+            attachment.uploadedBy = undefined;
+          }
+        });
+      }
+
+      // Clean comment author and mentions
+      if (card.comments && card.comments.length > 0) {
+        card.comments.forEach(comment => {
+          if (comment.author && comment.author.toString() === id) {
+            comment.author = undefined;
+          }
+          if (comment.mentions && comment.mentions.length > 0) {
+            comment.mentions = comment.mentions.filter(userId => userId && userId.toString() !== id);
+          }
+        });
+      }
+
+      // Clean time tracking entries
+      if (card.timeTracking && card.timeTracking.entries && card.timeTracking.entries.length > 0) {
+        card.timeTracking.entries.forEach(entry => {
+          if (entry.user && entry.user.toString() === id) {
+            entry.user = undefined;
+          }
+        });
+      }
+
+      await card.save();
+    }
 
     // Clean up activities related to this user
     await Activity.deleteMany({

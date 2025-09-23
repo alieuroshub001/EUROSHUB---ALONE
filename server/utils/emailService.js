@@ -675,6 +675,257 @@ const sendDigestNotification = async (recipientEmail, recipientName, digestData)
   await sendEmail(recipientEmail, emailSubject, emailHtml);
 };
 
+// Get eligible admin emails based on requesting user's role
+const getEligibleAdminEmails = async (userRole) => {
+  const User = require('../models/User');
+
+  try {
+    let adminQuery = {};
+
+    // Role-based access control for password reset approvals
+    switch (userRole) {
+      case 'superadmin':
+        // Only superadmins can handle superadmin password resets
+        adminQuery = { role: 'superadmin', isActive: true };
+        break;
+
+      case 'admin':
+        // Only superadmins can handle admin password resets
+        adminQuery = { role: 'superadmin', isActive: true };
+        break;
+
+      case 'hr':
+        // Superadmins and admins can handle HR password resets
+        adminQuery = { role: { $in: ['superadmin', 'admin'] }, isActive: true };
+        break;
+
+      case 'employee':
+      case 'client':
+      default:
+        // Superadmins, admins, and HR can handle employee/client password resets
+        adminQuery = { role: { $in: ['superadmin', 'admin', 'hr'] }, isActive: true };
+        break;
+    }
+
+    const eligibleAdmins = await User.find(adminQuery, 'email firstName lastName role');
+    console.log(`📧 Found ${eligibleAdmins.length} eligible admins for ${userRole} password reset`);
+
+    return eligibleAdmins.map(admin => ({
+      email: admin.email,
+      name: `${admin.firstName} ${admin.lastName}`,
+      role: admin.role
+    }));
+
+  } catch (error) {
+    console.error('Error fetching eligible admins:', error);
+    // Fallback to environment variable or default
+    const fallbackEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : ['admin@euroshub.com'];
+    return fallbackEmails.map(email => ({ email: email.trim(), name: 'Administrator', role: 'admin' }));
+  }
+};
+
+// Notify admins about password reset request
+const notifyAdminsPasswordResetRequest = async ({ userEmail, userName, userRole, requestId }) => {
+  console.log(`📧 Sending admin notification for password reset request from ${userEmail} (${userRole})...`);
+
+  // Get eligible admins based on user role
+  const eligibleAdmins = await getEligibleAdminEmails(userRole);
+
+  if (eligibleAdmins.length === 0) {
+    console.error(`📧 No eligible admins found for ${userRole} password reset request`);
+    return;
+  }
+
+  const adminUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/admin/password-requests`;
+  const roleColors = {
+    superadmin: '#6f42c1',
+    admin: '#dc3545',
+    hr: '#fd7e14',
+    employee: '#28a745',
+    client: '#17a2b8'
+  };
+  const roleColor = roleColors[userRole] || '#dc3545';
+
+  const emailSubject = `Password Reset Request - ${userName} (${userRole.toUpperCase()})`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: ${roleColor}; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">🔐 Password Reset Request</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 5px 0; font-size: 14px;">Role-based approval required</p>
+      </div>
+
+      <div style="padding: 30px; background-color: white;">
+        <h2 style="color: #333;">Administrator Notification</h2>
+
+        <p style="color: #666; line-height: 1.6;">
+          A <strong>${userRole}</strong> user has requested a password reset and requires administrator approval.
+        </p>
+
+        <div style="background-color: ${roleColor}20; border-left: 4px solid ${roleColor}; padding: 20px; margin: 20px 0;">
+          <h3 style="color: ${roleColor}; margin: 0 0 15px 0;">Request Details:</h3>
+          <p style="margin: 5px 0; color: ${roleColor};"><strong>User:</strong> ${userName}</p>
+          <p style="margin: 5px 0; color: ${roleColor};"><strong>Email:</strong> ${userEmail}</p>
+          <p style="margin: 5px 0; color: ${roleColor};"><strong>Role:</strong> <span style="text-transform: uppercase; font-weight: bold;">${userRole}</span></p>
+          <p style="margin: 5px 0; color: ${roleColor};"><strong>Request ID:</strong> ${requestId}</p>
+          <p style="margin: 5px 0; color: ${roleColor};"><strong>Requested:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+
+        <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h4 style="color: #0c5460; margin: 0 0 10px 0;">Authorization Level:</h4>
+          <p style="color: #0c5460; margin: 0; font-size: 14px;">
+            ${userRole === 'superadmin' ? 'Only superadmins can approve superadmin password resets.' :
+              userRole === 'admin' ? 'Only superadmins can approve admin password resets.' :
+              userRole === 'hr' ? 'Superadmins and admins can approve HR password resets.' :
+              'Superadmins, admins, and HR can approve employee/client password resets.'}
+          </p>
+        </div>
+
+        <div style="margin: 30px 0;">
+          <a href="${adminUrl}" style="background-color: ${roleColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Review Request
+          </a>
+        </div>
+
+        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h4 style="color: #856404; margin: 0 0 10px 0;">Action Required:</h4>
+          <p style="color: #856404; margin: 0; font-size: 14px;">
+            Please log in to the admin panel to approve or reject this password reset request.
+          </p>
+        </div>
+
+        <p style="color: #666; line-height: 1.6; font-size: 14px;">
+          This request will remain pending until an authorized administrator takes action.
+        </p>
+      </div>
+
+      <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+        <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+
+  // Send to all eligible admins
+  const emailPromises = eligibleAdmins.map(async (admin) => {
+    try {
+      await sendEmail(admin.email, emailSubject, emailHtml);
+      console.log(`📧 Password reset notification sent to ${admin.name} (${admin.role}) at ${admin.email}`);
+    } catch (error) {
+      console.error(`📧 Failed to send notification to ${admin.email}:`, error.message);
+    }
+  });
+
+  await Promise.allSettled(emailPromises);
+  console.log(`📧 Password reset notifications sent to ${eligibleAdmins.length} eligible administrators`);
+};
+
+// Send new password to user when request is approved
+const sendPasswordResetSuccess = async ({ email, firstName, lastName, newPassword, processorName }) => {
+  console.log(`📧 Sending password reset success email to ${email}...`);
+
+  const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/login`;
+  const emailSubject = 'Password Reset Approved - New Credentials';
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #28a745; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">✅ Password Reset Approved</h1>
+      </div>
+
+      <div style="padding: 30px; background-color: white;">
+        <h2 style="color: #333;">Hello ${firstName} ${lastName},</h2>
+
+        <p style="color: #666; line-height: 1.6;">
+          Good news! Your password reset request has been approved by <strong>${processorName}</strong>.
+          A new temporary password has been generated for your account.
+        </p>
+
+        <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0;">
+          <h3 style="color: #155724; margin: 0 0 15px 0;">Your New Login Credentials:</h3>
+          <p style="margin: 5px 0; color: #155724;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0; color: #155724;"><strong>New Password:</strong> <code style="background-color: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${newPassword}</code></p>
+        </div>
+
+        <div style="margin: 30px 0;">
+          <a href="${loginUrl}" style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Login Now
+          </a>
+        </div>
+
+        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h4 style="color: #856404; margin: 0 0 10px 0;">Important Security Notice:</h4>
+          <ul style="color: #856404; margin: 0; font-size: 14px; padding-left: 20px;">
+            <li>Please change this password immediately after logging in</li>
+            <li>Use a strong, unique password for your account</li>
+            <li>Do not share your credentials with anyone</li>
+          </ul>
+        </div>
+
+        <p style="color: #666; line-height: 1.6; font-size: 14px;">
+          If you have any questions or concerns, please contact our support team.
+        </p>
+      </div>
+
+      <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+        <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(email, emailSubject, emailHtml);
+};
+
+// Notify user when password reset request is rejected
+const sendPasswordResetRejected = async ({ email, firstName, lastName, reason, processorName }) => {
+  console.log(`📧 Sending password reset rejection email to ${email}...`);
+
+  const supportUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/contact`;
+  const emailSubject = 'Password Reset Request Rejected';
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #dc3545; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">❌ Password Reset Request Rejected</h1>
+      </div>
+
+      <div style="padding: 30px; background-color: white;">
+        <h2 style="color: #333;">Hello ${firstName} ${lastName},</h2>
+
+        <p style="color: #666; line-height: 1.6;">
+          We regret to inform you that your password reset request has been rejected by <strong>${processorName}</strong>.
+        </p>
+
+        <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 20px; margin: 20px 0;">
+          <h3 style="color: #721c24; margin: 0 0 15px 0;">Rejection Reason:</h3>
+          <p style="margin: 0; color: #721c24; font-style: italic;">${reason}</p>
+        </div>
+
+        <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h4 style="color: #0c5460; margin: 0 0 10px 0;">What you can do:</h4>
+          <ul style="color: #0c5460; margin: 0; font-size: 14px; padding-left: 20px;">
+            <li>Try to remember your current password</li>
+            <li>Contact your system administrator for assistance</li>
+            <li>Reach out to our support team if you believe this was an error</li>
+          </ul>
+        </div>
+
+        <div style="margin: 30px 0;">
+          <a href="${supportUrl}" style="background-color: #17a2b8; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Contact Support
+          </a>
+        </div>
+
+        <p style="color: #666; line-height: 1.6; font-size: 14px;">
+          If you have any questions about this decision, please don't hesitate to contact our support team.
+        </p>
+      </div>
+
+      <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px;">
+        <p style="margin: 0;">© ${new Date().getFullYear()} EurosHub. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(email, emailSubject, emailHtml);
+};
+
 const generateEmailTemplate = (subject, content, actionUrl = '', actionText = '') => {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -697,6 +948,9 @@ module.exports = {
   sendSubtasksAddedNotification,
   sendAttachmentAddedNotification,
   sendDigestNotification,
+  notifyAdminsPasswordResetRequest,
+  sendPasswordResetSuccess,
+  sendPasswordResetRejected,
   generateEmailTemplate,
   sendEmail
 };

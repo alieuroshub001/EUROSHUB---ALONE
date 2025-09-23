@@ -467,9 +467,13 @@ exports.getMe = async (req, res) => {
 };
 
 exports.requestPasswordReset = async (req, res) => {
+  console.log('🚀 requestPasswordReset function called');
+  console.log('📨 Request body:', req.body);
   try {
     const errors = validationResult(req);
+    console.log('✅ Validation errors:', errors.array());
     if (!errors.isEmpty()) {
+      console.log('❌ Validation failed:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
@@ -481,8 +485,15 @@ exports.requestPasswordReset = async (req, res) => {
     const PasswordResetRequest = require('../models/PasswordResetRequest');
 
     // Check if user exists
+    console.log('🔍 Password reset request for email:', email);
+    console.log('🔍 Searching for user with email:', email.toLowerCase());
     const user = await User.findOne({ email: email.toLowerCase() });
+    console.log('🔍 User found:', user ? 'YES' : 'NO');
+    if (user) {
+      console.log('🔍 User details:', { id: user._id, email: user.email, isActive: user.isActive });
+    }
     if (!user) {
+      console.log('❌ No user found with email:', email.toLowerCase());
       return res.status(404).json({
         success: false,
         message: 'No account found with this email address'
