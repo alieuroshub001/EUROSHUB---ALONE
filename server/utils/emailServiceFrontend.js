@@ -147,6 +147,26 @@ const sendEmail = async (to, subject, html) => {
   return await callFrontendEmailAPI('send', data);
 };
 
+// Admin password reset notification
+const notifyAdminsPasswordResetRequest = async ({ userEmail, userName, userRole, requestId }) => {
+  console.log(`📧 Sending admin notification for password reset request from ${userEmail} (${userRole})...`);
+
+  // Get eligible admins based on user role (simplified version)
+  const eligibleAdmins = [
+    { email: 'ali.rayyan001@gmail.com', name: 'Ali Rayyan', role: 'superadmin' }
+  ];
+
+  const data = {
+    userEmail,
+    userName,
+    userRole,
+    requestId,
+    eligibleAdmins
+  };
+
+  return await callFrontendEmailAPI('admin-password-reset', data);
+};
+
 // Add other notification functions with empty implementations for now
 const sendDueDateReminderNotification = async () => {
   console.log('📧 Due date reminder notifications not yet implemented via frontend API');
@@ -170,10 +190,6 @@ const sendAttachmentAddedNotification = async () => {
 
 const sendDigestNotification = async () => {
   console.log('📧 Digest notifications not yet implemented via frontend API');
-};
-
-const notifyAdminsPasswordResetRequest = async () => {
-  console.log('📧 Admin password reset notifications not yet implemented via frontend API');
 };
 
 const sendPasswordResetSuccess = async () => {
