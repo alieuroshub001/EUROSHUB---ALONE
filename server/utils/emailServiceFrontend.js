@@ -173,12 +173,36 @@ const sendDueDateReminderNotification = async () => {
   console.log('📧 Due date reminder notifications not yet implemented via frontend API');
 };
 
-const sendTaskStatusChangeNotification = async () => {
-  console.log('📧 Task status change notifications not yet implemented via frontend API');
+const sendTaskStatusChangeNotification = async (recipientEmail, recipientName, taskTitle, projectTitle, oldStatus, newStatus, changedByName) => {
+  console.log(`📧 Sending task status change notification to ${recipientEmail}...`);
+
+  const data = {
+    recipientEmail,
+    recipientName,
+    taskTitle,
+    projectTitle,
+    oldStatus,
+    newStatus,
+    changedByName
+  };
+
+  return await callFrontendEmailAPI('task-status-change', data);
 };
 
-const sendTaskCommentNotification = async () => {
-  console.log('📧 Task comment notifications not yet implemented via frontend API');
+const sendTaskCommentNotification = async (recipientEmail, recipientName, commenterName, taskTitle, projectTitle, commentText, taskId = null) => {
+  console.log(`📧 Sending task comment notification to ${recipientEmail}...`);
+
+  const data = {
+    recipientEmail,
+    recipientName,
+    commenterName,
+    taskTitle,
+    projectTitle,
+    commentText,
+    taskId
+  };
+
+  return await callFrontendEmailAPI('task-comment', data);
 };
 
 const sendSubtasksAddedNotification = async () => {
