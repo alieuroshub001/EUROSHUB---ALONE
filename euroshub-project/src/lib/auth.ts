@@ -197,17 +197,49 @@ export const authAPI = {
     try {
       const url = `${API_BASE_URL}/auth/verify-email/${token}`;
       console.log('🔍 Calling verification API URL:', url);
+      console.log('🔍 API_BASE_URL:', API_BASE_URL);
 
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        timeout: 30000, // 30 seconds timeout
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
       console.log('✅ Verification API success:', response.data);
+      console.log('✅ Response status:', response.status);
       return response.data;
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message: string }; status?: number } };
-      console.error('❌ Verification API error:', {
+      const axiosError = error as {
+        response?: {
+          data?: { message: string };
+          status?: number;
+          statusText?: string;
+        };
+        request?: any;
+        message?: string;
+        code?: string;
+      };
+
+      console.error('❌ Verification API error details:', {
         status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
         data: axiosError.response?.data,
-        url: `${API_BASE_URL}/auth/verify-email/${token}`
+        message: axiosError.message,
+        code: axiosError.code,
+        url: `${API_BASE_URL}/auth/verify-email/${token}`,
+        hasResponse: !!axiosError.response,
+        hasRequest: !!axiosError.request
       });
+
+      if (!axiosError.response && axiosError.request) {
+        // Network error - request was made but no response received
+        throw {
+          success: false,
+          message: 'Network error: Could not reach verification server'
+        };
+      }
 
       throw {
         success: false,

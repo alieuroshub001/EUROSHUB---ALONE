@@ -27,6 +27,10 @@ export default function VerifyEmailPage() {
         const response = await authAPI.verifyEmail(token);
         console.log('📧 Verification response:', response);
 
+        if (!response.success) {
+          throw new Error(response.message || 'Verification failed');
+        }
+
         setStatus('success');
         setMessage(response.message || 'Email verified successfully!');
 
