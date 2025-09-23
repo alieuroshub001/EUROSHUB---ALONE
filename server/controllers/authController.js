@@ -212,26 +212,33 @@ exports.createUser = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
-    
+    console.log(`🔍 Email verification request for token: ${token}`);
+
     const user = await User.findOne({ emailVerificationToken: token });
-    
+    console.log(`🔍 User found for token: ${user ? 'YES' : 'NO'}`);
+
     if (!user) {
+      console.log(`❌ No user found with verification token: ${token}`);
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired verification token'
       });
     }
 
+    console.log(`📧 Verifying email for user: ${user.email} (Current status: ${user.isEmailVerified})`);
+
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     await user.save();
+
+    console.log(`✅ Email verification successful for: ${user.email}`);
 
     res.status(200).json({
       success: true,
       message: 'Email verified successfully'
     });
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error('❌ Email verification error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error during email verification'
