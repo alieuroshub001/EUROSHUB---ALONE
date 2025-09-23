@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// Email sending function using Nodemailer
+// Email sending function using Nodemailer with enhanced error handling
 const sendEmail = async (to: string, subject: string, html: string) => {
   try {
+    // Check if required environment variables are set
+    if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
+      throw new Error('Email credentials not configured. Missing EMAIL_USERNAME or EMAIL_PASSWORD');
+    }
+
+    console.log(`📧 Attempting to send email to ${to} with subject: ${subject}`);
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -12,13 +19,26 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       }
     });
 
-    await transporter.sendMail({
+    // Verify transporter
+    await transporter.verify();
+    console.log('📧 Transporter verified successfully');
+
+    const result = await transporter.sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USERNAME,
       to,
       subject,
       html
     });
+
+    console.log(`📧 Email sent successfully to ${to}, messageId: ${result.messageId}`);
+    return result;
   } catch (error: any) {
+    console.error('📧 Email sending failed:', error);
+    if (error.code === 'EAUTH') {
+      throw new Error('Authentication failed. Check Gmail credentials and app password.');
+    } else if (error.code === 'ENOTFOUND') {
+      throw new Error('Network error. Unable to connect to Gmail servers.');
+    }
     throw error;
   }
 };
@@ -84,7 +104,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Welcome email sent successfully to ${email}`
+      message: `Welcome email sent successfully to ${email}`,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
@@ -92,7 +113,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to send welcome email',
-        details: error.message
+        details: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+        envCheck: {
+          EMAIL_USERNAME: process.env.EMAIL_USERNAME ? 'SET' : 'NOT_SET',
+          EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'SET' : 'NOT_SET'
+        }
       },
       { status: 500 }
     );
