@@ -195,10 +195,20 @@ export const authAPI = {
 
   verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/auth/verify-email/${token}`);
+      const url = `${API_BASE_URL}/auth/verify-email/${token}`;
+      console.log('🔍 Calling verification API URL:', url);
+
+      const response = await axios.get(url);
+      console.log('✅ Verification API success:', response.data);
       return response.data;
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message: string } } };
+      const axiosError = error as { response?: { data?: { message: string }; status?: number } };
+      console.error('❌ Verification API error:', {
+        status: axiosError.response?.status,
+        data: axiosError.response?.data,
+        url: `${API_BASE_URL}/auth/verify-email/${token}`
+      });
+
       throw {
         success: false,
         message: axiosError.response?.data?.message || 'Email verification failed'

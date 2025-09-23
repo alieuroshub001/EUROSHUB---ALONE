@@ -14,22 +14,30 @@ export default function VerifyEmailPage() {
     const verifyEmail = async () => {
       try {
         const token = params.token as string;
+        console.log('🔍 Verification token:', token);
+        console.log('🔍 API Base URL:', process.env.NEXT_PUBLIC_API_URL);
+
         if (!token) {
           setStatus('error');
           setMessage('Invalid verification link');
           return;
         }
 
+        console.log('📧 Calling verification API...');
         const response = await authAPI.verifyEmail(token);
+        console.log('📧 Verification response:', response);
+
         setStatus('success');
         setMessage(response.message || 'Email verified successfully!');
 
         // Redirect to login after 3 seconds
         setTimeout(() => {
+          console.log('🔄 Redirecting to login page...');
           router.push('/');
         }, 3000);
       } catch (error: unknown) {
         const err = error as { message?: string };
+        console.error('❌ Verification error:', error);
         setStatus('error');
         setMessage(err.message || 'Email verification failed');
       }
