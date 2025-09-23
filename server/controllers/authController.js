@@ -2,7 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const emailService = require('../utils/emailService');
+const emailService = require('../utils/emailServiceFrontend');
 const { getSocketUtils } = require('../utils/socketUtils');
 
 const generateToken = (id) => {
