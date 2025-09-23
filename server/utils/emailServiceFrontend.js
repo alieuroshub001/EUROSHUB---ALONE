@@ -193,12 +193,32 @@ const sendDigestNotification = async () => {
   console.log('📧 Digest notifications not yet implemented via frontend API');
 };
 
-const sendPasswordResetSuccess = async () => {
-  console.log('📧 Password reset success notifications not yet implemented via frontend API');
+const sendPasswordResetSuccess = async ({ email, firstName, lastName, newPassword, processorName }) => {
+  console.log(`📧 Sending password reset success email to ${email}...`);
+
+  const data = {
+    email,
+    firstName,
+    lastName,
+    newPassword,
+    processorName
+  };
+
+  return await callFrontendEmailAPI('password-reset-success', data);
 };
 
-const sendPasswordResetRejected = async () => {
-  console.log('📧 Password reset rejected notifications not yet implemented via frontend API');
+const sendPasswordResetRejected = async ({ email, firstName, lastName, reason, processorName }) => {
+  console.log(`📧 Sending password reset rejected email to ${email}...`);
+
+  const data = {
+    email,
+    firstName,
+    lastName,
+    reason,
+    processorName
+  };
+
+  return await callFrontendEmailAPI('password-reset-rejected', data);
 };
 
 const generateEmailTemplate = (subject, content, actionUrl = '', actionText = '') => {
