@@ -100,7 +100,8 @@ const sendTaskAssignmentNotification = async (assigneeEmail, assigneeName, taskT
 
 // Helper function to generate verification email HTML
 const generateVerificationEmailHTML = (firstName, lastName, verificationToken) => {
-  const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/${verificationToken}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.CLIENT_URL || 'https://euroshub-alone.vercel.app';
+  const verificationUrl = `${baseUrl}/verify-email/${verificationToken}`;
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
