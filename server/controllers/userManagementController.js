@@ -163,13 +163,16 @@ exports.createUser = async (req, res) => {
       isEmailVerified: false
     });
 
-    // Send welcome email with credentials (non-blocking)
+    // Send welcome email with credentials (non-blocking but more reliable)
     let emailSent = false;
 
-    // Send email asynchronously without blocking user creation response
-    setImmediate(async () => {
+    // Send email with better error handling
+    const sendWelcomeEmailAsync = async () => {
       try {
         console.log(`📧 Attempting to send welcome email to ${newUser.email}...`);
+        console.log(`📧 Email service function available: ${typeof emailService.sendWelcomeEmail}`);
+        console.log(`📧 Frontend API URL: ${process.env.FRONTEND_API_URL}`);
+
         await emailService.sendWelcomeEmail({
           email: newUser.email,
           firstName: newUser.firstName,
@@ -179,10 +182,17 @@ exports.createUser = async (req, res) => {
           verificationToken: emailVerificationToken
         });
         console.log(`📧 Welcome email sent successfully to ${newUser.email}`);
+        emailSent = true;
       } catch (emailError) {
         console.error(`📧 Failed to send welcome email to ${newUser.email}:`, emailError.message);
+        console.error(`📧 Email error details:`, emailError);
         // TODO: Add to email retry queue
       }
+    };
+
+    // Execute email sending (don't wait for it to complete)
+    sendWelcomeEmailAsync().catch(err => {
+      console.error(`📧 Unexpected error in welcome email async function:`, err);
     });
 
     // Send real-time notification
