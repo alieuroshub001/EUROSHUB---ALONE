@@ -34,8 +34,20 @@ const checkProjectAccess = async (req, res, next) => {
       return next();
     }
 
+    // HR has access to all projects for team management
+    if (userRole === 'hr') {
+      req.project = project;
+      return next();
+    }
+
     // Check if user is project owner
     if (project.owner.toString() === userId.toString()) {
+      req.project = project;
+      return next();
+    }
+
+    // Check if user is the client for this project
+    if (project.client && project.client.toString() === userId.toString()) {
       req.project = project;
       return next();
     }
@@ -82,8 +94,8 @@ const checkProjectPermission = (requiredAction) => {
         return next();
       }
 
-      // Check if user has required permission
-      const hasPermission = project.hasPermission(userId, requiredAction);
+      // Check if user has required permission (including role-based permissions)
+      const hasPermission = project.hasPermission(userId, requiredAction, userRole);
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
@@ -295,6 +307,11 @@ const checkMemberManagementPermission = async (req, res, next) => {
       return next();
     }
 
+    // HR can manage all members for team allocation
+    if (userRole === 'hr') {
+      return next();
+    }
+
     // Project owner can manage members
     if (project.owner.toString() === userId.toString()) {
       return next();
@@ -340,7 +357,7 @@ const validateMemberRole = (req, res, next) => {
   const canAssignRole = {
     'superadmin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
     'admin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
-    'hr': ['developer', 'designer', 'tester', 'viewer'],
+    'hr': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'], // HR can assign any role for team management
     'project_manager': ['developer', 'designer', 'tester', 'viewer', 'client_viewer']
   };
 

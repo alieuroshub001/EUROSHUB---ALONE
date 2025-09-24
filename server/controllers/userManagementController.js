@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const emailService = require('../utils/emailServiceFrontend');
+const emailService = require('../utils/emailService');
 const { getSocketUtils } = require('../utils/socketUtils');
 
 /**
@@ -170,8 +170,6 @@ exports.createUser = async (req, res) => {
     const sendWelcomeEmailAsync = async () => {
       try {
         console.log(`📧 Attempting to send welcome email to ${newUser.email}...`);
-        console.log(`📧 Email service function available: ${typeof emailService.sendWelcomeEmail}`);
-        console.log(`📧 Frontend API URL: ${process.env.FRONTEND_API_URL}`);
 
         await emailService.sendWelcomeEmail({
           email: newUser.email,

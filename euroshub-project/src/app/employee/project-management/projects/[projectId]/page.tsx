@@ -2,23 +2,23 @@
 
 import { useParams } from 'next/navigation';
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
-import ProjectMembers from '@/components/Projects/ProjectMembers';
+import ProjectDetail from '@/components/Projects/ProjectDetail';
 
-export default function SuperadminProjectMembers() {
+export default function EmployeeProjectDetail() {
   const params = useParams();
   const projectId = params?.projectId as string;
 
   return (
     <DashboardLayout
-      role="superadmin"
-      title="Project Members"
+      role="employee"
+      title="Project Details"
       showBreadcrumb={true}
-      breadcrumbs={['Dashboard', 'Project Management', 'Projects', 'Project Members']}
+      breadcrumbs={['Dashboard', 'Project Management', 'Project Details']}
     >
-      <ProjectMembers
+      <ProjectDetail
         projectId={projectId}
-        userRole="superadmin"
-        baseUrl="/superadmin"
+        userRole="employee"
+        baseUrl="/employee"
       />
     </DashboardLayout>
   );

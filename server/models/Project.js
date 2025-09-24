@@ -141,9 +141,73 @@ projectSchema.statics.canUserCreate = function(userRole) {
   return allowedRoles.includes(userRole);
 };
 
+// Static method to get role-based project access levels
+projectSchema.statics.getRolePermissions = function(userRole) {
+  const rolePermissions = {
+    'superadmin': {
+      canCreate: true,
+      canViewAll: true,
+      canEditAll: true,
+      canDeleteAll: true,
+      canManageAllMembers: true,
+      canOverridePermissions: true
+    },
+    'admin': {
+      canCreate: true,
+      canViewAll: true, // Can view all company projects
+      canEditAll: true, // Can edit all company projects
+      canDeleteAll: true, // Can delete all company projects
+      canManageAllMembers: true,
+      canOverridePermissions: false
+    },
+    'hr': {
+      canCreate: true,
+      canViewAll: true, // Can view projects for resource planning
+      canEditAll: false, // Can only edit own projects or projects they manage
+      canDeleteAll: false,
+      canManageAllMembers: true, // Can manage project members for team allocation
+      canOverridePermissions: false
+    },
+    'employee': {
+      canCreate: false,
+      canViewAll: false, // Can only view assigned projects
+      canEditAll: false,
+      canDeleteAll: false,
+      canManageAllMembers: false,
+      canOverridePermissions: false
+    },
+    'client': {
+      canCreate: false,
+      canViewAll: false, // Can only view projects they're assigned to
+      canEditAll: false,
+      canDeleteAll: false,
+      canManageAllMembers: false,
+      canOverridePermissions: false
+    }
+  };
+
+  return rolePermissions[userRole] || rolePermissions.employee;
+};
+
 // Instance method to check if user has permission for specific action
-projectSchema.methods.hasPermission = function(userId, action) {
+projectSchema.methods.hasPermission = function(userId, action, userRole = null) {
   const userIdStr = userId.toString();
+
+  // If user role is provided, check role-based permissions first
+  if (userRole) {
+    const rolePermissions = this.constructor.getRolePermissions(userRole);
+
+    // Superadmin and admin override all permissions
+    if (['superadmin', 'admin'].includes(userRole)) {
+      return true;
+    }
+
+    // HR can perform certain actions on all projects
+    if (userRole === 'hr') {
+      const hrAllowedActions = ['read', 'manage_members'];
+      if (hrAllowedActions.includes(action)) return true;
+    }
+  }
 
   // Owner has all permissions
   if (this.owner.toString() === userIdStr) return true;
@@ -175,7 +239,7 @@ projectSchema.methods.addMember = function(userId, role, addedByUserId, addedByU
   const canAddRole = {
     'superadmin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
     'admin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
-    'hr': ['developer', 'designer', 'tester', 'viewer'],
+    'hr': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'], // HR can add any role for team management
     'project_manager': ['developer', 'designer', 'tester', 'viewer', 'client_viewer']
   };
 
@@ -202,7 +266,7 @@ projectSchema.methods.removeMember = function(userId, removedByUserRole) {
   const member = this.members[memberIndex];
 
   // Only certain roles can remove members
-  const canRemoveRoles = ['superadmin', 'admin', 'project_manager'];
+  const canRemoveRoles = ['superadmin', 'admin', 'hr', 'project_manager'];
   if (!canRemoveRoles.includes(removedByUserRole)) {
     throw new Error(`${removedByUserRole} cannot remove project members`);
   }
@@ -224,7 +288,7 @@ projectSchema.methods.updateMemberRole = function(userId, newRole, updatedByUser
   }
 
   // Role update permissions
-  const canUpdateRoles = ['superadmin', 'admin', 'project_manager'];
+  const canUpdateRoles = ['superadmin', 'admin', 'hr', 'project_manager'];
   if (!canUpdateRoles.includes(updatedByUserRole)) {
     throw new Error(`${updatedByUserRole} cannot update member roles`);
   }
@@ -233,6 +297,7 @@ projectSchema.methods.updateMemberRole = function(userId, newRole, updatedByUser
   const canAssignRole = {
     'superadmin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
     'admin': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'],
+    'hr': ['project_manager', 'developer', 'designer', 'tester', 'viewer', 'client_viewer'], // HR can assign any role for team management
     'project_manager': ['developer', 'designer', 'tester', 'viewer', 'client_viewer']
   };
 

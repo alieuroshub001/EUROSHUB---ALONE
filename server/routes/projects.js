@@ -33,12 +33,16 @@ router.get('/', protect, async (req, res) => {
     if (['superadmin', 'admin'].includes(userRole)) {
       // Superadmin and admin can see all projects
       query = { isArchived: false };
+    } else if (userRole === 'hr') {
+      // HR can see all projects for resource planning and team management
+      query = { isArchived: false };
     } else {
-      // Other users can only see projects they own or are members of
+      // Employees and clients can only see projects they own or are members of
       query = {
         $or: [
           { owner: userId },
-          { 'members.user': userId }
+          { 'members.user': userId },
+          { client: userId } // Clients can see projects where they are the client
         ],
         isArchived: false
       };
