@@ -50,11 +50,31 @@ router.get('/projects/:projectId/boards', protect, checkProjectAccess, async (re
               path: 'createdBy',
               select: 'firstName lastName avatar',
               match: { _id: { $ne: null } }
+            },
+            {
+              path: 'comments.author',
+              select: 'firstName lastName avatar',
+              match: { _id: { $ne: null } }
             }
           ]
         }
       })
       .sort({ position: 1, createdAt: -1 });
+
+    // Additional populate for comments.author (deep nested populate sometimes fails)
+    for (const board of boards) {
+      if (board.lists) {
+        for (const list of board.lists) {
+          if (list.cards) {
+            for (const card of list.cards) {
+              if (card.comments && card.comments.length > 0) {
+                await card.populate('comments.author', 'firstName lastName avatar');
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Filter out null user references
     const sanitizedBoards = boards.map(board => {
