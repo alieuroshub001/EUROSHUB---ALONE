@@ -1,26 +1,27 @@
 const mongoose = require('mongoose');
 
 const listSchema = new mongoose.Schema({
-  title: {
+  name: {
     type: String,
-    required: [true, 'List title is required'],
+    required: [true, 'List name is required'],
     trim: true,
-    maxlength: [100, 'List title cannot be more than 100 characters']
+    maxlength: [100, 'List name cannot be more than 100 characters']
   },
   description: {
     type: String,
     trim: true,
     maxlength: [500, 'List description cannot be more than 500 characters']
   },
-  board: {
+  boardId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Board',
     required: [true, 'Board is required']
   },
+  // Optional project reference for integration
   project: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: [true, 'Project is required']
+    required: false
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -103,7 +104,7 @@ const listSchema = new mongoose.Schema({
 listSchema.virtual('cards', {
   ref: 'Card',
   localField: '_id',
-  foreignField: 'list',
+  foreignField: 'listId',
   options: { sort: { position: 1 } }
 });
 
@@ -136,7 +137,7 @@ listSchema.statics.createDefaultLists = async function(boardId, projectId, creat
 // Instance method to check if user has list access
 listSchema.methods.hasAccess = async function(userId, userRole) {
   const Board = mongoose.model('Board');
-  const board = await Board.findById(this.board);
+  const board = await Board.findById(this.boardId);
 
   if (!board) return false;
   return await board.hasAccess(userId, userRole);

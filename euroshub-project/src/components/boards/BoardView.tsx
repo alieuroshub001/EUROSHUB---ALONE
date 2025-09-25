@@ -20,6 +20,7 @@ import CreateListForm from './lists/CreateListForm';
 import EditCardModal from './cards/EditCardModal';
 import DragDropProvider from './DragDropProvider';
 import { Board, UserRole } from './BoardManagement';
+import { boardsApi, listsApi, cardsApi } from '@/services/trelloBoardsApi';
 
 interface BoardViewProps {
   boardId: string;
@@ -54,196 +55,20 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       setLoading(true);
       setError(null);
 
-      // TODO: Replace with actual API calls
-      // Mock data for now
-      const mockBoard: Board = {
-        _id: boardId,
-        name: 'Marketing Campaign Q4',
-        description: 'Planning and execution of Q4 marketing campaigns',
-        background: '#6366f1',
-        visibility: 'team',
-        createdBy: {
-          _id: '1',
-          firstName: 'John',
-          lastName: 'Doe'
-        },
-        members: [
-          {
-            userId: {
-              _id: '1',
-              firstName: 'John',
-              lastName: 'Doe'
-            },
-            role: 'owner',
-            joinedAt: new Date()
-          },
-          {
-            userId: {
-              _id: '2',
-              firstName: 'Jane',
-              lastName: 'Smith'
-            },
-            role: 'member',
-            joinedAt: new Date()
-          }
-        ],
-        listsCount: 4,
-        cardsCount: 8,
-        isStarred: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      // Load board details with lists and cards
+      const boardData = await boardsApi.getBoard(boardId);
 
-      const mockLists: ListData[] = [
-        {
-          _id: '1',
-          boardId: boardId,
-          name: 'Ideas',
-          position: 0,
-          settings: { autoArchive: false },
-          cardsCount: 2,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          _id: '2',
-          boardId: boardId,
-          name: 'Planning',
-          position: 1,
-          settings: { autoArchive: false, wipLimit: 5 },
-          cardsCount: 3,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          _id: '3',
-          boardId: boardId,
-          name: 'In Progress',
-          position: 2,
-          settings: { autoArchive: false, wipLimit: 3 },
-          cardsCount: 2,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          _id: '4',
-          boardId: boardId,
-          name: 'Done',
-          position: 3,
-          settings: { autoArchive: true },
-          cardsCount: 1,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
+      setBoard(boardData);
+      setLists(boardData.lists || []);
 
-      const mockCards: Record<string, Card[]> = {
-        '1': [
-          {
-            _id: 'c1',
-            listId: '1',
-            title: 'Q4 Campaign Strategy',
-            description: 'Develop comprehensive strategy for Q4 marketing campaigns',
-            position: 0,
-            members: [
-              {
-                userId: {
-                  _id: '1',
-                  firstName: 'John',
-                  lastName: 'Doe'
-                },
-                role: 'owner'
-              }
-            ],
-            labels: ['Strategy', 'High Priority'],
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-            createdAt: new Date()
-          },
-          {
-            _id: 'c2',
-            listId: '1',
-            title: 'Market Research',
-            description: 'Research competitor campaigns and market trends',
-            position: 1,
-            members: [
-              {
-                userId: {
-                  _id: '2',
-                  firstName: 'Jane',
-                  lastName: 'Smith'
-                },
-                role: 'member'
-              }
-            ],
-            labels: ['Research'],
-            createdAt: new Date()
-          }
-        ],
-        '2': [
-          {
-            _id: 'c3',
-            listId: '2',
-            title: 'Social Media Calendar',
-            position: 0,
-            members: [
-              {
-                userId: {
-                  _id: '1',
-                  firstName: 'John',
-                  lastName: 'Doe'
-                },
-                role: 'owner'
-              },
-              {
-                userId: {
-                  _id: '2',
-                  firstName: 'Jane',
-                  lastName: 'Smith'
-                },
-                role: 'member'
-              }
-            ],
-            labels: ['Social Media', 'Content'],
-            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
-            createdAt: new Date()
-          }
-        ],
-        '3': [
-          {
-            _id: 'c4',
-            listId: '3',
-            title: 'Email Campaign Design',
-            position: 0,
-            members: [
-              {
-                userId: {
-                  _id: '2',
-                  firstName: 'Jane',
-                  lastName: 'Smith'
-                },
-                role: 'member'
-              }
-            ],
-            labels: ['Email', 'Design'],
-            createdAt: new Date()
-          }
-        ],
-        '4': [
-          {
-            _id: 'c5',
-            listId: '4',
-            title: 'Q3 Campaign Analysis',
-            position: 0,
-            members: [],
-            labels: ['Analysis', 'Complete'],
-            createdAt: new Date()
-          }
-        ]
-      };
-
-      setBoard(mockBoard);
-      setLists(mockLists);
-      setCards(mockCards);
+      // Transform lists data into cards grouped by list ID
+      const cardsData: Record<string, Card[]> = {};
+      if (boardData.lists) {
+        boardData.lists.forEach(list => {
+          cardsData[list._id] = list.cards || [];
+        });
+      }
+      setCards(cardsData);
     } catch (err) {
       console.error('Error loading board data:', err);
       setError('Failed to load board data');
@@ -266,42 +91,38 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
   // List actions
   const handleCreateList = async (boardId: string, name: string) => {
-    // TODO: API call to create list
-    const newList: ListData = {
-      _id: `list_${Date.now()}`,
-      boardId,
-      name,
-      position: lists.length,
-      settings: { autoArchive: false },
-      cardsCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    try {
+      const newList = await listsApi.createList(boardId, {
+        name,
+        position: lists.length
+      });
 
-    setLists([...lists, newList]);
-    setCards({ ...cards, [newList._id]: [] });
-    console.log('Created list:', newList);
+      setLists([...lists, newList]);
+      setCards({ ...cards, [newList._id]: [] });
+      console.log('Created list:', newList);
+    } catch (err) {
+      console.error('Error creating list:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create list');
+    }
   };
 
   const handleAddCard = async (listId: string, title?: string) => {
-    // TODO: Replace with actual API call
-    const newCard: Card = {
-      _id: `card_${Date.now()}`,
-      listId,
-      title: title || 'New Card',
-      description: '',
-      position: cards[listId]?.length || 0,
-      members: [],
-      labels: [],
-      createdAt: new Date()
-    };
+    try {
+      const newCard = await cardsApi.createCard(listId, {
+        title: title || 'New Card',
+        position: cards[listId]?.length || 0,
+      });
 
-    setCards(prev => ({
-      ...prev,
-      [listId]: [...(prev[listId] || []), newCard]
-    }));
+      setCards(prev => ({
+        ...prev,
+        [listId]: [...(prev[listId] || []), newCard]
+      }));
 
-    console.log('Created card:', newCard);
+      console.log('Created card:', newCard);
+    } catch (err) {
+      console.error('Error creating card:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create card');
+    }
   };
 
   const handleEditList = (listId: string) => {
@@ -381,7 +202,8 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   };
 
   // Drag and Drop handlers
-  const handleMoveCard = (cardId: string, fromListId: string, toListId: string, newPosition: number) => {
+  const handleMoveCard = async (cardId: string, fromListId: string, toListId: string, newPosition: number) => {
+    // Optimistically update UI
     setCards(prev => {
       const newCards = { ...prev };
 
@@ -401,23 +223,55 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       return newCards;
     });
 
-    console.log(`Moved card ${cardId} from ${fromListId} to ${toListId} at position ${newPosition}`);
+    try {
+      // Call API to persist the move
+      if (fromListId !== toListId) {
+        await cardsApi.moveCard(cardId, toListId, newPosition);
+      } else {
+        await cardsApi.reorderCard(cardId, newPosition);
+      }
+      console.log(`Moved card ${cardId} from ${fromListId} to ${toListId} at position ${newPosition}`);
+    } catch (err) {
+      console.error('Error moving card:', err);
+      // Revert the optimistic update
+      loadBoardData();
+      setError(err instanceof Error ? err.message : 'Failed to move card');
+    }
   };
 
-  const handleMoveList = (listId: string, newPosition: number) => {
-    setLists(prev => {
-      const newLists = [...prev];
-      const currentIndex = newLists.findIndex(list => list._id === listId);
+  const handleMoveList = async (listId: string, newPosition: number, newListOrder?: ListData[]) => {
+    console.log('BoardView handleMoveList called:', { listId, newPosition, hasNewOrder: !!newListOrder });
 
-      if (currentIndex === -1) return prev;
+    // Optimistically update UI
+    if (newListOrder) {
+      // Use the pre-calculated order from DragDropProvider
+      console.log('Updating lists with new order:', newListOrder.map(l => l.name));
+      setLists(newListOrder);
+    } else {
+      // Fallback to manual calculation
+      setLists(prev => {
+        const newLists = [...prev];
+        const currentIndex = newLists.findIndex(list => list._id === listId);
 
-      const [movedList] = newLists.splice(currentIndex, 1);
-      newLists.splice(newPosition, 0, movedList);
+        if (currentIndex === -1) return prev;
 
-      return newLists;
-    });
+        const [movedList] = newLists.splice(currentIndex, 1);
+        newLists.splice(newPosition, 0, movedList);
 
-    console.log(`Moved list ${listId} to position ${newPosition}`);
+        return newLists;
+      });
+    }
+
+    try {
+      // Call API to persist the move
+      await listsApi.reorderList(listId, newPosition);
+      console.log(`Moved list ${listId} to position ${newPosition}`);
+    } catch (err) {
+      console.error('Error moving list:', err);
+      // Revert the optimistic update
+      loadBoardData();
+      setError(err instanceof Error ? err.message : 'Failed to move list');
+    }
   };
 
   const handleReorderCards = (listId: string, cardIds: string[]) => {

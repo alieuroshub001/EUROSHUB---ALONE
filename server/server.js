@@ -32,6 +32,10 @@ const projectRoutes = require('./routes/projects');
 const boardRoutes = require('./routes/boards');
 const listRoutes = require('./routes/lists');
 const cardRoutes = require('./routes/cards');
+// Trello-like independent board routes
+const trelloBoardRoutes = require('./routes/trello-boards');
+const trelloListRoutes = require('./routes/trello-lists');
+const trelloCardRoutes = require('./routes/trello-cards');
 const activityRoutes = require('./routes/activities');
 const automationRoutes = require('./routes/automation');
 const notificationRoutes = require('./routes/notifications');
@@ -180,7 +184,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'EuroHub Project Management API',
+    message: 'EurosHub Project Management API',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     status: 'running'
@@ -202,7 +206,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'EuroHub PM API is running successfully',
+    message: 'EurosHub PM API is running successfully',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
@@ -214,25 +218,30 @@ app.get('/api', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'EuroHub PM API is running successfully',
+    message: 'EurosHub PM API is running successfully',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     cors: 'enabled'
   });
 });
-
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
 
-// Project Management routes
+// Project Management routes (existing project-centric system)
 app.use('/api/projects', projectRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/lists', listRoutes);
 app.use('/api/cards', cardRoutes);
+
+// Trello-like independent board routes
+app.use('/api/trello-boards', trelloBoardRoutes);
+app.use('/api/trello-lists', trelloListRoutes);
+app.use('/api/trello-cards', trelloCardRoutes);
+
 app.use('/api/activities', activityRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/notifications', notificationRoutes);

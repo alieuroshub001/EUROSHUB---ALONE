@@ -8,7 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  closestCenter,
   DragOverlay,
   defaultDropAnimationSideEffects,
   DropAnimation
@@ -16,7 +16,8 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  horizontalListSortingStrategy
+  horizontalListSortingStrategy,
+  arrayMove
 } from '@dnd-kit/sortable';
 import { useState } from 'react';
 import { ListData, Card } from './lists/ListContainer';
@@ -26,7 +27,7 @@ interface DragDropProviderProps {
   lists: ListData[];
   cards: Record<string, Card[]>;
   onMoveCard: (cardId: string, fromListId: string, toListId: string, newPosition: number) => void;
-  onMoveList: (listId: string, newPosition: number) => void;
+  onMoveList: (listId: string, newPosition: number, newListOrder?: ListData[]) => void;
   onReorderCards: (listId: string, cardIds: string[]) => void;
 }
 
@@ -67,10 +68,12 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const activeId = active.id as string;
+    console.log('Drag start:', activeId);
 
     // Determine if dragging a list or card
     const list = lists.find(l => l._id === activeId);
     if (list) {
+      console.log('Dragging list:', list.name);
       setActiveItem({
         id: activeId,
         type: 'list',
@@ -134,13 +137,33 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
     const activeId = active.id as string;
     const overId = over.id as string;
 
+    console.log('Drag end event:', { activeId, overId, activeType: activeItem?.type });
+
     if (activeItem?.type === 'list') {
       // Handle list reordering
+      let targetListId = overId;
+
+      // If overId is not a list, try to find which list it belongs to
+      if (!lists.find(l => l._id === overId)) {
+        // Check if it's a card - find its list
+        for (const listId in cards) {
+          if (cards[listId].some(card => card._id === overId)) {
+            targetListId = listId;
+            break;
+          }
+        }
+      }
+
       const oldIndex = lists.findIndex(list => list._id === activeId);
-      const newIndex = lists.findIndex(list => list._id === overId);
+      const newIndex = lists.findIndex(list => list._id === targetListId);
+
+      console.log(`List drag end: ${activeId} -> ${targetListId}, oldIndex: ${oldIndex}, newIndex: ${newIndex}`);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        onMoveList(activeId, newIndex);
+        // Use arrayMove to get the correct new order
+        const newLists = arrayMove(lists, oldIndex, newIndex);
+        console.log('New list order:', newLists.map(l => l.name));
+        onMoveList(activeId, newIndex, newLists);
       }
     } else if (activeItem?.type === 'card') {
       // Handle card reordering within the same list or moving to different list
@@ -179,10 +202,7 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
         const newIndex = listCards.findIndex(card => card._id === overId);
 
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const newCardOrder = [...listCards];
-          const [movedCard] = newCardOrder.splice(oldIndex, 1);
-          newCardOrder.splice(newIndex, 0, movedCard);
-
+          const newCardOrder = arrayMove(listCards, oldIndex, newIndex);
           onReorderCards(sourceListId, newCardOrder.map(card => card._id));
         }
       } else {
@@ -206,7 +226,7 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}

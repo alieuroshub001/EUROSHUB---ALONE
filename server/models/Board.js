@@ -1,35 +1,54 @@
 const mongoose = require('mongoose');
 
 const boardSchema = new mongoose.Schema({
-  title: {
+  name: {
     type: String,
-    required: [true, 'Board title is required'],
+    required: [true, 'Board name is required'],
     trim: true,
-    maxlength: [100, 'Board title cannot be more than 100 characters']
+    maxlength: [100, 'Board name cannot be more than 100 characters']
   },
   description: {
     type: String,
     trim: true,
     maxlength: [500, 'Board description cannot be more than 500 characters']
   },
-  project: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project',
-    required: [true, 'Project is required']
+  background: {
+    type: String,
+    default: '#6366f1',
+    match: [/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^https?:\/\//, 'Please provide a valid hex color or image URL']
   },
+  visibility: {
+    type: String,
+    enum: ['private', 'team', 'public'],
+    default: 'private'
+  },
+  // Board members (independent of projects)
+  members: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['owner', 'admin', 'member', 'viewer'],
+      default: 'member'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  isDefault: {
-    type: Boolean,
-    default: false
-  },
-  color: {
-    type: String,
-    default: '#4F46E5',
-    match: [/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please provide a valid hex color']
+  // Optional project reference (for integration)
+  project: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: false
   },
   position: {
     type: Number,
@@ -39,6 +58,11 @@ const boardSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Starred by users
+  starredBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   settings: {
     allowComments: {
       type: Boolean,
@@ -85,79 +109,176 @@ boardSchema.virtual('completionPercentage').get(function() {
 
 // Static method to get user's accessible boards
 boardSchema.statics.getAccessibleBoards = async function(userId, userRole) {
-  const Project = mongoose.model('Project');
-
-  let projectQuery = {};
+  let query = {};
 
   if (['superadmin', 'admin'].includes(userRole)) {
     // Superadmin and admin can access all boards
-    projectQuery = {};
+    query = { isArchived: false };
   } else {
-    // Other users can only access boards from projects they're members of
-    projectQuery = {
+    // Other users can access boards they created or are members of
+    query = {
+      isArchived: false,
       $or: [
-        { owner: userId },
-        { 'members.user': userId }
+        { createdBy: userId },
+        { 'members.userId': userId },
+        { visibility: 'public' }, // Anyone can see public boards
+        {
+          $and: [
+            { visibility: 'team' },
+            // For team visibility, check if user is part of the organization
+            // This could be extended based on your organization structure
+          ]
+        }
       ]
     };
   }
 
-  const projects = await Project.find(projectQuery).select('_id');
-  const projectIds = projects.map(p => p._id);
-
-  return this.find({
-    project: { $in: projectIds },
-    isArchived: false
-  }).populate('project', 'title').sort({ position: 1, createdAt: -1 });
+  return this.find(query)
+    .populate('createdBy', 'firstName lastName avatar')
+    .populate('members.userId', 'firstName lastName avatar')
+    .sort({ position: 1, createdAt: -1 });
 };
 
 // Instance method to check if user has board access
 boardSchema.methods.hasAccess = async function(userId, userRole) {
-  const Project = mongoose.model('Project');
-
   // Superadmin and admin have access to all boards
   if (['superadmin', 'admin'].includes(userRole)) {
     return true;
   }
 
-  const project = await Project.findById(this.project);
-  if (!project) return false;
+  // Public boards are accessible to everyone
+  if (this.visibility === 'public') {
+    return true;
+  }
 
-  // Check if user is project owner or member
-  if (project.owner && project.owner.toString() === userId.toString()) return true;
+  // Check if user is the creator
+  if (this.createdBy.toString() === userId.toString()) {
+    return true;
+  }
 
-  // Check members array with null safety
-  if (!project.members || !Array.isArray(project.members)) {
+  // Check if user is a member of the board
+  if (this.members && Array.isArray(this.members)) {
+    return this.members.some(member =>
+      member.userId && member.userId.toString() === userId.toString()
+    );
+  }
+
+  // For team visibility, could add organization-level checks here
+  if (this.visibility === 'team') {
+    // TODO: Add organization membership check if needed
     return false;
   }
 
-  return project.members.some(m => m && m.user && m.user.toString() === userId.toString());
+  return false;
 };
 
 // Instance method to check specific permissions
 boardSchema.methods.hasPermission = async function(userId, action) {
-  const Project = mongoose.model('Project');
-  const project = await Project.findById(this.project);
+  // First check if user has access to the board
+  if (!await this.hasAccess(userId)) {
+    return false;
+  }
 
-  if (!project) return false;
+  // Get user's role on this board
+  const userRole = this.getUserRole(userId);
 
-  // Use project's permission system
-  return project.hasPermission(userId, action);
+  // Define permissions based on role and action
+  const permissions = {
+    owner: ['read', 'write', 'delete', 'manage_members', 'manage_settings'],
+    admin: ['read', 'write', 'manage_members'],
+    member: ['read', 'write'],
+    viewer: ['read']
+  };
+
+  return permissions[userRole] && permissions[userRole].includes(action);
 };
 
-// Pre-save middleware to update project metadata
+// Instance method to get user's role on this board
+boardSchema.methods.getUserRole = function(userId) {
+  // Check if user is the creator (always owner)
+  if (this.createdBy.toString() === userId.toString()) {
+    return 'owner';
+  }
+
+  // Check user's role in members array
+  if (this.members && Array.isArray(this.members)) {
+    const member = this.members.find(member =>
+      member.userId && member.userId.toString() === userId.toString()
+    );
+    return member ? member.role : 'viewer';
+  }
+
+  return 'viewer';
+};
+
+// Instance method to add member to board
+boardSchema.methods.addMember = async function(userId, role = 'member') {
+  // Check if user is already a member
+  const existingMember = this.members.find(member =>
+    member.userId && member.userId.toString() === userId.toString()
+  );
+
+  if (existingMember) {
+    // Update existing member's role
+    existingMember.role = role;
+  } else {
+    // Add new member
+    this.members.push({
+      userId: userId,
+      role: role,
+      joinedAt: new Date()
+    });
+  }
+
+  return await this.save();
+};
+
+// Instance method to remove member from board
+boardSchema.methods.removeMember = async function(userId) {
+  this.members = this.members.filter(member =>
+    !member.userId || member.userId.toString() !== userId.toString()
+  );
+
+  return await this.save();
+};
+
+// Instance method to toggle star
+boardSchema.methods.toggleStar = async function(userId) {
+  const isStarred = this.starredBy.includes(userId);
+
+  if (isStarred) {
+    this.starredBy = this.starredBy.filter(id => id.toString() !== userId.toString());
+  } else {
+    this.starredBy.push(userId);
+  }
+
+  return await this.save();
+};
+
+// Pre-save middleware to set up new boards
 boardSchema.pre('save', async function(next) {
   if (this.isNew) {
-    // Update project's total boards count
-    const Project = mongoose.model('Project');
-    await Project.findByIdAndUpdate(this.project, {
-      $inc: { 'metadata.totalBoards': 1 }
-    });
+    // Automatically add creator as owner member
+    if (!this.members.some(member => member.userId.toString() === this.createdBy.toString())) {
+      this.members.push({
+        userId: this.createdBy,
+        role: 'owner',
+        joinedAt: new Date()
+      });
+    }
 
-    // Set default position if not provided
+    // Update project's total boards count if linked to project
+    if (this.project) {
+      const Project = mongoose.model('Project');
+      await Project.findByIdAndUpdate(this.project, {
+        $inc: { 'metadata.totalBoards': 1 }
+      });
+    }
+
+    // Set default position if not provided (for user's personal boards)
     if (this.position === 0) {
       const maxPosition = await this.constructor.findOne(
-        { project: this.project },
+        { createdBy: this.createdBy },
         {},
         { sort: { position: -1 } }
       );

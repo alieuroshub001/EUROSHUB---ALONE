@@ -39,14 +39,14 @@ const SortableListContainer: React.FC<SortableListContainerProps> = ({
       style={style}
       className={`${isDragging ? 'z-50' : ''}`}
     >
-      {/* Drag handle - only the header area is draggable */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing"
-      >
-        <ListContainer {...props} />
-      </div>
+      <ListContainer
+        {...props}
+        dragHandleProps={{
+          attributes,
+          listeners,
+          isDragging
+        }}
+      />
     </div>
   );
 };

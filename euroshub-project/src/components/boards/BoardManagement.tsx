@@ -19,6 +19,7 @@ import {
   Globe
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { boardsApi, Board as APIBoard } from '@/services/trelloBoardsApi';
 
 // Types for Board Management
 export interface Board {
@@ -67,6 +68,138 @@ interface BoardCardProps {
   canDelete: boolean;
   canArchive: boolean;
 }
+
+// Create Board Modal Component
+interface CreateBoardModalProps {
+  onClose: () => void;
+  onSubmit: (data: {
+    name: string;
+    description?: string;
+    background?: string;
+    visibility?: 'private' | 'team' | 'public';
+  }) => void;
+}
+
+const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    background: '#6366f1',
+    visibility: 'private' as 'private' | 'team' | 'public'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+
+    onSubmit({
+      name: formData.name.trim(),
+      description: formData.description || undefined,
+      background: formData.background,
+      visibility: formData.visibility
+    });
+  };
+
+  const backgroundOptions = [
+    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md">
+        <div className="p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+            Create New Board
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Board Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter board name..."
+                autoFocus
+                maxLength={100}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="What's this board about..."
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Background Color
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {backgroundOptions.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, background: color }))}
+                    className={`w-8 h-8 rounded-md border-2 ${
+                      formData.background === color
+                        ? 'border-gray-900 dark:border-white'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Visibility
+              </label>
+              <select
+                value={formData.visibility}
+                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="private">Private - Only you and invited members</option>
+                <option value="team">Team - All team members can see</option>
+                <option value="public">Public - Anyone can view</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!formData.name.trim()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md"
+              >
+                Create Board
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Board Card Component
 const BoardCard: React.FC<BoardCardProps> = ({
@@ -282,70 +415,11 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       setLoading(true);
       setError(null);
 
-      // TODO: Replace with actual API call
-      const mockBoards: Board[] = [
-        {
-          _id: '1',
-          name: 'Marketing Campaign Q4',
-          description: 'Planning and execution of Q4 marketing campaigns',
-          background: '#6366f1',
-          visibility: 'team',
-          createdBy: {
-            _id: '1',
-            firstName: 'John',
-            lastName: 'Doe'
-          },
-          members: [
-            {
-              userId: {
-                _id: '1',
-                firstName: 'John',
-                lastName: 'Doe'
-              },
-              role: 'owner',
-              joinedAt: new Date()
-            }
-          ],
-          listsCount: 4,
-          cardsCount: 12,
-          isStarred: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          _id: '2',
-          name: 'Product Development',
-          description: 'Track product features and development milestones',
-          background: '#10b981',
-          visibility: 'private',
-          createdBy: {
-            _id: '2',
-            firstName: 'Jane',
-            lastName: 'Smith'
-          },
-          members: [
-            {
-              userId: {
-                _id: '2',
-                firstName: 'Jane',
-                lastName: 'Smith'
-              },
-              role: 'owner',
-              joinedAt: new Date()
-            }
-          ],
-          listsCount: 6,
-          cardsCount: 18,
-          isStarred: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
-
-      setBoards(mockBoards);
+      const boardsData = await boardsApi.getBoards();
+      setBoards(boardsData);
     } catch (err) {
       console.error('Error loading boards:', err);
-      setError('Failed to load boards');
+      setError(err instanceof Error ? err.message : 'Failed to load boards');
     } finally {
       setLoading(false);
     }
@@ -367,27 +441,60 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     console.log('Edit board:', boardId);
   };
 
-  const handleDeleteBoard = (boardId: string) => {
-    // TODO: Open delete confirmation modal
-    console.log('Delete board:', boardId);
+  const handleDeleteBoard = async (boardId: string) => {
+    if (!confirm('Are you sure you want to delete this board? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await boardsApi.deleteBoard(boardId);
+      setBoards(prev => prev.filter(board => board._id !== boardId));
+    } catch (err) {
+      console.error('Error deleting board:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete board');
+    }
   };
 
   const handleArchiveBoard = (boardId: string) => {
-    // TODO: Archive board
+    // TODO: Archive board (not implemented in API yet)
     console.log('Archive board:', boardId);
   };
 
-  const handleStarBoard = (boardId: string) => {
-    // TODO: Toggle star status
-    setBoards(prev => prev.map(board =>
-      board._id === boardId
-        ? { ...board, isStarred: !board.isStarred }
-        : board
-    ));
+  const handleStarBoard = async (boardId: string) => {
+    try {
+      const result = await boardsApi.toggleStar(boardId);
+      setBoards(prev => prev.map(board =>
+        board._id === boardId
+          ? { ...board, isStarred: result.isStarred }
+          : board
+      ));
+    } catch (err) {
+      console.error('Error toggling star:', err);
+      setError(err instanceof Error ? err.message : 'Failed to toggle star');
+    }
   };
 
   const handleCreateBoard = () => {
     setShowCreateModal(true);
+  };
+
+  const handleCreateBoardSubmit = async (boardData: {
+    name: string;
+    description?: string;
+    background?: string;
+    visibility?: 'private' | 'team' | 'public';
+  }) => {
+    try {
+      const newBoard = await boardsApi.createBoard({
+        ...boardData,
+        createDefaultLists: true,
+      });
+      setBoards(prev => [newBoard, ...prev]);
+      setShowCreateModal(false);
+    } catch (err) {
+      console.error('Error creating board:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create board');
+    }
   };
 
   if (loading) {
@@ -513,6 +620,14 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
             />
           ))}
         </div>
+      )}
+
+      {/* Create Board Modal */}
+      {showCreateModal && (
+        <CreateBoardModal
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateBoardSubmit}
+        />
       )}
     </div>
   );

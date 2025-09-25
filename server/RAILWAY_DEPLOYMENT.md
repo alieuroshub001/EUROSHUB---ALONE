@@ -1,4 +1,4 @@
-# Railway Deployment Guide for EuroHub PM Server
+# Railway Deployment Guide for EurosHub PM Server
 
 ## 🚀 Quick Deploy Steps
 
@@ -153,7 +153,7 @@ Should return:
 ```json
 {
   "success": true,
-  "message": "EuroHub PM API is running successfully",
+  "message": "EurosHub PM API is running successfully",
   "timestamp": "2025-01-11T...",
   "environment": "production",
   "version": "1.0.0"

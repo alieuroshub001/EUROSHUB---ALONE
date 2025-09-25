@@ -135,20 +135,22 @@ const cardSchema = new mongoose.Schema({
     trim: true,
     maxlength: [5000, 'Card description cannot be more than 5000 characters']
   },
-  list: {
+  listId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'List',
     required: [true, 'List is required']
   },
-  board: {
+  // Board is optional for Trello-like boards (independent of projects)
+  boardId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Board',
-    required: [true, 'Board is required']
+    required: false
   },
+  // Project is optional for Trello-like boards (cards can represent projects)
   project: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: [true, 'Project is required']
+    required: false
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -158,6 +160,23 @@ const cardSchema = new mongoose.Schema({
   assignedTo: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  }],
+  // Card members (for Trello-like boards)
+  members: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['member', 'viewer'],
+      default: 'member'
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   watchers: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -234,7 +253,7 @@ cardSchema.virtual('totalTimeSpent').get(function() {
 // Instance method to check if user has card access
 cardSchema.methods.hasAccess = async function(userId, userRole) {
   const List = mongoose.model('List');
-  const list = await List.findById(this.list);
+  const list = await List.findById(this.listId);
 
   if (!list) return false;
   return await list.hasAccess(userId, userRole);
@@ -243,7 +262,7 @@ cardSchema.methods.hasAccess = async function(userId, userRole) {
 // Instance method to check specific permissions
 cardSchema.methods.hasPermission = async function(userId, action) {
   const List = mongoose.model('List');
-  const list = await List.findById(this.list);
+  const list = await List.findById(this.listId);
 
   if (!list) return false;
   return await list.hasPermission(userId, action);
@@ -360,7 +379,7 @@ cardSchema.methods.addTimeEntry = function(userId, hours, description = '') {
 // Instance method to move to list
 cardSchema.methods.moveToList = async function(targetListId, position) {
   const List = mongoose.model('List');
-  const oldList = await List.findById(this.list);
+  const oldList = await List.findById(this.listId);
   const newList = await List.findById(targetListId);
 
   if (!newList) {
@@ -380,16 +399,48 @@ cardSchema.methods.moveToList = async function(targetListId, position) {
   });
 
   // Update card
-  this.list = targetListId;
+  this.listId = targetListId;
   if (position !== undefined) {
     this.position = position;
   } else {
     // Set to end of list
-    const lastCard = await this.constructor.findOne({ list: targetListId }).sort({ position: -1 });
+    const lastCard = await this.constructor.findOne({ listId: targetListId }).sort({ position: -1 });
     this.position = lastCard ? lastCard.position + 1 : 1;
   }
 
   return this;
+};
+
+// Instance method to add member to card
+cardSchema.methods.addMember = async function(userId) {
+  // Check if user is already a member
+  const existingMember = this.members.find(member =>
+    member.userId && member.userId.toString() === userId.toString()
+  );
+
+  if (!existingMember) {
+    this.members.push({
+      userId: userId,
+      role: 'member'
+    });
+
+    // Add as watcher if not already watching
+    const watcherIds = this.watchers.map(id => id.toString());
+    if (!watcherIds.includes(userId.toString())) {
+      this.watchers.push(userId);
+    }
+  }
+
+  return await this.save();
+};
+
+// Instance method to remove member from card
+cardSchema.methods.removeMember = async function(userId) {
+  this.members = this.members.filter(member =>
+    !member.userId || member.userId.toString() !== userId.toString()
+  );
+
+  return await this.save();
 };
 
 // Pre-save middleware to set position and update metadata
@@ -398,7 +449,7 @@ cardSchema.pre('save', async function(next) {
     // Set position if not provided
     if (this.position === 0) {
       const maxPosition = await this.constructor.findOne(
-        { list: this.list },
+        { listId: this.listId },
         {},
         { sort: { position: -1 } }
       );
@@ -407,20 +458,26 @@ cardSchema.pre('save', async function(next) {
 
     // Update metadata counts
     const List = mongoose.model('List');
-    const Board = mongoose.model('Board');
-    const Project = mongoose.model('Project');
 
-    await List.findByIdAndUpdate(this.list, {
+    await List.findByIdAndUpdate(this.listId, {
       $inc: { 'metadata.cardCount': 1 }
     });
 
-    await Board.findByIdAndUpdate(this.board, {
-      $inc: { 'metadata.totalCards': 1 }
-    });
+    // Update board metadata if card belongs to a board
+    if (this.boardId) {
+      const Board = mongoose.model('Board');
+      await Board.findByIdAndUpdate(this.boardId, {
+        $inc: { 'metadata.totalCards': 1 }
+      });
+    }
 
-    await Project.findByIdAndUpdate(this.project, {
-      $inc: { 'metadata.totalTasks': 1 }
-    });
+    // Update project metadata if card belongs to a project
+    if (this.project) {
+      const Project = mongoose.model('Project');
+      await Project.findByIdAndUpdate(this.project, {
+        $inc: { 'metadata.totalTasks': 1 }
+      });
+    }
 
     // Add creator as watcher
     if (!this.watchers.includes(this.createdBy)) {
@@ -435,42 +492,54 @@ cardSchema.pre('save', async function(next) {
       this.completedBy = this.assignedTo.length > 0 ? this.assignedTo[0] : this.createdBy;
 
       // Update completed tasks count
-      const Project = mongoose.model('Project');
-      const Board = mongoose.model('Board');
       const List = mongoose.model('List');
 
-      await Project.findByIdAndUpdate(this.project, {
-        $inc: { 'metadata.completedTasks': 1 }
-      });
-
-      await Board.findByIdAndUpdate(this.board, {
+      await List.findByIdAndUpdate(this.listId, {
         $inc: { 'metadata.completedCards': 1 }
       });
 
-      await List.findByIdAndUpdate(this.list, {
-        $inc: { 'metadata.completedCards': 1 }
-      });
+      // Update board metadata if card belongs to a board
+      if (this.boardId) {
+        const Board = mongoose.model('Board');
+        await Board.findByIdAndUpdate(this.boardId, {
+          $inc: { 'metadata.completedCards': 1 }
+        });
+      }
+
+      // Update project metadata if card belongs to a project
+      if (this.project) {
+        const Project = mongoose.model('Project');
+        await Project.findByIdAndUpdate(this.project, {
+          $inc: { 'metadata.completedTasks': 1 }
+        });
+      }
     } else if (this.status !== 'completed' && this.completedAt) {
       // Moving from completed back to other status
       this.completedAt = null;
       this.completedBy = null;
 
       // Decrease completed tasks count
-      const Project = mongoose.model('Project');
-      const Board = mongoose.model('Board');
       const List = mongoose.model('List');
 
-      await Project.findByIdAndUpdate(this.project, {
-        $inc: { 'metadata.completedTasks': -1 }
-      });
-
-      await Board.findByIdAndUpdate(this.board, {
+      await List.findByIdAndUpdate(this.listId, {
         $inc: { 'metadata.completedCards': -1 }
       });
 
-      await List.findByIdAndUpdate(this.list, {
-        $inc: { 'metadata.completedCards': -1 }
-      });
+      // Update board metadata if card belongs to a board
+      if (this.boardId) {
+        const Board = mongoose.model('Board');
+        await Board.findByIdAndUpdate(this.boardId, {
+          $inc: { 'metadata.completedCards': -1 }
+        });
+      }
+
+      // Update project metadata if card belongs to a project
+      if (this.project) {
+        const Project = mongoose.model('Project');
+        await Project.findByIdAndUpdate(this.project, {
+          $inc: { 'metadata.completedTasks': -1 }
+        });
+      }
     }
   }
 
@@ -480,37 +549,43 @@ cardSchema.pre('save', async function(next) {
 // Pre-remove middleware to update metadata
 cardSchema.pre('remove', async function(next) {
   const List = mongoose.model('List');
-  const Board = mongoose.model('Board');
-  const Project = mongoose.model('Project');
 
   // Decrease counts
-  await List.findByIdAndUpdate(this.list, {
+  await List.findByIdAndUpdate(this.listId, {
     $inc: {
       'metadata.cardCount': -1,
       'metadata.completedCards': this.status === 'completed' ? -1 : 0
     }
   });
 
-  await Board.findByIdAndUpdate(this.board, {
-    $inc: {
-      'metadata.totalCards': -1,
-      'metadata.completedCards': this.status === 'completed' ? -1 : 0
-    }
-  });
+  // Update board metadata if card belongs to a board
+  if (this.boardId) {
+    const Board = mongoose.model('Board');
+    await Board.findByIdAndUpdate(this.boardId, {
+      $inc: {
+        'metadata.totalCards': -1,
+        'metadata.completedCards': this.status === 'completed' ? -1 : 0
+      }
+    });
+  }
 
-  await Project.findByIdAndUpdate(this.project, {
-    $inc: {
-      'metadata.totalTasks': -1,
-      'metadata.completedTasks': this.status === 'completed' ? -1 : 0
-    }
-  });
+  // Update project metadata if card belongs to a project
+  if (this.project) {
+    const Project = mongoose.model('Project');
+    await Project.findByIdAndUpdate(this.project, {
+      $inc: {
+        'metadata.totalTasks': -1,
+        'metadata.completedTasks': this.status === 'completed' ? -1 : 0
+      }
+    });
+  }
 
   next();
 });
 
 // Indexes for performance
-cardSchema.index({ list: 1, position: 1 });
-cardSchema.index({ board: 1, status: 1 });
+cardSchema.index({ listId: 1, position: 1 });
+cardSchema.index({ boardId: 1, status: 1 });
 cardSchema.index({ project: 1, assignedTo: 1 });
 cardSchema.index({ assignedTo: 1, dueDate: 1 });
 cardSchema.index({ dueDate: 1, status: 1 });
@@ -518,10 +593,11 @@ cardSchema.index({ createdBy: 1 });
 cardSchema.index({ watchers: 1 });
 cardSchema.index({ isArchived: 1 });
 cardSchema.index({ 'labels.name': 1 });
+cardSchema.index({ 'members.userId': 1 });
 
 // Compound indexes
 cardSchema.index({
-  list: 1,
+  listId: 1,
   isArchived: 1,
   position: 1
 });

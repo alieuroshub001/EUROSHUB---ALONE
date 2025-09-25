@@ -226,7 +226,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">EuroHub PM</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">EurosHub PM</h1>
           <p className="text-gray-600">Sign in to your account</p>
         </div>
 

@@ -9,7 +9,8 @@ import {
   Archive,
   Settings,
   Copy,
-  X
+  X,
+  GripVertical
 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -60,6 +61,11 @@ export interface ListContainerProps {
   onCardClick: (cardId: string) => void;
   canEdit: boolean;
   canDelete: boolean;
+  dragHandleProps?: {
+    attributes: any;
+    listeners: any;
+    isDragging: boolean;
+  };
 }
 
 // Card Component for inside lists
@@ -167,6 +173,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
   onCardClick,
   canEdit,
   canDelete,
+  dragHandleProps,
 }) => {
   const { setNodeRef } = useDroppable({
     id: list._id,
@@ -207,9 +214,23 @@ const ListContainer: React.FC<ListContainerProps> = ({
   };
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 w-80 flex-shrink-0">
+    <div
+      className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 w-80 flex-shrink-0"
+      data-list-id={list._id}
+    >
       {/* List Header */}
       <div className="flex items-center justify-between mb-4">
+        {/* Drag Handle */}
+        {dragHandleProps && (
+          <div
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded mr-2"
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <GripVertical className="w-4 h-4 text-gray-400" />
+          </div>
+        )}
+
         <div className="flex-1 mr-2">
           {isEditingTitle ? (
             <input

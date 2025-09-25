@@ -5,7 +5,7 @@ export default function LoginBackground() {
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div className="relative h-full flex flex-col justify-center items-center text-white p-12">
           <div className="max-w-md text-center">
-            <h1 className="text-4xl font-bold mb-6">Welcome to EuroHub PM</h1>
+            <h1 className="text-4xl font-bold mb-6">Welcome to EurosHub PM</h1>
             <p className="text-xl leading-relaxed opacity-90">
               Your comprehensive project management solution for seamless collaboration and productivity.
             </p>
