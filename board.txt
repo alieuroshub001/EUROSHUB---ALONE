@@ -1,0 +1,351 @@
+# TRELLO-LIKE BOARDS MODULE - NEW IMPLEMENTATION
+
+## Project Overview
+Create a **pure Trello-style board system** separate from the existing project management:
+- **Boards** as top-level containers
+- **Dynamic Lists/Columns** within boards (user-created)
+- **Cards as Projects** - each card represents a complete project
+- **Project Modal** opens when clicking cards with full project management
+
+## Key Differences from Current System
+
+### Current System (Project-Centric)
+```
+Project (main container)
+└── Boards (sub-level)
+    └── Lists (columns)
+        └── Cards (tasks)
+```
+
+### New Trello System (Board-Centric)
+```
+Board (main container)
+└── Lists/Columns (user-created)
+    └── Cards (projects)
+        └── Project Details Modal
+            ├── Members
+            ├── Tasks/Subtasks
+            ├── Files
+            ├── Comments
+            └── Project Settings
+```
+
+## Core Features to Implement
+
+### 1. Board Management
+- [x] Create new boards with custom names/descriptions (UI completed - needs backend)
+- [x] Board backgrounds and themes (UI completed)
+- [x] Board visibility (private, team, public) (UI completed)
+- [x] Board member management and permissions (UI completed)
+- [ ] Board templates and duplication
+- [x] Board archiving and deletion (UI completed)
+
+### 2. Dynamic List/Column Management
+- [x] Create custom lists/columns with user-defined names (COMPLETED)
+- [x] Examples: "Ideas", "Planning", "In Progress", "Review", "Completed" (COMPLETED)
+- [x] Drag & drop to reorder lists (COMPLETED)
+- [x] Edit list names inline (COMPLETED)
+- [x] Delete/archive lists (COMPLETED)
+- [x] List settings (WIP limits, auto-actions) (UI completed)
+
+### 3. Cards as Projects
+- [x] Create cards representing individual projects (COMPLETED)
+- [x] Basic card info (title, description, cover image) (COMPLETED)
+- [x] Drag & drop cards between lists (COMPLETED)
+- [x] Card labels and priority indicators (COMPLETED)
+- [x] Card due dates and status (COMPLETED)
+- [x] Card assignment to team members (COMPLETED)
+
+### 4. Project Modal (Card Details)
+When clicking a card, open comprehensive project management:
+
+#### Project Information
+- [ ] Project title and description editor
+- [ ] Project status and priority
+- [ ] Start/end dates and timeline
+- [ ] Project budget and resources
+- [ ] Project tags and categories
+
+#### Member Management
+- [ ] Add/remove project members
+- [ ] Assign roles to members
+- [ ] Member avatars and permissions
+- [ ] Activity notifications for members
+
+#### Task Management Within Project
+- [ ] Create tasks/subtasks within the project
+- [ ] Task assignments and due dates
+- [ ] Task checklists and completion tracking
+- [ ] Task dependencies and priorities
+
+#### File Management
+- [ ] Upload project files and documents
+- [ ] File organization and folders
+- [ ] File versioning and comments
+- [ ] Integration with cloud storage
+
+#### Communication
+- [ ] Project comments and discussions
+- [ ] Activity timeline
+- [ ] @mentions and notifications
+- [ ] Integration with messaging platforms
+
+### 5. User Interface Components
+
+#### Board View
+- [ ] Board header with title, members, settings
+- [ ] Horizontal scrolling for multiple lists
+- [ ] Add new list button at the end
+- [ ] Board menu with options
+
+#### List/Column Components
+- [ ] List header with title and card count
+- [ ] Add new card button
+- [ ] List menu (edit, delete, archive)
+- [ ] Drag handles for reordering
+
+#### Card Components
+- [ ] Card preview with title and basic info
+- [ ] Member avatars on cards
+- [ ] Labels, due dates, attachment indicators
+- [ ] Quick edit options on hover
+- [ ] Card cover images
+
+#### Project Modal (Full Screen)
+- [ ] Modal header with project title and actions
+- [ ] Tabbed interface for different sections
+- [ ] Side panel for quick actions
+- [ ] Mobile-responsive modal design
+
+### 6. Backend API Structure
+
+#### Board APIs
+- [ ] GET /api/boards - List user's boards
+- [ ] POST /api/boards - Create new board
+- [ ] GET /api/boards/:id - Get board with lists and cards
+- [ ] PUT /api/boards/:id - Update board details
+- [ ] DELETE /api/boards/:id - Delete board
+- [ ] POST /api/boards/:id/members - Add board member
+
+#### List APIs
+- [ ] POST /api/boards/:boardId/lists - Create list in board
+- [ ] PUT /api/lists/:id - Update list (name, position)
+- [ ] DELETE /api/lists/:id - Delete list
+- [ ] PUT /api/lists/:id/position - Reorder list
+
+#### Card/Project APIs
+- [ ] POST /api/lists/:listId/cards - Create card/project
+- [ ] GET /api/cards/:id - Get full project details
+- [ ] PUT /api/cards/:id - Update card/project
+- [ ] DELETE /api/cards/:id - Delete card/project
+- [ ] PUT /api/cards/:id/move - Move card between lists
+- [ ] POST /api/cards/:id/members - Add project member
+
+### 7. Database Schema
+
+#### Boards Table
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  description: String,
+  background: String, // color or image
+  visibility: String, // private, team, public
+  createdBy: ObjectId, // User ID
+  members: [{
+    userId: ObjectId,
+    role: String, // owner, admin, member, viewer
+    joinedAt: Date
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+#### Lists Table
+```javascript
+{
+  _id: ObjectId,
+  boardId: ObjectId,
+  name: String,
+  position: Number,
+  settings: {
+    wipLimit: Number,
+    autoArchive: Boolean
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+#### Cards/Projects Table
+```javascript
+{
+  _id: ObjectId,
+  listId: ObjectId,
+  boardId: ObjectId,
+  title: String,
+  description: String,
+  coverImage: String,
+  position: Number,
+
+  // Project-specific fields
+  status: String,
+  priority: String,
+  startDate: Date,
+  endDate: Date,
+  budget: Number,
+
+  // Members and assignments
+  members: [{
+    userId: ObjectId,
+    role: String,
+    assignedAt: Date
+  }],
+
+  // Tasks within project
+  tasks: [{
+    title: String,
+    completed: Boolean,
+    assignedTo: ObjectId,
+    dueDate: Date
+  }],
+
+  // Labels and metadata
+  labels: [String],
+  attachments: [{
+    filename: String,
+    url: String,
+    uploadedBy: ObjectId,
+    uploadedAt: Date
+  }],
+
+  // Activity and comments
+  comments: [{
+    userId: ObjectId,
+    content: String,
+    createdAt: Date
+  }],
+
+  createdBy: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### 8. Real-time Features
+- [ ] Live board updates when users make changes
+- [ ] Real-time card movements between lists
+- [ ] Live cursor indicators for collaborative editing
+- [ ] Activity feed with real-time updates
+- [ ] Online user presence indicators
+
+### 9. Role-Based Access
+
+#### Superadmin
+- [ ] Access to all boards across the system
+- [ ] System-wide board management
+- [ ] User access control and permissions
+
+#### Admin
+- [ ] Manage company/organization boards
+- [ ] Create boards for teams
+- [ ] Assign users to boards and projects
+
+#### HR
+- [ ] Create boards for HR processes
+- [ ] Manage employee project assignments
+- [ ] Track team productivity across boards
+
+#### Employee
+- [ ] Access assigned boards
+- [ ] Create personal boards
+- [ ] Manage own project cards
+
+#### Client
+- [ ] Access client-specific boards
+- [ ] View project progress
+- [ ] Limited editing permissions
+
+## Implementation Phases
+
+### Phase 1: Basic Board Structure ✅ **PHASE COMPLETED**
+1. ✅ Create board CRUD operations (COMPLETED)
+2. ✅ Implement dynamic list creation (COMPLETED)
+3. ✅ Basic card creation and editing (COMPLETED)
+4. ✅ Simple drag & drop functionality (COMPLETED)
+
+### Phase 2: Project Modal
+1. Design comprehensive project modal
+2. Implement project details management
+3. Add member assignment within projects
+4. Basic task management within cards
+
+### Phase 3: Advanced Features
+1. Real-time collaboration
+2. File uploads and management
+3. Advanced permissions and roles
+4. Activity tracking and notifications
+
+### Phase 4: Polish & Integration
+1. Mobile responsiveness
+2. Performance optimizations
+3. Integration with existing user system
+4. Advanced search and filtering
+
+## File Structure for New Implementation
+
+```
+euroshub-project/src/
+├── app/
+│   └── [role]/
+│       └── boards/                  # New boards section
+│           ├── page.tsx            # Board listing
+│           └── [boardId]/
+│               └── page.tsx        # Individual board view
+├── components/
+│   ├── boards/
+│   │   ├── BoardCard.tsx          # Board preview cards
+│   │   ├── BoardList.tsx          # List of user's boards
+│   │   ├── CreateBoardModal.tsx   # Board creation
+│   │   └── BoardHeader.tsx        # Board page header
+│   ├── lists/
+│   │   ├── ListContainer.tsx      # Individual list/column
+│   │   ├── CreateListForm.tsx     # Add new list
+│   │   └── ListHeader.tsx         # List title and actions
+│   ├── cards/
+│   │   ├── ProjectCard.tsx        # Card representing project
+│   │   ├── ProjectModal.tsx       # Full project management modal
+│   │   ├── CardPreview.tsx        # Card hover preview
+│   │   └── CreateCardForm.tsx     # Add new card/project
+│   └── shared/
+│       ├── DragDropProvider.tsx   # Drag & drop context
+│       └── UserAvatar.tsx         # User avatar component
+└── lib/
+    ├── api/
+    │   ├── boards.ts              # Board API calls
+    │   ├── lists.ts               # List API calls
+    │   └── cards.ts               # Card/Project API calls
+    └── types/
+        └── boards.ts              # TypeScript interfaces
+```
+
+## Key Differences from Current System
+
+1. **Boards are primary** - Not nested under projects
+2. **Dynamic lists** - Users create custom columns
+3. **Cards = Projects** - Each card is a full project
+4. **Project modal** - Comprehensive project management in modal
+5. **Flexible workflow** - Users define their own process columns
+
+## Success Metrics
+
+- [ ] Users can create boards independently
+- [ ] Custom workflow columns work smoothly
+- [ ] Project cards contain full project functionality
+- [ ] Drag & drop feels natural and responsive
+- [ ] Project modal provides complete project management
+- [ ] Real-time collaboration works seamlessly
+- [ ] Role-based permissions are enforced correctly
+
+This implementation will provide a true Trello-like experience where boards are flexible containers for any workflow, and each card can represent a complete project with its own management interface.

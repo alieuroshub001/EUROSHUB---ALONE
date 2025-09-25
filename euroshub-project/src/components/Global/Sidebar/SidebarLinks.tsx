@@ -9,6 +9,8 @@ import {
   LogOut,
   User,
   FolderKanban,
+  Kanban,
+  FolderOpen,
   LucideIcon
 } from 'lucide-react';
 
@@ -43,7 +45,6 @@ export interface RoleInfo {
 
 export type UserRole = 'superadmin' | 'admin' | 'client' | 'hr' | 'employee';
 
-// Navigation links for each user role
 export const navigationLinks: Record<UserRole, NavigationItem[]> = {
   superadmin: [
     {
@@ -65,7 +66,11 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Project Management',
       icon: FolderKanban,
       path: '/superadmin/project-management',
-      description: 'Manage all projects and tasks'
+      description: 'Manage all projects and tasks',
+      subItems: [
+        { title: 'Projects', path: '/superadmin/project-management', icon: FolderOpen },
+        { title: 'Boards', path: '/superadmin/boards', icon: Kanban }
+      ]
     },
     {
       title: 'Profile',
@@ -73,29 +78,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/superadmin/profile',
       description: 'Manage your profile'
     }
-    // Commented out until backend integration is complete
-    // {
-    //   title: 'Organizations',
-    //   icon: Building2,
-    //   path: '/organizations',
-    //   description: 'Manage client organizations',
-    //   subItems: [
-    //     { title: 'All Organizations', path: '/organizations/all', icon: Building2 },
-    //     { title: 'Add Organization', path: '/organizations/add', icon: Building2 }
-    //   ]
-    // },
-    // {
-    //   title: 'System Analytics',
-    //   icon: BarChart3,
-    //   path: '/analytics',
-    //   description: 'System-wide reports and metrics'
-    // },
-    // {
-    //   title: 'System Settings',
-    //   icon: Settings,
-    //   path: '/settings',
-    //   description: 'Global system configuration'
-    // }
   ],
 
   admin: [
@@ -118,7 +100,11 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Project Management',
       icon: FolderKanban,
       path: '/admin/project-management',
-      description: 'Manage company projects and tasks'
+      description: 'Manage company projects and tasks',
+      subItems: [
+        { title: 'Projects', path: '/admin/project-management', icon: FolderOpen },
+        { title: 'Boards', path: '/admin/boards', icon: Kanban }
+      ]
     },
     {
       title: 'Profile',
@@ -126,42 +112,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/admin/profile',
       description: 'Manage your profile'
     }
-    // Commented out until backend integration is complete
-    // {
-    //   title: 'Departments',
-    //   icon: Building2,
-    //   path: '/departments',
-    //   description: 'Manage departments and teams'
-    // },
-    // {
-    //   title: 'Attendance & Leave',
-    //   icon: Calendar,
-    //   path: '/attendance',
-    //   description: 'Track attendance and leave requests',
-    //   subItems: [
-    //     { title: 'Attendance Overview', path: '/attendance/overview', icon: Clock },
-    //     { title: 'Leave Requests', path: '/attendance/leave', icon: Calendar },
-    //     { title: 'Time Tracking', path: '/attendance/time', icon: Clock }
-    //   ]
-    // },
-    // {
-    //   title: 'Payroll',
-    //   icon: DollarSign,
-    //   path: '/payroll',
-    //   description: 'Manage payroll and compensation'
-    // },
-    // {
-    //   title: 'Reports',
-    //   icon: BarChart3,
-    //   path: '/reports',
-    //   description: 'Company reports and analytics'
-    // },
-    // {
-    //   title: 'Settings',
-    //   icon: Settings,
-    //   path: '/settings',
-    //   description: 'Company settings'
-    // }
   ],
 
   client: [
@@ -175,7 +125,11 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Project Management',
       icon: FolderKanban,
       path: '/client/project-management',
-      description: 'View and track your projects'
+      description: 'View and track your projects',
+      subItems: [
+        { title: 'Projects', path: '/client/project-management', icon: FolderOpen },
+        { title: 'Boards', path: '/client/boards', icon: Kanban }
+      ]
     },
     {
       title: 'Profile',
@@ -183,42 +137,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/client/profile',
       description: 'Manage your profile'
     }
-    // Commented out until backend integration is complete
-    // {
-    //   title: 'Projects',
-    //   icon: FolderOpen,
-    //   path: '/projects',
-    //   description: 'View and manage projects',
-    //   subItems: [
-    //     { title: 'Active Projects', path: '/projects/active', icon: FolderOpen },
-    //     { title: 'Completed Projects', path: '/projects/completed', icon: FileText },
-    //     { title: 'Project Reports', path: '/projects/reports', icon: BarChart3 }
-    //   ]
-    // },
-    // {
-    //   title: 'Team',
-    //   icon: Users,
-    //   path: '/team',
-    //   description: 'View assigned team members'
-    // },
-    // {
-    //   title: 'Communications',
-    //   icon: MessageSquare,
-    //   path: '/communications',
-    //   description: 'Messages and updates'
-    // },
-    // {
-    //   title: 'Reports',
-    //   icon: FileText,
-    //   path: '/reports',
-    //   description: 'Project reports and progress'
-    // },
-    // {
-    //   title: 'Billing',
-    //   icon: DollarSign,
-    //   path: '/billing',
-    //   description: 'Invoices and payments'
-    // }
   ],
 
   hr: [
@@ -241,7 +159,11 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Project Management',
       icon: FolderKanban,
       path: '/hr/project-management',
-      description: 'Oversee team projects and resource allocation'
+      description: 'Oversee team projects and resource allocation',
+      subItems: [
+        { title: 'Projects', path: '/hr/project-management', icon: FolderOpen },
+        { title: 'Boards', path: '/hr/boards', icon: Kanban }
+      ]
     },
     {
       title: 'Profile',
@@ -249,47 +171,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/hr/profile',
       description: 'Manage your profile'
     }
-    // Commented out until backend integration is complete
-    // {
-    //   title: 'Employees',
-    //   icon: Users,
-    //   path: '/employees',
-    //   description: 'Employee management',
-    //   subItems: [
-    //     { title: 'Employee Directory', path: '/employees/directory', icon: Users },
-    //     { title: 'Onboarding', path: '/employees/onboarding', icon: UserCheck },
-    //     { title: 'Performance Reviews', path: '/employees/reviews', icon: BarChart3 }
-    //   ]
-    // },
-    // {
-    //   title: 'Recruitment',
-    //   icon: UserCheck,
-    //   path: '/recruitment',
-    //   description: 'Hiring and recruitment',
-    //   subItems: [
-    //     { title: 'Job Postings', path: '/recruitment/jobs', icon: FileText },
-    //     { title: 'Applications', path: '/recruitment/applications', icon: Users },
-    //     { title: 'Interview Schedule', path: '/recruitment/interviews', icon: Calendar }
-    //   ]
-    // },
-    // {
-    //   title: 'Leave Management',
-    //   icon: Calendar,
-    //   path: '/leave',
-    //   description: 'Manage leave requests'
-    // },
-    // {
-    //   title: 'Payroll Support',
-    //   icon: DollarSign,
-    //   path: '/payroll',
-    //   description: 'Payroll coordination'
-    // },
-    // {
-    //   title: 'HR Reports',
-    //   icon: BarChart3,
-    //   path: '/reports',
-    //   description: 'HR analytics and reports'
-    // }
   ],
 
   employee: [
@@ -303,7 +184,11 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Project Management',
       icon: FolderKanban,
       path: '/employee/project-management',
-      description: 'Manage assigned tasks and projects'
+      description: 'Manage assigned tasks and projects',
+      subItems: [
+        { title: 'Projects', path: '/employee/project-management', icon: FolderOpen },
+        { title: 'Boards', path: '/employee/boards', icon: Kanban }
+      ]
     },
     {
       title: 'Profile',
@@ -311,48 +196,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/employee/profile',
       description: 'Manage your profile'
     }
-    // Commented out until backend integration is complete
-    // {
-    //   title: 'My Profile',
-    //   icon: UserCheck,
-    //   path: '/profile',
-    //   description: 'View and update profile'
-    // },
-    // {
-    //   title: 'Attendance',
-    //   icon: Clock,
-    //   path: '/attendance',
-    //   description: 'Clock in/out and view history',
-    //   subItems: [
-    //     { title: 'Time Clock', path: '/attendance/clock', icon: Clock },
-    //     { title: 'My Timesheet', path: '/attendance/timesheet', icon: Calendar },
-    //     { title: 'Attendance History', path: '/attendance/history', icon: FileText }
-    //   ]
-    // },
-    // {
-    //   title: 'Leave Requests',
-    //   icon: Calendar,
-    //   path: '/leave',
-    //   description: 'Request and manage leave'
-    // },
-    // {
-    //   title: 'Pay Stubs',
-    //   icon: DollarSign,
-    //   path: '/paystubs',
-    //   description: 'View pay stubs and tax documents'
-    // },
-    // {
-    //   title: 'Company Directory',
-    //   icon: Users,
-    //   path: '/directory',
-    //   description: 'Employee directory'
-    // },
-    // {
-    //   title: 'Notifications',
-    //   icon: Bell,
-    //   path: '/notifications',
-    //   description: 'Company announcements'
-    // }
   ]
 };
 
