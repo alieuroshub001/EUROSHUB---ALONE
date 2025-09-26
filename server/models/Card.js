@@ -260,12 +260,12 @@ cardSchema.methods.hasAccess = async function(userId, userRole) {
 };
 
 // Instance method to check specific permissions
-cardSchema.methods.hasPermission = async function(userId, action) {
+cardSchema.methods.hasPermission = async function(userId, action, userRole) {
   const List = mongoose.model('List');
   const list = await List.findById(this.listId);
 
   if (!list) return false;
-  return await list.hasPermission(userId, action);
+  return await list.hasPermission(userId, action, userRole);
 };
 
 // Instance method to assign users

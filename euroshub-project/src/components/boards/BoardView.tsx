@@ -317,76 +317,79 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
   return (
     <div className="h-full flex flex-col" style={backgroundStyle}>
-      {/* Board Header */}
-      <div className="bg-black bg-opacity-20 p-4 flex items-center justify-between text-white">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleBack}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors duration-200"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+      {/* Modern Board Header with backdrop blur */}
+      <div className="backdrop-blur-sm bg-black/30 border-b border-white/20 p-4">
+        <div className="flex items-center justify-between text-white">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleBack}
+              className="p-2.5 hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
 
-          <h1 className="text-xl font-bold">{board.name}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm">{board.name}</h1>
 
-          <button
-            onClick={handleStarBoard}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors duration-200"
-          >
-            <Star className={`w-5 h-5 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Board Members */}
-          <div className="flex -space-x-2 mr-4">
-            {board.members.slice(0, 5).map((member) => (
-              <div
-                key={member.userId._id}
-                className="w-8 h-8 rounded-full bg-white bg-opacity-20 border-2 border-white flex items-center justify-center text-sm font-medium"
-                title={`${member.userId.firstName} ${member.userId.lastName} (${member.role})`}
+              <button
+                onClick={handleStarBoard}
+                className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm"
               >
-                {member.userId.avatar ? (
-                  <img
-                    src={member.userId.avatar}
-                    alt={`${member.userId.firstName} ${member.userId.lastName}`}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span>
-                    {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
-                  </span>
-                )}
-              </div>
-            ))}
-            {board.members.length > 5 && (
-              <div className="w-8 h-8 rounded-full bg-white bg-opacity-30 border-2 border-white flex items-center justify-center text-sm font-medium">
-                +{board.members.length - 5}
-              </div>
-            )}
+                <Star className={`w-5 h-5 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              </button>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          {canEditBoard && (
-            <>
-              <button className="px-3 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg flex items-center gap-2 text-sm transition-colors duration-200">
-                <UserPlus className="w-4 h-4" />
-                Invite
-              </button>
+          <div className="flex items-center gap-3">
+            {/* Elegant Board Members */}
+            <div className="flex -space-x-3">
+              {board.members.slice(0, 4).map((member, index) => (
+                <div
+                  key={member.userId?._id || `board-member-${index}`}
+                  className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center text-sm font-semibold shadow-lg hover:scale-110 transition-transform duration-200"
+                  title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''} (${member.role})`}
+                >
+                  {member.userId?.avatar ? (
+                    <img
+                      src={member.userId.avatar}
+                      alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white">
+                      {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {board.members.length > 4 && (
+                <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center text-sm font-semibold shadow-lg">
+                  <span className="text-white">+{board.members.length - 4}</span>
+                </div>
+              )}
+            </div>
 
-              <button className="px-3 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg flex items-center gap-2 text-sm transition-colors duration-200">
-                <Share className="w-4 h-4" />
-                Share
-              </button>
-            </>
-          )}
+            {/* Modern Action Buttons */}
+            {canEditBoard && (
+              <div className="flex items-center gap-2">
+                <button className="px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 border border-white/20">
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Invite</span>
+                </button>
 
-          {/* Board Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-colors duration-200"
-            >
+                <button className="px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 border border-white/20">
+                  <Share className="w-4 h-4" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+              </div>
+            )}
+
+            {/* Board Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-xl transition-all duration-200 border border-white/20"
+              >
               <MoreVertical className="w-5 h-5" />
             </button>
 
@@ -416,8 +419,8 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
         </div>
       </div>
 
-      {/* Board Content - Lists */}
-      <div className="flex-1 p-4 overflow-x-auto">
+      {/* Modern Board Content - Lists */}
+      <div className="flex-1 p-6 overflow-x-auto bg-black/5">
         <DragDropProvider
           lists={lists}
           cards={cards}
@@ -425,7 +428,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
           onMoveList={handleMoveList}
           onReorderCards={handleReorderCards}
         >
-          <div className="flex gap-4 h-full">
+          <div className="flex gap-6 h-full min-h-0">
             {lists.map((list) => (
               <SortableListContainer
                 key={list._id}
@@ -465,8 +468,9 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
           canDelete={canDeleteBoard}
         />
       )}
+      </div>
     </div>
   );
-};
+};  
 
 export default BoardView;

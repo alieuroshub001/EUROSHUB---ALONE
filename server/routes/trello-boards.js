@@ -1,11 +1,48 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { cloudinary } = require('../config/cloudinary');
 
 const Board = require('../models/Board');
 const List = require('../models/List');
 const Card = require('../models/Card');
 const Activity = require('../models/Activity');
 const { protect } = require('../middleware/auth');
+
+// Configure Cloudinary storage for board backgrounds
+const boardBackgroundStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'euroshub/board-backgrounds',
+    resource_type: 'image',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [
+      {
+        width: 1920,
+        height: 1080,
+        crop: 'fill',
+        quality: 'auto',
+        fetch_format: 'auto'
+      }
+    ],
+    public_id: (req, file) => `board-bg-${req.user.id}-${Date.now()}`
+  },
+});
+
+const uploadBoardBackground = multer({
+  storage: boardBackgroundStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // Middleware to get board and check access
 const getBoardWithAccess = async (req, res, next) => {
@@ -112,24 +149,10 @@ router.post('/', protect, async (req, res) => {
 
     // Create default lists if requested
     if (createDefaultLists) {
-      const defaultLists = [
-        { name: 'To Do', position: 1 },
-        { name: 'In Progress', position: 2 },
-        { name: 'Done', position: 3 }
-      ];
-
-      for (const listData of defaultLists) {
-        const list = new List({
-          name: listData.name,
-          boardId: board._id,
-          createdBy: req.user.id,
-          position: listData.position
-        });
-        await list.save();
-      }
+      const lists = await List.createDefaultLists(board._id, null, req.user.id);
 
       // Update board metadata
-      board.metadata.totalLists = defaultLists.length;
+      board.metadata.totalLists = lists.length;
       await board.save();
     }
 
@@ -410,6 +433,37 @@ router.put('/:boardId/reorder', protect, getBoardWithAccess, async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Error reordering board'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/trello-boards/upload-background
+ * @desc    Upload board background image
+ * @access  Private
+ */
+router.post('/upload-background', protect, uploadBoardBackground.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        url: req.file.path,
+        publicId: req.file.filename
+      },
+      message: 'Background image uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Upload background error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading background image'
     });
   }
 });

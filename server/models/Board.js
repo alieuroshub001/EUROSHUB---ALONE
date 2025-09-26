@@ -173,14 +173,14 @@ boardSchema.methods.hasAccess = async function(userId, userRole) {
 };
 
 // Instance method to check specific permissions
-boardSchema.methods.hasPermission = async function(userId, action) {
+boardSchema.methods.hasPermission = async function(userId, action, userRole) {
   // First check if user has access to the board
-  if (!await this.hasAccess(userId)) {
+  if (!await this.hasAccess(userId, userRole)) {
     return false;
   }
 
   // Get user's role on this board
-  const userRole = this.getUserRole(userId);
+  const boardRole = this.getUserRole(userId);
 
   // Define permissions based on role and action
   const permissions = {
@@ -190,7 +190,7 @@ boardSchema.methods.hasPermission = async function(userId, action) {
     viewer: ['read']
   };
 
-  return permissions[userRole] && permissions[userRole].includes(action);
+  return permissions[boardRole] && permissions[boardRole].includes(action);
 };
 
 // Instance method to get user's role on this board

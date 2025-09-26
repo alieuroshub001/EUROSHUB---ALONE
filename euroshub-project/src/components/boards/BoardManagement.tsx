@@ -16,7 +16,8 @@ import {
   MoreVertical,
   Star,
   Lock,
-  Globe
+  Globe,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { boardsApi, Board as APIBoard } from '@/services/trelloBoardsApi';
@@ -25,7 +26,7 @@ import { boardsApi, Board as APIBoard } from '@/services/trelloBoardsApi';
 export interface Board {
   _id: string;
   name: string;
-  description: string;
+  description?: string;
   background: string;
   visibility: 'private' | 'team' | 'public';
   createdBy: {
@@ -87,15 +88,46 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
     background: '#6366f1',
     visibility: 'private' as 'private' | 'team' | 'public'
   });
+  const [backgroundType, setBackgroundType] = useState<'color' | 'image'>('color');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setImagePreview(result);
+        setFormData(prev => ({ ...prev, background: result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
+
+    let backgroundUrl = formData.background;
+
+    // If user selected image and uploaded a file
+    if (backgroundType === 'image' && imageFile) {
+      try {
+        const uploadResult = await boardsApi.uploadBackground(imageFile);
+        backgroundUrl = uploadResult.url;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image. Please try again.');
+        return;
+      }
+    }
 
     onSubmit({
       name: formData.name.trim(),
       description: formData.description || undefined,
-      background: formData.background,
+      background: backgroundUrl,
       visibility: formData.visibility
     });
   };
@@ -143,24 +175,100 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Background Color
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Board Background
               </label>
-              <div className="flex gap-2 flex-wrap">
-                {backgroundOptions.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, background: color }))}
-                    className={`w-8 h-8 rounded-md border-2 ${
-                      formData.background === color
-                        ? 'border-gray-900 dark:border-white'
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+
+              {/* Background Type Selector */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setBackgroundType('color')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    backgroundType === 'color'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Color
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBackgroundType('image')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    backgroundType === 'image'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Image
+                </button>
               </div>
+
+              {backgroundType === 'color' ? (
+                <div className="flex gap-2 flex-wrap">
+                  {backgroundOptions.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, background: color }));
+                        setImageFile(null);
+                        setImagePreview('');
+                      }}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        formData.background === color && backgroundType === 'color'
+                          ? 'border-gray-900 dark:border-white scale-110'
+                          : 'border-gray-300 dark:border-gray-600 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                        </svg>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF up to 5MB</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  </div>
+
+                  {imagePreview && (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Background preview"
+                        className="w-full h-20 object-cover rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview('');
+                          setFormData(prev => ({ ...prev, background: '#6366f1' }));
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -229,23 +337,41 @@ const BoardCard: React.FC<BoardCardProps> = ({
   };
 
   const getBackgroundStyle = () => {
-    if (board.background?.startsWith('#')) {
-      return { backgroundColor: board.background };
-    } else if (board.background?.startsWith('http')) {
-      return { backgroundImage: `url(${board.background})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    if (!board.background) {
+      return { backgroundColor: '#6366f1' }; // Default color
     }
-    return { backgroundColor: '#6366f1' }; // Default color
+
+    if (board.background.startsWith('#')) {
+      return { backgroundColor: board.background };
+    } else if (board.background.startsWith('http')) {
+      return {
+        backgroundImage: `url(${board.background})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      };
+    }
+
+    // Fallback for any other format
+    return { backgroundColor: '#6366f1' };
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 group">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group overflow-hidden">
       {/* Board Preview/Background */}
       <div
-        className="h-32 rounded-t-lg relative cursor-pointer"
+        className="h-24 relative cursor-pointer overflow-hidden"
         style={getBackgroundStyle()}
         onClick={() => onView(board._id)}
       >
-        <div className="absolute inset-0 bg-black bg-opacity-20 rounded-t-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        {/* Board name overlay on image */}
+        <div className="absolute bottom-2 left-3 right-3">
+          <h3 className="font-bold text-white text-sm line-clamp-1" style={{
+            textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0px 0px 8px rgba(0,0,0,0.6)'
+          }}>
+            {board.name}
+          </h3>
+        </div>
 
         {/* Star Button */}
         <button
@@ -253,9 +379,9 @@ const BoardCard: React.FC<BoardCardProps> = ({
             e.stopPropagation();
             onStar(board._id);
           }}
-          className="absolute top-2 left-2 p-1 rounded bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-200"
+          className="absolute top-2 left-2 p-1.5 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm transition-all duration-200"
         >
-          <Star className={`w-4 h-4 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+          <Star className={`w-3.5 h-3.5 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
         </button>
 
         {/* Menu Button */}
@@ -266,9 +392,9 @@ const BoardCard: React.FC<BoardCardProps> = ({
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-1 rounded bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-200"
+              className="p-1.5 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
             >
-              <MoreVertical className="w-4 h-4 text-white" />
+              <MoreVertical className="w-3.5 h-3.5 text-white" />
             </button>
 
             {showMenu && (
@@ -329,57 +455,60 @@ const BoardCard: React.FC<BoardCardProps> = ({
         )}
       </div>
 
-      {/* Board Info */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3
-            className="font-semibold text-gray-900 dark:text-white text-lg cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            onClick={() => onView(board._id)}
-          >
-            {board.name}
-          </h3>
-          <div className="flex items-center gap-1">
+      {/* Compact Board Info */}
+      <div className="p-3">
+        {/* Top row: Title and Visibility */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1 min-w-0">
+            {board.description && (
+              <p className="text-gray-600 dark:text-gray-400 text-xs mb-1 line-clamp-1">
+                {board.description}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 ml-2 text-gray-400">
             {getVisibilityIcon()}
           </div>
         </div>
 
-        {board.description && (
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-            {board.description}
-          </p>
-        )}
-
-        {/* Board Stats */}
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-4">
-            <span>{board.listsCount || 0} lists</span>
-            <span>{board.cardsCount || 0} cards</span>
+        {/* Bottom row: Stats and Members */}
+        <div className="flex items-center justify-between">
+          {/* Stats with better visual separation */}
+          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span>{board.listsCount || 0}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span>{board.cardsCount || 0}</span>
+            </div>
           </div>
 
-          {/* Members avatars */}
-          <div className="flex -space-x-2">
-            {board.members?.slice(0, 3).map((member, index) => (
+          {/* Members avatars - smaller and more elegant */}
+          <div className="flex -space-x-1.5">
+            {board.members?.slice(0, 2).map((member, index) => (
               <div
-                key={member.userId._id}
-                className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium"
-                title={`${member.userId.firstName} ${member.userId.lastName}`}
+                key={member.userId?._id || `member-${index}`}
+                className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-800 flex items-center justify-center"
+                title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
               >
-                {member.userId.avatar ? (
+                {member.userId?.avatar ? (
                   <img
                     src={member.userId.avatar}
-                    alt={`${member.userId.firstName} ${member.userId.lastName}`}
+                    alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
+                  <span className="text-gray-600 dark:text-gray-300 text-[10px] font-medium">
+                    {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
                   </span>
                 )}
               </div>
             ))}
-            {board.members && board.members.length > 3 && (
-              <div className="w-6 h-6 rounded-full bg-gray-400 dark:bg-gray-500 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-white">
-                +{board.members.length - 3}
+            {board.members && board.members.length > 2 && (
+              <div className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-500 border-2 border-white dark:border-gray-800 flex items-center justify-center">
+                <span className="text-white text-[10px] font-medium">+{board.members.length - 2}</span>
               </div>
             )}
           </div>
@@ -427,8 +556,8 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
 
   // Filter boards based on search term
   const filteredBoards = boards.filter(board =>
-    board.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    board.description.toLowerCase().includes(searchTerm.toLowerCase())
+    board.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    board.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Board actions
@@ -602,7 +731,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
         </div>
       ) : (
         <div className={viewMode === 'grid'
-          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4"
           : "space-y-4"
         }>
           {filteredBoards.map((board) => (

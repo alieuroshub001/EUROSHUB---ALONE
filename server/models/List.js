@@ -117,15 +117,15 @@ listSchema.virtual('isWipLimitExceeded').get(function() {
 // Static method to create default lists for a board
 listSchema.statics.createDefaultLists = async function(boardId, projectId, createdBy) {
   const defaultLists = [
-    { title: 'To Do', listType: 'todo', position: 1, color: '#EF4444' },
-    { title: 'In Progress', listType: 'in_progress', position: 2, color: '#F59E0B' },
-    { title: 'Review', listType: 'review', position: 3, color: '#8B5CF6' },
-    { title: 'Done', listType: 'done', position: 4, color: '#10B981' }
+    { name: 'To Do', listType: 'todo', position: 1, color: '#EF4444' },
+    { name: 'In Progress', listType: 'in_progress', position: 2, color: '#F59E0B' },
+    { name: 'Review', listType: 'review', position: 3, color: '#8B5CF6' },
+    { name: 'Done', listType: 'done', position: 4, color: '#10B981' }
   ];
 
   const lists = defaultLists.map(list => ({
     ...list,
-    board: boardId,
+    boardId: boardId,
     project: projectId,
     createdBy: createdBy,
     isDefault: true
@@ -144,12 +144,12 @@ listSchema.methods.hasAccess = async function(userId, userRole) {
 };
 
 // Instance method to check specific permissions
-listSchema.methods.hasPermission = async function(userId, action) {
+listSchema.methods.hasPermission = async function(userId, action, userRole) {
   const Board = mongoose.model('Board');
-  const board = await Board.findById(this.board);
+  const board = await Board.findById(this.boardId);
 
   if (!board) return false;
-  return await board.hasPermission(userId, action);
+  return await board.hasPermission(userId, action, userRole);
 };
 
 // Instance method to move cards to another list

@@ -10,7 +10,9 @@ import {
   Settings,
   Copy,
   X,
-  GripVertical
+  GripVertical,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -22,8 +24,15 @@ export interface ListData {
   name: string;
   position: number;
   settings: {
-    wipLimit?: number;
-    autoArchive: boolean;
+    wipLimit?: {
+      enabled: boolean;
+      limit: number;
+    };
+    autoMove?: {
+      enabled: boolean;
+      conditions: any[];
+    };
+    cardLimit?: number;
   };
   cardsCount?: number;
   createdAt: Date;
@@ -132,21 +141,21 @@ const CardPreview: React.FC<{
 
         {/* Members */}
         <div className="flex -space-x-1">
-          {card.members.slice(0, 3).map((member) => (
+          {card.members.slice(0, 3).map((member, index) => (
             <div
-              key={member.userId._id}
+              key={member.userId?._id || `card-member-${index}`}
               className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium"
-              title={`${member.userId.firstName} ${member.userId.lastName}`}
+              title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
             >
-              {member.userId.avatar ? (
+              {member.userId?.avatar ? (
                 <img
                   src={member.userId.avatar}
-                  alt={`${member.userId.firstName} ${member.userId.lastName}`}
+                  alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
                 <span className="text-gray-600 dark:text-gray-300">
-                  {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
+                  {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
                 </span>
               )}
             </div>
@@ -186,6 +195,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(list.name);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleTitleEdit = () => {
     setIsEditingTitle(true);
@@ -213,15 +223,92 @@ const ListContainer: React.FC<ListContainerProps> = ({
     }
   };
 
+  // Calculate dynamic margins and height based on list name length
+  const getCollapsedDimensions = () => {
+    if (!isCollapsed) return { height: null, topMargin: 30, bottomMargin: 30 };
+
+    // Limit list name to prevent UI issues (max 25 characters)
+    const displayName = list.name.length > 25 ? `${list.name.substring(0, 25)}...` : list.name;
+    const nameLength = displayName.length;
+
+    // Calculate dynamic top margin based on text length to prevent overlap
+    // Longer names need more space from chevron when rotated
+    const baseTopMargin = 40;
+    const additionalMargin = Math.max(0, (nameLength - 8) * 3); // 3px extra per char beyond 8 chars
+    const topMargin = Math.min(baseTopMargin + additionalMargin, 80); // Cap at 80px
+
+    const bottomMargin = 30;
+
+    // Calculate height needed:
+    // - Chevron button: ~50px (button + space)
+    // - Text space: nameLength * 10px (character width becomes height when rotated)
+    // - Dynamic margins based on text length
+    // - Card count: ~40px (badge + minimal padding)
+    const chevronSpace = 50;
+    const textSpace = Math.max(nameLength * 10, 100);
+    const cardCountSpace = 40; // Reduced to minimize bottom space
+
+    const totalHeight = chevronSpace + textSpace + topMargin + bottomMargin + cardCountSpace;
+
+    return {
+      height: totalHeight,
+      topMargin,
+      bottomMargin,
+      displayName
+    };
+  };
+
+  const { height, topMargin, bottomMargin, displayName } = getCollapsedDimensions();
+
   return (
     <div
-      className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 w-80 flex-shrink-0"
+      className={`bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
+        isCollapsed ? 'w-16' : 'w-80'
+      } flex flex-col overflow-hidden`}
+      style={{
+        height: height ? `${height}px` : 'auto'
+      }}
       data-list-id={list._id}
     >
       {/* List Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className={`${isCollapsed ? 'flex-col items-center' : 'flex items-center justify-between'} mb-4`}>
+        {/* Collapse/Expand Button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          title={isCollapsed ? 'Expand list' : 'Collapse list'}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-4 h-4 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          )}
+        </button>
+
+        {/* Collapsed List Name - Centered between chevron and card count */}
+        {isCollapsed && (
+          <div
+            className="flex items-center justify-center flex-1"
+            style={{
+              marginTop: `${topMargin}px`,
+              marginBottom: `${bottomMargin}px`
+            }}
+          >
+            <div
+              className="transform -rotate-90 whitespace-nowrap font-medium text-gray-900 dark:text-white text-sm cursor-pointer"
+              onClick={() => setIsCollapsed(false)}
+              title={`${list.name} - Click to expand`}
+              style={{
+                transformOrigin: 'center center'
+              }}
+            >
+              {displayName}
+            </div>
+          </div>
+        )}
+
         {/* Drag Handle */}
-        {dragHandleProps && (
+        {dragHandleProps && !isCollapsed && (
           <div
             className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded mr-2"
             {...dragHandleProps.attributes}
@@ -231,37 +318,40 @@ const ListContainer: React.FC<ListContainerProps> = ({
           </div>
         )}
 
-        <div className="flex-1 mr-2">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={tempTitle}
-              onChange={(e) => setTempTitle(e.target.value)}
-              onBlur={handleTitleSave}
-              onKeyDown={handleKeyPress}
-              className="w-full font-medium text-gray-900 dark:text-white bg-transparent border-2 border-blue-500 rounded px-2 py-1 text-sm focus:outline-none"
-              autoFocus
-            />
-          ) : (
-            <h3
-              onClick={canEdit ? handleTitleEdit : undefined}
-              className={`font-medium text-gray-900 dark:text-white text-sm ${
-                canEdit ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : ''
-              }`}
-              title={canEdit ? 'Click to edit list name' : ''}
-            >
-              {list.name}
-              {list.settings.wipLimit && (
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({cards.length}/{list.settings.wipLimit})
-                </span>
-              )}
-            </h3>
-          )}
-        </div>
+        {/* List Title - Only for expanded state */}
+        {!isCollapsed && (
+          <div className="flex-1 mr-2">
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={tempTitle}
+                onChange={(e) => setTempTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleKeyPress}
+                className="w-full font-medium text-gray-900 dark:text-white bg-transparent border-2 border-blue-500 rounded px-2 py-1 text-sm focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <h3
+                onClick={canEdit ? handleTitleEdit : undefined}
+                className={`font-medium text-gray-900 dark:text-white text-sm ${
+                  canEdit ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : ''
+                }`}
+                title={canEdit ? 'Click to edit list name' : ''}
+              >
+                {list.name}
+                {list.settings.wipLimit?.enabled && (
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    ({cards.length}/{list.settings.wipLimit.limit})
+                  </span>
+                )}
+              </h3>
+            )}
+          </div>
+        )}
 
-        {/* List Menu */}
-        {canEdit && (
+        {/* List Menu - Hide when collapsed */}
+        {canEdit && !isCollapsed && (
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
@@ -340,11 +430,12 @@ const ListContainer: React.FC<ListContainerProps> = ({
         )}
       </div>
 
-      {/* Cards - Droppable Area */}
-      <div
-        ref={setNodeRef}
-        className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px]"
-      >
+      {/* Cards - Droppable Area - Hide when collapsed */}
+      {!isCollapsed && (
+        <div
+          ref={setNodeRef}
+          className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px]"
+        >
         <SortableContext
           items={cards.map(card => card._id)}
           strategy={verticalListSortingStrategy}
@@ -364,10 +455,11 @@ const ListContainer: React.FC<ListContainerProps> = ({
             Drop cards here or click "Add a card"
           </div>
         )}
-      </div>
+        </div>
+      )}
 
-      {/* Add Card Button */}
-      {!showCreateForm ? (
+      {/* Add Card Button - Hide when collapsed */}
+      {!isCollapsed && (!showCreateForm ? (
         <button
           onClick={() => setShowCreateForm(true)}
           className="w-full py-2 px-3 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
@@ -412,6 +504,15 @@ const ListContainer: React.FC<ListContainerProps> = ({
             >
               <X className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Card count at bottom when collapsed */}
+      {isCollapsed && (
+        <div className="mt-auto flex justify-center pb-2">
+          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 rounded-full w-6 h-6 flex items-center justify-center">
+            {cards?.length || 0}
           </div>
         </div>
       )}

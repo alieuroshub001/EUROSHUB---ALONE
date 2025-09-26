@@ -12,6 +12,7 @@ interface SortableCardProps {
 const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
   const {
     attributes,
+    
     listeners,
     setNodeRef,
     transform,
@@ -98,21 +99,21 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
 
         {/* Members */}
         <div className="flex -space-x-2">
-          {card.members.slice(0, 3).map((member) => (
+          {card.members.slice(0, 3).map((member, index) => (
             <div
-              key={member.userId._id}
+              key={member.userId?._id || `sortable-member-${index}`}
               className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium"
-              title={`${member.userId.firstName} ${member.userId.lastName}`}
+              title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
             >
-              {member.userId.avatar ? (
+              {member.userId?.avatar ? (
                 <img
                   src={member.userId.avatar}
-                  alt={`${member.userId.firstName} ${member.userId.lastName}`}
+                  alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
                 <span className="text-gray-600 dark:text-gray-300">
-                  {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
+                  {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
                 </span>
               )}
             </div>

@@ -39,8 +39,15 @@ export interface List {
   position: number;
   color?: string;
   settings: {
-    wipLimit?: number;
-    autoArchive: boolean;
+    wipLimit?: {
+      enabled: boolean;
+      limit: number;
+    };
+    autoMove?: {
+      enabled: boolean;
+      conditions: any[];
+    };
+    cardLimit?: number;
   };
   cardsCount?: number;
   createdAt: Date;
@@ -68,20 +75,39 @@ export interface Card {
   createdAt: Date;
 }
 
-// Get auth token from localStorage or cookies
+// Get auth token from localStorage or cookies (same as useAuth)
 const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('authToken') || null;
+
+  // Check cookie first (same as useAuth)
+  const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+  };
+
+  let token = getCookie('token');
+
+  // Fallback to localStorage with correct key
+  if (!token) {
+    token = localStorage.getItem('token');
+  }
+
+  return token;
 };
 
 // API helper function
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAuthToken();
 
+  // Don't set Content-Type for FormData - let browser set it with boundary
+  const isFormData = options.body instanceof FormData;
+
   const config: RequestInit = {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
@@ -168,6 +194,19 @@ export const boardsApi = {
     await apiCall(`/trello-boards/${boardId}/members/${userId}`, {
       method: 'DELETE',
     });
+  },
+
+  // Upload background image
+  uploadBackground: async (imageFile: File): Promise<{ url: string; publicId: string }> => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await apiCall('/trello-boards/upload-background', {
+      method: 'POST',
+      body: formData,
+    });
+
+    return response.data;
   },
 };
 

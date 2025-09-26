@@ -115,7 +115,7 @@ router.post('/:listId/cards', protect, getListWithAccess, async (req, res) => {
     } = req.body;
 
     // Check permission
-    const hasPermission = await req.list.hasPermission(req.user.id, 'write');
+    const hasPermission = await req.list.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -219,7 +219,7 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
     const card = req.card;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -268,7 +268,7 @@ router.delete('/:cardId', protect, getCardWithAccess, async (req, res) => {
     const card = req.card;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'delete');
+    const hasPermission = await card.hasPermission(req.user.id, 'delete', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -303,7 +303,7 @@ router.post('/:cardId/move', protect, getCardWithAccess, async (req, res) => {
     const { targetListId, position } = req.body;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -375,7 +375,7 @@ router.put('/:cardId/reorder', protect, getCardWithAccess, async (req, res) => {
     const { position } = req.body;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -417,7 +417,7 @@ router.post('/:cardId/members', protect, getCardWithAccess, async (req, res) => 
     const { userId } = req.body;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -466,7 +466,7 @@ router.delete('/:cardId/members/:userId', protect, getCardWithAccess, async (req
     const { userId } = req.params;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -507,7 +507,7 @@ router.put('/:cardId/archive', protect, getCardWithAccess, async (req, res) => {
     const card = req.card;
 
     // Check permission
-    const hasPermission = await card.hasPermission(req.user.id, 'write');
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
