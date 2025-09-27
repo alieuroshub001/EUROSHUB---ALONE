@@ -273,6 +273,42 @@ const EditCardModal: React.FC<EditCardModalProps> = ({
               )}
             </div>
 
+            {/* Card Color */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Card Color</h3>
+              {isEditing && canEdit ? (
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={editData.color || '#ffffff'}
+                    onChange={(e) => setEditData(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-12 h-8 rounded-md border border-gray-300 dark:border-gray-600 cursor-pointer"
+                    title="Choose card color"
+                  />
+                  <button
+                    onClick={() => setEditData(prev => ({ ...prev, color: undefined }))}
+                    className="px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+                  >
+                    Clear Color
+                  </button>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {editData.color || 'Default (white)'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600"
+                    style={{ backgroundColor: card.color || '#ffffff' }}
+                    title="Current card color"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {card.color || 'Default (white)'}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Labels */}
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Labels</h3>

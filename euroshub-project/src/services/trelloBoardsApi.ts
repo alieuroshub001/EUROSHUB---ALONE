@@ -61,6 +61,7 @@ export interface Card {
   description?: string;
   position: number;
   coverImage?: string;
+  color?: string;
   members: Array<{
     userId: {
       _id: string;
@@ -237,6 +238,17 @@ export const listsApi = {
     name?: string;
     description?: string;
     color?: string;
+    settings?: {
+      wipLimit?: {
+        enabled: boolean;
+        limit: number;
+      };
+      autoMove?: {
+        enabled: boolean;
+        conditions: any[];
+      };
+      cardLimit?: number;
+    };
   }): Promise<List> => {
     const response = await apiCall(`/trello-lists/${listId}`, {
       method: 'PUT',
@@ -261,10 +273,15 @@ export const listsApi = {
   },
 
   // Reorder list
-  reorderList: async (listId: string, position: number): Promise<void> => {
+  reorderList: async (listId: string, position: number, listOrder?: Array<{ listId: string }>): Promise<void> => {
+    const body: any = { position };
+    if (listOrder) {
+      body.listOrder = listOrder;
+    }
+
     await apiCall(`/trello-lists/${listId}/reorder`, {
       method: 'PUT',
-      body: JSON.stringify({ position }),
+      body: JSON.stringify(body),
     });
   },
 
@@ -291,6 +308,7 @@ export const cardsApi = {
     title: string;
     description?: string;
     coverImage?: string;
+    color?: string;
     labels?: string[];
     dueDate?: Date;
     position?: number;
@@ -313,6 +331,7 @@ export const cardsApi = {
     title?: string;
     description?: string;
     coverImage?: string;
+    color?: string;
     labels?: string[];
     dueDate?: Date;
   }): Promise<Card> => {
@@ -332,18 +351,30 @@ export const cardsApi = {
 
   // Move card to different list
   moveCard: async (cardId: string, targetListId: string, position?: number): Promise<void> => {
-    await apiCall(`/trello-cards/${cardId}/move`, {
-      method: 'POST',
-      body: JSON.stringify({ targetListId, position }),
-    });
+    console.log('API call: moveCard', { cardId, targetListId, position });
+    try {
+      await apiCall(`/trello-cards/${cardId}/move`, {
+        method: 'POST',
+        body: JSON.stringify({ targetListId, position }),
+      });
+    } catch (error) {
+      console.error('moveCard API error:', error);
+      throw error;
+    }
   },
 
   // Reorder card within list
   reorderCard: async (cardId: string, position: number): Promise<void> => {
-    await apiCall(`/trello-cards/${cardId}/reorder`, {
-      method: 'PUT',
-      body: JSON.stringify({ position }),
-    });
+    console.log('API call: reorderCard', { cardId, position });
+    try {
+      await apiCall(`/trello-cards/${cardId}/reorder`, {
+        method: 'PUT',
+        body: JSON.stringify({ position }),
+      });
+    } catch (error) {
+      console.error('reorderCard API error:', error);
+      throw error;
+    }
   },
 
   // Add member to card
@@ -366,6 +397,60 @@ export const cardsApi = {
     const response = await apiCall(`/trello-cards/${cardId}/archive`, {
       method: 'PUT',
     });
+    return response.data;
+  },
+
+  // Task management APIs
+  addTask: async (cardId: string, taskData: {
+    title: string;
+    description?: string;
+    assignedTo?: string;
+    priority?: 'low' | 'medium' | 'high';
+  }): Promise<any> => {
+    const response = await apiCall(`/trello-cards/${cardId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+    return response.data;
+  },
+
+  updateTask: async (cardId: string, taskId: string, taskData: {
+    title?: string;
+    description?: string;
+    completed?: boolean;
+    assignedTo?: string;
+    priority?: 'low' | 'medium' | 'high';
+  }): Promise<any> => {
+    const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(taskData),
+    });
+    return response.data;
+  },
+
+  deleteTask: async (cardId: string, taskId: string): Promise<void> => {
+    await apiCall(`/trello-cards/${cardId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  reorderTask: async (cardId: string, taskId: string, newPosition: number): Promise<void> => {
+    await apiCall(`/trello-cards/${cardId}/tasks/${taskId}/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ newPosition }),
+    });
+  },
+
+  // Upload cover image for card
+  uploadCoverImage: async (imageFile: File): Promise<{ url: string; publicId: string }> => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await apiCall('/trello-cards/upload-cover', {
+      method: 'POST',
+      body: formData,
+    });
+
     return response.data;
   },
 };

@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, Tag, AlertCircle, Users, Plus, X, Trello } from 'lucide-react';
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
-import { projectService, CreateProjectRequest, ProjectRole, AddMemberRequest } from '../../../../lib/projectService';
+import { projectService, CreateProjectRequest, ProjectRole } from '../../../../lib/projectService';
 import { userService, User } from '../../../../lib/userService';
-import { boardService, CreateBoardRequest } from '../../../../lib/boardService';
+import { boardService } from '../../../../lib/boardService';
 
 export default function CreateProject() {
   const router = useRouter();

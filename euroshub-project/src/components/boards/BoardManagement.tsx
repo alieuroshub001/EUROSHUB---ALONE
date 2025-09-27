@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Search,
@@ -322,6 +323,31 @@ const BoardCard: React.FC<BoardCardProps> = ({
   canArchive,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
+
+  const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+
+    if (!showMenu && buttonRef) {
+      const rect = buttonRef.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 128 // 128px = min-w-32 * 4
+      });
+    }
+
+    setShowMenu(!showMenu);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setShowMenu(false);
+    if (showMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showMenu]);
 
   const getVisibilityIcon = () => {
     switch (board.visibility) {
@@ -357,7 +383,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group overflow-visible">
       {/* Board Preview/Background */}
       <div
         className="h-24 relative cursor-pointer overflow-hidden"
@@ -388,69 +414,13 @@ const BoardCard: React.FC<BoardCardProps> = ({
         {(canEdit || canDelete || canArchive) && (
           <div className="absolute top-2 right-2">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
+              ref={setButtonRef}
+              onClick={handleMenuToggle}
               className="p-1.5 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
             >
               <MoreVertical className="w-3.5 h-3.5 text-white" />
             </button>
 
-            {showMenu && (
-              <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10 min-w-32">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onView(board._id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Eye className="w-4 h-4" />
-                  View
-                </button>
-                {canEdit && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(board._id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit
-                  </button>
-                )}
-                {canArchive && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onArchive(board._id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                  >
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(board._id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm text-red-600 dark:text-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -514,6 +484,71 @@ const BoardCard: React.FC<BoardCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Portal-based Dropdown Menu */}
+      {showMenu && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-32"
+          style={{
+            top: menuPosition.top,
+            left: menuPosition.left,
+            zIndex: 9999
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(board._id);
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Eye className="w-4 h-4" />
+            View
+          </button>
+          {canEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(board._id);
+                setShowMenu(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
+          )}
+          {canArchive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(board._id);
+                setShowMenu(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+            >
+              <Archive className="w-4 h-4" />
+              Archive
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(board._id);
+                setShowMenu(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm text-red-600 dark:text-red-400"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
@@ -538,6 +573,19 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
   useEffect(() => {
     loadBoards();
   }, [userRole]);
+
+  // Check for URL parameters to open create modal
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('create') === 'true' && canCreateBoards) {
+        setShowCreateModal(true);
+        // Clean the URL without page refresh
+        const newUrl = window.location.pathname + (urlParams.get('starred') ? '?starred=true' : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [canCreateBoards]);
 
   const loadBoards = async () => {
     try {

@@ -38,14 +38,19 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
     }
   };
 
+  const cardStyle = {
+    ...style,
+    backgroundColor: card.color || undefined,
+  };
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={cardStyle}
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer group ${
+      className={`${card.color ? '' : 'bg-white dark:bg-gray-800'} rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer group ${
         isDragging ? 'z-50 shadow-xl' : ''
       }`}
     >

@@ -179,17 +179,6 @@ export default function EditUserModal({ user, currentUser, onClose, onUpdateUser
     return roleInfo[role] || roleInfo.employee;
   };
 
-  const getStatusInfo = (isActive: boolean) => {
-    return isActive ? {
-      color: 'text-green-700',
-      bg: 'bg-green-50 border-green-200',
-      text: 'Active'
-    } : {
-      color: 'text-red-700',
-      bg: 'bg-red-50 border-red-200',
-      text: 'Inactive'
-    };
-  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">

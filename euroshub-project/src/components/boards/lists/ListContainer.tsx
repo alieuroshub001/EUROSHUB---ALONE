@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   MoreVertical,
@@ -17,12 +18,14 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableCard from '../cards/SortableCard';
+import ListSettingsModal from './ListSettingsModal';
 
 export interface ListData {
   _id: string;
   boardId: string;
   name: string;
   position: number;
+  color?: string;
   settings: {
     wipLimit?: {
       enabled: boolean;
@@ -46,6 +49,7 @@ export interface Card {
   description?: string;
   position: number;
   coverImage?: string;
+  color?: string;
   members: Array<{
     userId: {
       _id: string;
@@ -63,8 +67,9 @@ export interface Card {
 export interface ListContainerProps {
   list: ListData;
   cards: Card[];
-  onAddCard: (listId: string) => void;
+  onAddCard: (listId: string, title?: string) => void;
   onEditList: (listId: string) => void;
+  onUpdateList: (listId: string, updates: Partial<ListData>) => Promise<void>;
   onDeleteList: (listId: string) => void;
   onArchiveList: (listId: string) => void;
   onCardClick: (cardId: string) => void;
@@ -86,27 +91,61 @@ const CardPreview: React.FC<{
     onClick(card._id);
   };
 
+  // Determine the card background style
+  const getCardStyle = () => {
+    if (card.coverImage) {
+      // If cover image exists, use it as background
+      return {
+        backgroundImage: `url(${card.coverImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      };
+    } else if (card.color) {
+      // If color exists but no cover image, use solid color
+      return {
+        backgroundColor: card.color
+      };
+    }
+    return {};
+  };
+
+  const cardStyle = getCardStyle();
+  const hasVisualBackground = card.coverImage || card.color;
+
   return (
     <div
       onClick={handleClick}
-      className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer group"
+      className={`rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer group ${
+        hasVisualBackground
+          ? 'text-white'
+          : 'bg-white dark:bg-gray-800'
+      }`}
+      style={cardStyle}
     >
-      {/* Cover Image */}
-      {card.coverImage && (
-        <div
-          className="h-20 rounded-md mb-3 bg-cover bg-center"
-          style={{ backgroundImage: `url(${card.coverImage})` }}
-        />
-      )}
+      {/* Content overlay for better text readability on images/colors */}
+      <div className={`p-3 rounded-lg ${
+        hasVisualBackground
+          ? 'bg-black bg-opacity-40 backdrop-blur-sm'
+          : ''
+      }`}>
 
       {/* Card Title */}
-      <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-2 line-clamp-2">
+      <h4 className={`font-medium text-sm mb-2 line-clamp-2 ${
+        hasVisualBackground
+          ? 'text-white'
+          : 'text-gray-900 dark:text-white'
+      }`}>
         {card.title}
       </h4>
 
       {/* Card Description (if exists) */}
       {card.description && (
-        <p className="text-gray-600 dark:text-gray-400 text-xs mb-2 line-clamp-2">
+        <p className={`text-xs mb-2 line-clamp-2 ${
+          hasVisualBackground
+            ? 'text-gray-100'
+            : 'text-gray-600 dark:text-gray-400'
+        }`}>
           {card.description}
         </p>
       )}
@@ -134,7 +173,11 @@ const CardPreview: React.FC<{
       <div className="flex items-center justify-between">
         {/* Due Date */}
         {card.dueDate && (
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className={`text-xs ${
+            hasVisualBackground
+              ? 'text-gray-100'
+              : 'text-gray-500 dark:text-gray-400'
+          }`}>
             Due {new Date(card.dueDate).toLocaleDateString()}
           </span>
         )}
@@ -167,6 +210,7 @@ const CardPreview: React.FC<{
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 };
@@ -177,6 +221,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
   cards,
   onAddCard,
   onEditList,
+  onUpdateList,
   onDeleteList,
   onArchiveList,
   onCardClick,
@@ -196,16 +241,31 @@ const ListContainer: React.FC<ListContainerProps> = ({
   const [tempTitle, setTempTitle] = useState(list.name);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const handleTitleEdit = () => {
     setIsEditingTitle(true);
-    setTempTitle(list.name);
+    setTempTitle(list.name); // Always use current list name
   };
 
-  const handleTitleSave = () => {
+  // Update tempTitle when list name changes from outside
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setTempTitle(list.name);
+    }
+  }, [list.name, isEditingTitle]);
+
+  const handleTitleSave = async () => {
     if (tempTitle.trim() && tempTitle !== list.name) {
-      // TODO: Call API to update list name
-      console.log('Update list name:', list._id, tempTitle);
+      try {
+        await onUpdateList(list._id, { name: tempTitle.trim() });
+      } catch (error) {
+        console.error('Error updating list name:', error);
+        // Revert the temp title on error
+        setTempTitle(list.name);
+      }
     }
     setIsEditingTitle(false);
   };
@@ -222,6 +282,26 @@ const ListContainer: React.FC<ListContainerProps> = ({
       handleTitleCancel();
     }
   };
+
+  const handleMenuToggle = () => {
+    if (!showMenu && buttonRef) {
+      const rect = buttonRef.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 160 // 160px = min-w-40 * 4
+      });
+    }
+    setShowMenu(!showMenu);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setShowMenu(false);
+    if (showMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showMenu]);
 
   // Calculate dynamic margins and height based on list name length
   const getCollapsedDimensions = () => {
@@ -266,7 +346,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
         isCollapsed ? 'w-16' : 'w-80'
       } flex flex-col overflow-hidden`}
       style={{
-        height: height ? `${height}px` : 'auto'
+        height: height ? `${height}px` : 'auto',
+        borderTop: list.color ? `4px solid ${list.color}` : undefined,
       }}
       data-list-id={list._id}
     >
@@ -354,78 +435,13 @@ const ListContainer: React.FC<ListContainerProps> = ({
         {canEdit && !isCollapsed && (
           <div className="relative">
             <button
-              onClick={() => setShowMenu(!showMenu)}
+              ref={setButtonRef}
+              onClick={handleMenuToggle}
               className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
             >
               <MoreVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 
-            {showMenu && (
-              <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-40">
-                <button
-                  onClick={() => {
-                    onAddCard(list._id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Card
-                </button>
-                <button
-                  onClick={() => {
-                    handleTitleEdit();
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Edit3 className="w-4 h-4" />
-                  Edit Name
-                </button>
-                <button
-                  onClick={() => {
-                    onEditList(list._id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Settings className="w-4 h-4" />
-                  List Settings
-                </button>
-                <button
-                  onClick={() => {
-                    // TODO: Copy list
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Copy className="w-4 h-4" />
-                  Copy List
-                </button>
-                <button
-                  onClick={() => {
-                    onArchiveList(list._id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
-                >
-                  <Archive className="w-4 h-4" />
-                  Archive List
-                </button>
-                {canDelete && (
-                  <button
-                    onClick={() => {
-                      onDeleteList(list._id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm text-red-600 dark:text-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete List
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -434,7 +450,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
       {!isCollapsed && (
         <div
           ref={setNodeRef}
-          className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px]"
+          className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px] custom-scrollbar-vertical"
         >
         <SortableContext
           items={cards.map(card => card._id)}
@@ -470,6 +486,12 @@ const ListContainer: React.FC<ListContainerProps> = ({
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
           <textarea
+            ref={(el) => {
+              if (el) {
+                // Store reference for later use
+                (window as any).currentCardTextarea = el;
+              }
+            }}
             placeholder="Enter a title for this card..."
             className="w-full p-2 border-0 resize-none focus:outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             rows={2}
@@ -479,7 +501,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
                 e.preventDefault();
                 const target = e.target as HTMLTextAreaElement;
                 if (target.value.trim()) {
-                  onAddCard(list._id);
+                  onAddCard(list._id, target.value.trim());
                   target.value = '';
                   setShowCreateForm(false);
                 }
@@ -491,8 +513,12 @@ const ListContainer: React.FC<ListContainerProps> = ({
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => {
-                onAddCard(list._id);
-                setShowCreateForm(false);
+                const textarea = document.querySelector(`div[data-list-id="${list._id}"] textarea`) as HTMLTextAreaElement;
+                if (textarea && textarea.value.trim()) {
+                  onAddCard(list._id, textarea.value.trim());
+                  textarea.value = '';
+                  setShowCreateForm(false);
+                }
               }}
               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
             >
@@ -516,6 +542,91 @@ const ListContainer: React.FC<ListContainerProps> = ({
           </div>
         </div>
       )}
+
+      {/* Portal-based List Menu */}
+      {showMenu && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-40"
+          style={{
+            top: menuPosition.top,
+            left: menuPosition.left,
+            zIndex: 9999
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              setShowCreateForm(true);
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Card
+          </button>
+          <button
+            onClick={() => {
+              handleTitleEdit();
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit Name
+          </button>
+          <button
+            onClick={() => {
+              setShowSettingsModal(true);
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Settings className="w-4 h-4" />
+            List Settings
+          </button>
+          <button
+            onClick={() => {
+              // TODO: Copy list
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Copy className="w-4 h-4" />
+            Copy List
+          </button>
+          <button
+            onClick={() => {
+              onArchiveList(list._id);
+              setShowMenu(false);
+            }}
+            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <Archive className="w-4 h-4" />
+            Archive List
+          </button>
+          {canDelete && (
+            <button
+              onClick={() => {
+                onDeleteList(list._id);
+                setShowMenu(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-sm text-red-600 dark:text-red-400"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete List
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {/* List Settings Modal */}
+      <ListSettingsModal
+        list={list}
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onUpdateList={onUpdateList}
+      />
     </div>
   );
 };

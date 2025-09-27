@@ -15,7 +15,6 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext,
-  verticalListSortingStrategy,
   horizontalListSortingStrategy,
   arrayMove
 } from '@dnd-kit/sortable';
@@ -86,6 +85,7 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
     for (const listId in cards) {
       const card = cards[listId].find(c => c._id === activeId);
       if (card) {
+        console.log('Dragging card:', card.title, 'from list:', listId);
         setActiveItem({
           id: activeId,
           type: 'card',
@@ -94,6 +94,8 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
         return;
       }
     }
+
+    console.warn('Could not find dragged item:', activeId);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -193,7 +195,19 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
         }
       }
 
-      if (!sourceListId || !targetListId) return;
+      console.log('DragDrop: Found source and target lists:', {
+        activeId,
+        overId,
+        sourceListId,
+        targetListId,
+        availableLists: Object.keys(cards),
+        targetListExists: !!lists.find(l => l._id === overId)
+      });
+
+      if (!sourceListId || !targetListId) {
+        console.error('DragDrop: Could not determine source or target list');
+        return;
+      }
 
       if (sourceListId === targetListId) {
         // Reordering within the same list
@@ -218,6 +232,12 @@ const DragDropProvider: React.FC<DragDropProviderProps> = ({
           }
         }
 
+        console.log('DragDrop: Calling onMoveCard with:', {
+          cardId: activeId,
+          fromListId: sourceListId,
+          toListId: targetListId,
+          newPosition: insertIndex
+        });
         onMoveCard(activeId, sourceListId, targetListId, insertIndex);
       }
     }

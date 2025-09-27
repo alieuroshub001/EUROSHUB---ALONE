@@ -27,3 +27,61 @@ body {
 button, a, [role="button"], input[type="submit"], input[type="button"], .clickable {
   cursor: pointer;
 }
+
+/* Custom scrollbar styles */
+.custom-scrollbar-horizontal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, #6366f1) var(--scrollbar-track, rgba(99, 102, 241, 0.1));
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar {
+  height: 10px;
+  display: block;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, rgba(99, 102, 241, 0.1));
+  border-radius: 5px;
+  margin: 0 4px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #6366f1);
+  border-radius: 5px;
+  transition: background-color 0.2s ease;
+  min-width: 20px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #4f46e5);
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track, rgba(99, 102, 241, 0.1));
+}
+
+/* Custom vertical scrollbar styles */
+.custom-scrollbar-vertical {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.8) rgba(156, 163, 175, 0.2);
+}
+
+.custom-scrollbar-vertical::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar-vertical::-webkit-scrollbar-track {
+  background: rgba(156, 163, 175, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar-vertical::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar-vertical::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+

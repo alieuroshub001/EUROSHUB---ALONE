@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Calendar, User, Tag, Image } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface CreateCardFormProps {
   listId: string;
@@ -13,6 +13,7 @@ export interface CreateCardData {
   title: string;
   description?: string;
   coverImage?: string;
+  color?: string;
   labels?: string[];
   dueDate?: Date;
   assignedMembers?: string[];
@@ -224,6 +225,34 @@ const CreateCardForm: React.FC<CreateCardFormProps> = ({
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Card Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Card Color
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={cardData.color || '#ffffff'}
+                  onChange={(e) => setCardData(prev => ({ ...prev, color: e.target.value }))}
+                  className="w-12 h-8 rounded-md border border-gray-300 dark:border-gray-600 cursor-pointer"
+                  title="Choose card color"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setCardData(prev => ({ ...prev, color: undefined }))}
+                  className="px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+                  disabled={isLoading}
+                >
+                  Default
+                </button>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {cardData.color || 'Default'}
+                </span>
               </div>
             </div>
 

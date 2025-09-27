@@ -160,12 +160,13 @@ router.put('/:listId', protect, async (req, res) => {
       });
     }
 
-    const { name, description, color } = req.body;
+    const { name, description, color, settings } = req.body;
 
     // Update fields
     if (name && name.trim()) list.name = name.trim();
     if (description !== undefined) list.description = description;
     if (color) list.color = color;
+    if (settings !== undefined) list.settings = { ...list.settings, ...settings };
 
     await list.save();
 
@@ -291,17 +292,30 @@ router.put('/:listId/reorder', protect, async (req, res) => {
       });
     }
 
-    const { position } = req.body;
+    const { position, listOrder } = req.body;
 
-    if (typeof position !== 'number') {
+    // If listOrder is provided, update all list positions
+    if (listOrder && Array.isArray(listOrder)) {
+      const bulkOps = listOrder.map((item, index) => ({
+        updateOne: {
+          filter: { _id: item.listId, boardId: list.boardId },
+          update: { position: index + 1 }
+        }
+      }));
+
+      if (bulkOps.length > 0) {
+        await List.bulkWrite(bulkOps);
+      }
+    } else if (typeof position === 'number') {
+      // Fallback to single position update
+      list.position = position;
+      await list.save();
+    } else {
       return res.status(400).json({
         success: false,
-        message: 'Position must be a number'
+        message: 'Position must be a number or listOrder must be provided'
       });
     }
-
-    list.position = position;
-    await list.save();
 
     res.status(200).json({
       success: true,

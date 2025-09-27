@@ -123,6 +123,51 @@ const timeTrackingSchema = new mongoose.Schema({
   }]
 });
 
+// Task schema for tasks within cards (for project management)
+const taskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [200, 'Task title cannot be more than 200 characters']
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Task description cannot be more than 1000 characters']
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  },
+  completedAt: Date,
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  dueDate: Date,
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  position: {
+    type: Number,
+    default: 0
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
 const cardSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -194,12 +239,23 @@ const cardSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'in_progress', 'review', 'blocked', 'completed'],
-    default: 'open'
+    enum: ['planning', 'open', 'in_progress', 'review', 'blocked', 'completed', 'on_hold'],
+    default: 'planning'
   },
   dueDate: Date,
   startDate: Date,
   completedAt: Date,
+  // Project-specific fields for Trello-style cards
+  budget: {
+    type: Number,
+    min: [0, 'Budget cannot be negative'],
+    default: 0
+  },
+  category: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Category cannot be more than 100 characters']
+  },
   completedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -208,6 +264,8 @@ const cardSchema = new mongoose.Schema({
   checklist: [checklistItemSchema],
   attachments: [attachmentSchema],
   comments: [commentSchema],
+  // Tasks within the card/project
+  tasks: [taskSchema],
   timeTracking: timeTrackingSchema,
   customFields: [{
     name: String,
@@ -217,6 +275,18 @@ const cardSchema = new mongoose.Schema({
       enum: ['text', 'number', 'date', 'boolean', 'select']
     }
   }],
+  // Visual customization for Trello-like cards
+  color: {
+    type: String,
+    trim: true,
+    match: [/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please provide a valid hex color'],
+    default: null
+  },
+  coverImage: {
+    type: String,
+    trim: true,
+    default: null
+  },
   isArchived: {
     type: Boolean,
     default: false
@@ -248,6 +318,30 @@ cardSchema.virtual('checklistCompletion').get(function() {
 cardSchema.virtual('totalTimeSpent').get(function() {
   if (!this.timeTracking || !this.timeTracking.entries) return 0;
   return this.timeTracking.entries.reduce((total, entry) => total + entry.hours, 0);
+});
+
+// Virtual for task completion percentage
+cardSchema.virtual('taskCompletion').get(function() {
+  if (!this.tasks || this.tasks.length === 0) return 100;
+  const completed = this.tasks.filter(task => task.completed).length;
+  return Math.round((completed / this.tasks.length) * 100);
+});
+
+// Virtual for project progress based on tasks and checklist
+cardSchema.virtual('projectProgress').get(function() {
+  const taskProgress = this.taskCompletion;
+  const checklistProgress = this.checklistCompletion;
+
+  // If both exist, average them; otherwise use the one that exists
+  if (this.tasks.length > 0 && this.checklist.length > 0) {
+    return Math.round((taskProgress + checklistProgress) / 2);
+  } else if (this.tasks.length > 0) {
+    return taskProgress;
+  } else if (this.checklist.length > 0) {
+    return checklistProgress;
+  } else {
+    return 0;
+  }
 });
 
 // Instance method to check if user has card access
@@ -441,6 +535,65 @@ cardSchema.methods.removeMember = async function(userId) {
   );
 
   return await this.save();
+};
+
+// Instance method to add task to card
+cardSchema.methods.addTask = function(taskData, createdBy) {
+  // Set position for new task
+  const maxPosition = Math.max(...this.tasks.map(t => t.position), 0);
+  const task = {
+    ...taskData,
+    position: maxPosition + 1,
+    createdBy: createdBy
+  };
+
+  this.tasks.push(task);
+  return this;
+};
+
+// Instance method to update task
+cardSchema.methods.updateTask = function(taskId, updateData) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  Object.assign(task, updateData);
+
+  // Handle completion
+  if (updateData.completed !== undefined) {
+    if (updateData.completed && !task.completedAt) {
+      task.completedAt = new Date();
+      task.completedBy = updateData.completedBy || task.assignedTo || task.createdBy;
+    } else if (!updateData.completed) {
+      task.completedAt = null;
+      task.completedBy = null;
+    }
+  }
+
+  return this;
+};
+
+// Instance method to delete task
+cardSchema.methods.deleteTask = function(taskId) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  task.remove();
+  return this;
+};
+
+// Instance method to reorder task
+cardSchema.methods.reorderTask = function(taskId, newPosition) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  task.position = newPosition;
+  return this;
 };
 
 // Pre-save middleware to set position and update metadata

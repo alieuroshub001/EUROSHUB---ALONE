@@ -109,6 +109,7 @@ router.post('/:listId/cards', protect, getListWithAccess, async (req, res) => {
       title,
       description,
       coverImage,
+      color,
       labels,
       dueDate,
       position
@@ -149,6 +150,7 @@ router.post('/:listId/cards', protect, getListWithAccess, async (req, res) => {
       createdBy: req.user.id,
       position: cardPosition,
       coverImage: coverImage || null,
+      color: color || null,
       labels: labels || [],
       dueDate: dueDate || null
     });
@@ -231,6 +233,7 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
       title,
       description,
       coverImage,
+      color,
       labels,
       dueDate
     } = req.body;
@@ -239,6 +242,7 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
     if (title && title.trim()) card.title = title.trim();
     if (description !== undefined) card.description = description;
     if (coverImage !== undefined) card.coverImage = coverImage;
+    if (color !== undefined) card.color = color;
     if (labels) card.labels = labels;
     if (dueDate !== undefined) card.dueDate = dueDate;
 
@@ -414,7 +418,7 @@ router.put('/:cardId/reorder', protect, getCardWithAccess, async (req, res) => {
 router.post('/:cardId/members', protect, getCardWithAccess, async (req, res) => {
   try {
     const card = req.card;
-    const { userId } = req.body;
+    const { userId, role = 'member' } = req.body;
 
     // Check permission
     const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
@@ -432,18 +436,56 @@ router.post('/:cardId/members', protect, getCardWithAccess, async (req, res) => 
       });
     }
 
-    await card.addMember(userId);
+    // Verify user exists
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is already a member
+    const existingMember = card.members.find(member =>
+      member.userId && member.userId.toString() === userId.toString()
+    );
+
+    if (existingMember) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already a member of this card'
+      });
+    }
+
+    // Add member with role
+    card.members.push({
+      userId: userId,
+      role: role
+    });
+
+    // Add as watcher if not already watching
+    const watcherIds = card.watchers.map(id => id.toString());
+    if (!watcherIds.includes(userId.toString())) {
+      card.watchers.push(userId);
+    }
+
+    await card.save();
+
+    // Populate member details for response
+    await card.populate('members.userId', 'firstName lastName avatar');
 
     // Create activity
     await Activity.create({
       type: 'member_added',
       cardId: card._id,
       userId: req.user.id,
-      data: { addedUserId: userId }
+      data: { addedUserId: userId, role: role }
     });
 
     res.status(200).json({
       success: true,
+      data: card.members,
       message: 'Member added successfully'
     });
   } catch (error) {
@@ -537,6 +579,285 @@ router.put('/:cardId/archive', protect, getCardWithAccess, async (req, res) => {
       message: 'Error archiving card'
     });
   }
+});
+
+// ====== TASK MANAGEMENT APIS ======
+
+/**
+ * @route   POST /api/cards/:cardId/tasks
+ * @desc    Add task to card
+ * @access  Private
+ */
+router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { title, description, assignedTo, priority = 'medium' } = req.body;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add tasks to this card'
+      });
+    }
+
+    // Validation
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task title is required'
+      });
+    }
+
+    // Verify assigned user exists if provided
+    if (assignedTo) {
+      const User = require('../models/User');
+      const user = await User.findById(assignedTo);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assigned user not found'
+        });
+      }
+    }
+
+    const taskData = {
+      title: title.trim(),
+      description: description || '',
+      assignedTo: assignedTo || null,
+      priority: priority
+    };
+
+    const task = await card.addTask(taskData);
+
+    // Create activity
+    await Activity.create({
+      type: 'task_added',
+      cardId: card._id,
+      userId: req.user.id,
+      data: { taskId: task._id, taskTitle: task.title }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: task,
+      message: 'Task added successfully'
+    });
+  } catch (error) {
+    console.error('Add task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding task'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/cards/:cardId/tasks/:taskId
+ * @desc    Update task in card
+ * @access  Private
+ */
+router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId } = req.params;
+    const { title, description, completed, assignedTo, priority } = req.body;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update tasks in this card'
+      });
+    }
+
+    // Find task
+    const task = card.tasks.id(taskId);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Verify assigned user exists if provided
+    if (assignedTo) {
+      const User = require('../models/User');
+      const user = await User.findById(assignedTo);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assigned user not found'
+        });
+      }
+    }
+
+    const updateData = {};
+    if (title !== undefined && title.trim()) updateData.title = title.trim();
+    if (description !== undefined) updateData.description = description;
+    if (completed !== undefined) updateData.completed = completed;
+    if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
+    if (priority !== undefined) updateData.priority = priority;
+
+    const updatedTask = await card.updateTask(taskId, updateData);
+
+    // Create activity for task completion
+    if (completed !== undefined && completed !== task.completed) {
+      await Activity.create({
+        type: completed ? 'task_completed' : 'task_reopened',
+        cardId: card._id,
+        userId: req.user.id,
+        data: { taskId: task._id, taskTitle: task.title }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedTask,
+      message: 'Task updated successfully'
+    });
+  } catch (error) {
+    console.error('Update task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating task'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/cards/:cardId/tasks/:taskId
+ * @desc    Delete task from card
+ * @access  Private
+ */
+router.delete('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId } = req.params;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete tasks from this card'
+      });
+    }
+
+    // Find task
+    const task = card.tasks.id(taskId);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    const taskTitle = task.title;
+    await card.deleteTask(taskId);
+
+    // Create activity
+    await Activity.create({
+      type: 'task_deleted',
+      cardId: card._id,
+      userId: req.user.id,
+      data: { taskTitle: taskTitle }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Task deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting task'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/cards/:cardId/tasks/:taskId/reorder
+ * @desc    Reorder task position within card
+ * @access  Private
+ */
+router.put('/:cardId/tasks/:taskId/reorder', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId } = req.params;
+    const { newPosition } = req.body;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to reorder tasks in this card'
+      });
+    }
+
+    if (typeof newPosition !== 'number' || newPosition < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'New position must be a valid number'
+      });
+    }
+
+    await card.reorderTask(taskId, newPosition);
+
+    res.status(200).json({
+      success: true,
+      message: 'Task reordered successfully'
+    });
+  } catch (error) {
+    console.error('Reorder task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error reordering task'
+    });
+  }
+});
+
+// Upload cover image for card
+router.post('/upload-cover', protect, async (req, res) => {
+  const { uploadImage } = require('../config/cloudinary');
+
+  uploadImage.single('image')(req, res, async (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Error uploading image'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    try {
+      res.status(200).json({
+        success: true,
+        data: {
+          url: req.file.path,
+          publicId: req.file.filename
+        },
+        message: 'Cover image uploaded successfully'
+      });
+    } catch (error) {
+      console.error('Upload response error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error processing upload'
+      });
+    }
+  });
 });
 
 module.exports = router;
