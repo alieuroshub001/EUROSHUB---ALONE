@@ -88,7 +88,7 @@ When clicking a card, open comprehensive project management:
 - [ ] Project comments and discussions
 - [ ] Activity timeline
 - [ ] @mentions and notifications
-- [ ] Integration with messaging platforms
+- [ ] Integration with messaging platforms slack and gmail using nodemailer
 
 ### 5. User Interface Components
 
