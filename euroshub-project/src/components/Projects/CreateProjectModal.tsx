@@ -7,7 +7,7 @@ import { usersApi } from '@/lib/api';
 
 interface CreateProjectModalProps {
   onClose: () => void;
-  onSubmit: (projectData: CreateProjectData) => void;
+  onSubmit: (projectData: CreateProjectData) => Promise<void> | void;
 }
 
 const priorities = [
@@ -50,6 +50,7 @@ const CreateProjectModal = ({ onClose, onSubmit }: CreateProjectModalProps) => {
   const [tagInput, setTagInput] = useState('');
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch clients on component mount
@@ -71,8 +72,10 @@ const CreateProjectModal = ({ onClose, onSubmit }: CreateProjectModalProps) => {
     fetchClients();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return; // Prevent multiple submissions
 
     // Validate form
     const newErrors: Record<string, string> = {};
@@ -100,17 +103,24 @@ const CreateProjectModal = ({ onClose, onSubmit }: CreateProjectModalProps) => {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      // Clean up data before submission
-      const submitData = {
-        ...formData,
-        description: formData.description?.trim() || undefined,
-        endDate: formData.endDate || undefined,
-        client: formData.client || undefined,
-        budget: formData.budget && formData.budget.amount && formData.budget.amount > 0 ? formData.budget : undefined,
-        estimatedHours: formData.estimatedHours || undefined
-      };
+      setIsSubmitting(true);
+      try {
+        // Clean up data before submission
+        const submitData = {
+          ...formData,
+          description: formData.description?.trim() || undefined,
+          endDate: formData.endDate || undefined,
+          client: formData.client || undefined,
+          budget: formData.budget && formData.budget.amount && formData.budget.amount > 0 ? formData.budget : undefined,
+          estimatedHours: formData.estimatedHours || undefined
+        };
 
-      onSubmit(submitData);
+        await onSubmit(submitData);
+      } catch (error) {
+        console.error('Error submitting project:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -485,9 +495,13 @@ const CreateProjectModal = ({ onClose, onSubmit }: CreateProjectModalProps) => {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center space-x-2"
               >
-                Create Project
+                {isSubmitting && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>{isSubmitting ? 'Creating...' : 'Create Project'}</span>
               </button>
             </div>
           </div>

@@ -24,6 +24,7 @@ export interface ListData {
   _id: string;
   boardId: string;
   name: string;
+  description?: string;
   position: number;
   color?: string;
   settings: {
@@ -58,9 +59,22 @@ export interface Card {
       avatar?: string;
     };
     role: string;
+    assignedAt?: Date;
   }>;
   labels: string[];
   dueDate?: Date;
+  startDate?: Date;
+  completedAt?: Date;
+  budget?: number;
+  category?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  status?: 'planning' | 'open' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'on_hold';
+  progress?: number;
+  estimatedHours?: number;
+  actualHours?: number;
+  tasks?: any[];
+  comments?: any[];
+  attachments?: any[];
   createdAt: Date;
 }
 

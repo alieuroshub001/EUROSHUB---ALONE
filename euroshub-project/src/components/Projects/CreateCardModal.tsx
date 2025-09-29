@@ -272,9 +272,9 @@ const CreateCardModal = ({ onClose, onSubmit, listTitle, projectMembers }: Creat
                     />
                     <div className="flex items-center space-x-2 flex-1 min-w-0">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-xs font-medium text-white">
-                        {member.user.name.split(' ').map(n => n[0]).join('')}
+                        {(member.user.name || `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || 'User').split(' ').map(n => n[0]).join('')}
                       </div>
-                      <span className="text-sm text-gray-700 truncate">{member.user.name}</span>
+                      <span className="text-sm text-gray-700 truncate">{member.user.name || `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || 'User'}</span>
                     </div>
                   </label>
                 ))}

@@ -334,15 +334,31 @@ const ProjectCard = ({
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
-            {project.members.slice(0, 4).map((member, index) => (
-              <div
-                key={member._id}
-                className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
-                title={member.user.name}
-              >
-                {member.user.name.split(' ').map(n => n[0]).join('')}
-              </div>
-            ))}
+            {project.members.slice(0, 4).map((member, index) => {
+              // Safely get member name - fallback to firstName + lastName or just initials
+              const memberName = member.user.name ||
+                                `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() ||
+                                'User';
+              const initials = memberName.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
+
+              return (
+                <div
+                  key={member._id}
+                  className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                  title={memberName}
+                >
+                  {member.user.avatar ? (
+                    <img
+                      src={member.user.avatar}
+                      alt={memberName}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+              );
+            })}
             {project.members.length > 4 && (
               <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
                 +{project.members.length - 4}

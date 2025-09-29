@@ -27,6 +27,7 @@ interface MemberAssignmentModalProps {
   onRemoveMember: (userId: string) => void;
   onUpdateMemberRole: (userId: string, newRole: string) => void;
   boardMembers: User[]; // All board members that can be assigned
+  currentUserId?: string; // Current user ID to exclude from available users
 }
 
 const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
@@ -36,27 +37,68 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
   onAddMember,
   onRemoveMember,
   onUpdateMemberRole,
-  boardMembers
+  boardMembers,
+  currentUserId
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('member');
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
-  // Project roles
+  // Project roles with detailed permissions
   const projectRoles = [
-    { value: 'project-manager', label: 'Project Manager', icon: Crown, color: 'text-purple-600 bg-purple-100' },
-    { value: 'lead', label: 'Lead', icon: Shield, color: 'text-blue-600 bg-blue-100' },
-    { value: 'member', label: 'Member', icon: UserIcon, color: 'text-gray-600 bg-gray-100' }
+    {
+      value: 'project-manager',
+      label: 'Project Manager',
+      icon: Crown,
+      color: 'text-purple-600 bg-purple-100',
+      description: 'Full access to project management, can manage all aspects',
+      permissions: ['read', 'write', 'delete', 'manage_members', 'upload_files', 'comment', 'assign_tasks']
+    },
+    {
+      value: 'lead',
+      label: 'Team Lead',
+      icon: Shield,
+      color: 'text-blue-600 bg-blue-100',
+      description: 'Can manage tasks, assign work, and upload files',
+      permissions: ['read', 'write', 'upload_files', 'comment', 'assign_tasks']
+    },
+    {
+      value: 'contributor',
+      label: 'Contributor',
+      icon: UserIcon,
+      color: 'text-green-600 bg-green-100',
+      description: 'Can edit content, upload files, and comment',
+      permissions: ['read', 'write', 'upload_files', 'comment']
+    },
+    {
+      value: 'commenter',
+      label: 'Commenter',
+      icon: UserIcon,
+      color: 'text-yellow-600 bg-yellow-100',
+      description: 'Can view content and add comments only',
+      permissions: ['read', 'comment']
+    },
+    {
+      value: 'viewer',
+      label: 'View Only',
+      icon: UserIcon,
+      color: 'text-gray-600 bg-gray-100',
+      description: 'Can only view project content, no editing',
+      permissions: ['read']
+    }
   ];
 
   useEffect(() => {
     if (isOpen) {
-      // Filter out users who are already members of the project
+      // Filter out users who are already members of the project and the current user
       const currentMemberIds = currentMembers.map(member => member.userId._id);
-      const available = boardMembers.filter(user => !currentMemberIds.includes(user._id));
+      const available = boardMembers.filter(user =>
+        !currentMemberIds.includes(user._id) &&
+        user._id !== currentUserId // Exclude current user from being added
+      );
       setAvailableUsers(available);
     }
-  }, [isOpen, currentMembers, boardMembers]);
+  }, [isOpen, currentMembers, boardMembers, currentUserId]);
 
   if (!isOpen) return null;
 
@@ -125,13 +167,17 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {currentMembers.map((member) => {
+                {currentMembers
+                  .filter((member, index, array) =>
+                    array.findIndex(m => m.userId._id === member.userId._id) === index
+                  )
+                  .map((member, index) => {
                   const roleInfo = getRoleInfo(member.role);
                   const RoleIcon = roleInfo.icon;
 
                   return (
                     <div
-                      key={member.userId._id}
+                      key={`${member.userId._id}-${index}`}
                       className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                     >
                       <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
@@ -158,17 +204,22 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <select
-                          value={member.role}
-                          onChange={(e) => onUpdateMemberRole(member.userId._id, e.target.value)}
-                          className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                          {projectRoles.map((role) => (
-                            <option key={role.value} value={role.value}>
-                              {role.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex flex-col gap-1">
+                          <select
+                            value={member.role}
+                            onChange={(e) => onUpdateMemberRole(member.userId._id, e.target.value)}
+                            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            {projectRoles.map((role) => (
+                              <option key={role.value} value={role.value}>
+                                {role.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRoleInfo(member.role).description}
+                          </div>
+                        </div>
 
                         <button
                           onClick={() => handleRemoveMember(member.userId._id)}
@@ -194,23 +245,38 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
             {/* Role Selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Default Role for New Members
+                Select Role for New Members
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {projectRoles.map((role) => {
                   const Icon = role.icon;
                   return (
                     <button
                       key={role.value}
                       onClick={() => setSelectedRole(role.value)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-sm transition-colors ${
                         selectedRole === role.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                           : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
-                      <Icon className="w-4 h-4" />
-                      {role.label}
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        <span className="font-medium">{role.label}</span>
+                      </div>
+                      <p className="text-xs text-left opacity-75">
+                        {role.description}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {role.permissions.map((permission, index) => (
+                          <span
+                            key={`${role.value}-${permission}-${index}`}
+                            className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded"
+                          >
+                            {permission.replace('_', ' ')}
+                          </span>
+                        ))}
+                      </div>
                     </button>
                   );
                 })}

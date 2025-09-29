@@ -26,6 +26,7 @@ if (process.env.NODE_ENV === 'production') {
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const userManagementRoutes = require('./routes/userManagement');
+const usersRoutes = require('./routes/users');
 const profileRoutes = require('./routes/profile');
 const passwordResetRoutes = require('./routes/passwordReset');
 const projectRoutes = require('./routes/projects');
@@ -228,6 +229,7 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user-management', userManagementRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
 

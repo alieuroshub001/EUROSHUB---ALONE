@@ -115,20 +115,12 @@ boardSchema.statics.getAccessibleBoards = async function(userId, userRole) {
     // Superadmin and admin can access all boards
     query = { isArchived: false };
   } else {
-    // Other users can access boards they created or are members of
+    // Other users can only access boards they created or are members of
     query = {
       isArchived: false,
       $or: [
         { createdBy: userId },
-        { 'members.userId': userId },
-        { visibility: 'public' }, // Anyone can see public boards
-        {
-          $and: [
-            { visibility: 'team' },
-            // For team visibility, check if user is part of the organization
-            // This could be extended based on your organization structure
-          ]
-        }
+        { 'members.userId': userId }
       ]
     };
   }
@@ -146,11 +138,6 @@ boardSchema.methods.hasAccess = async function(userId, userRole) {
     return true;
   }
 
-  // Public boards are accessible to everyone
-  if (this.visibility === 'public') {
-    return true;
-  }
-
   // Check if user is the creator
   if (this.createdBy.toString() === userId.toString()) {
     return true;
@@ -161,12 +148,6 @@ boardSchema.methods.hasAccess = async function(userId, userRole) {
     return this.members.some(member =>
       member.userId && member.userId.toString() === userId.toString()
     );
-  }
-
-  // For team visibility, could add organization-level checks here
-  if (this.visibility === 'team') {
-    // TODO: Add organization membership check if needed
-    return false;
   }
 
   return false;

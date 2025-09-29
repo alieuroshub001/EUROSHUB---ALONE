@@ -198,6 +198,11 @@ router.get('/:cardId', protect, getCardWithAccess, async (req, res) => {
     const cardObj = card.toObject();
     cardObj.activities = activities;
 
+    // Ensure tasks are included in the response
+    cardObj.tasks = card.tasks || [];
+    cardObj.comments = card.comments || [];
+    cardObj.attachments = card.attachments || [];
+
     res.status(200).json({
       success: true,
       data: cardObj
@@ -235,7 +240,15 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
       coverImage,
       color,
       labels,
-      dueDate
+      dueDate,
+      startDate,
+      budget,
+      category,
+      priority,
+      status,
+      progress,
+      estimatedHours,
+      actualHours
     } = req.body;
 
     // Update fields
@@ -245,6 +258,20 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
     if (color !== undefined) card.color = color;
     if (labels) card.labels = labels;
     if (dueDate !== undefined) card.dueDate = dueDate;
+    if (startDate !== undefined) card.startDate = startDate;
+    if (budget !== undefined) card.budget = budget;
+    if (category !== undefined) card.category = category;
+    if (priority !== undefined) card.priority = priority;
+    if (status !== undefined) card.status = status;
+    if (progress !== undefined) card.progress = progress;
+    if (estimatedHours !== undefined) {
+      if (!card.timeTracking) card.timeTracking = {};
+      card.timeTracking.estimated = estimatedHours;
+    }
+    if (actualHours !== undefined) {
+      if (!card.timeTracking) card.timeTracking = {};
+      card.timeTracking.spent = actualHours;
+    }
 
     await card.save();
 
@@ -343,17 +370,25 @@ router.post('/:cardId/move', protect, getCardWithAccess, async (req, res) => {
 
     // Move card
     await card.moveToList(targetListId, position);
+    await card.save();
 
-    // Create activity
-    await Activity.create({
-      type: 'card_moved',
-      cardId: card._id,
-      userId: req.user.id,
-      data: {
-        fromList: oldListId,
-        toList: targetListId
-      }
-    });
+    // Get the board and project info for activity logging
+    const board = await Board.findById(targetList.boardId).populate('project');
+
+    // Create activity (only if board has a project)
+    if (board.project) {
+      await Activity.create({
+        type: 'card_moved',
+        user: req.user.id,
+        project: board.project._id,
+        board: board._id,
+        card: card._id,
+        data: {
+          fromList: oldListId,
+          toList: targetListId
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -540,6 +575,71 @@ router.delete('/:cardId/members/:userId', protect, getCardWithAccess, async (req
 });
 
 /**
+ * @route   PUT /api/cards/:cardId/members/:userId/role
+ * @desc    Update member role on card
+ * @access  Private
+ */
+router.put('/:cardId/members/:userId/role', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Check permission - only project managers and leads can change roles
+    const userMember = card.members.find(m => m.userId && m.userId.toString() === req.user.id.toString());
+    const userRole = userMember?.role || 'viewer';
+
+    if (!['project-manager', 'lead'].includes(userRole) && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update member roles'
+      });
+    }
+
+    // Validate role
+    const validRoles = ['project-manager', 'lead', 'contributor', 'commenter', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role specified'
+      });
+    }
+
+    // Find and update the member
+    const memberIndex = card.members.findIndex(m => m.userId && m.userId.toString() === userId);
+    if (memberIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Member not found in this card'
+      });
+    }
+
+    card.members[memberIndex].role = role;
+    await card.save();
+
+    // Create activity
+    await Activity.create({
+      type: 'member_role_updated',
+      cardId: card._id,
+      userId: req.user.id,
+      data: { updatedUserId: userId, newRole: role }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { member: card.members[memberIndex] },
+      message: 'Member role updated successfully'
+    });
+  } catch (error) {
+    console.error('Update member role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating member role'
+    });
+  }
+});
+
+/**
  * @route   PUT /api/cards/:cardId/archive
  * @desc    Archive/Unarchive card
  * @access  Private
@@ -593,6 +693,11 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
     const card = req.card;
     const { title, description, assignedTo, priority = 'medium' } = req.body;
 
+    console.log('ADD TASK DEBUG:', {
+      cardId: req.params.cardId,
+      taskData: { title, description, assignedTo, priority }
+    });
+
     // Check permission
     const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
     if (!hasPermission) {
@@ -629,19 +734,37 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       priority: priority
     };
 
-    const task = await card.addTask(taskData);
+    card.addTask(taskData, req.user.id);
+    await card.save();
 
-    // Create activity
-    await Activity.create({
-      type: 'task_added',
-      cardId: card._id,
-      userId: req.user.id,
-      data: { taskId: task._id, taskTitle: task.title }
+    // Get the newly added task (it will be the last one)
+    const addedTask = card.tasks[card.tasks.length - 1];
+
+    console.log('ADDED TASK RESULT:', {
+      taskId: addedTask._id,
+      taskTitle: addedTask.title,
+      totalTasks: card.tasks.length
     });
+
+    // Get the board and project info for activity logging
+    const list = await List.findById(card.listId);
+    const board = await Board.findById(list.boardId).populate('project');
+
+    // Create activity (only if board has a project)
+    if (board.project) {
+      await Activity.create({
+        type: 'card_checklist_items_added',
+        user: req.user.id,
+        project: board.project._id,
+        board: board._id,
+        card: card._id,
+        data: { taskId: addedTask._id, taskTitle: addedTask.title }
+      });
+    }
 
     res.status(201).json({
       success: true,
-      data: task,
+      data: addedTask,
       message: 'Task added successfully'
     });
   } catch (error) {
@@ -663,6 +786,12 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     const card = req.card;
     const { taskId } = req.params;
     const { title, description, completed, assignedTo, priority } = req.body;
+
+    console.log('UPDATE TASK DEBUG:', {
+      cardId: req.params.cardId,
+      taskId: taskId,
+      updateData: { title, description, completed, assignedTo, priority }
+    });
 
     // Check permission
     const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
@@ -701,16 +830,29 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
     if (priority !== undefined) updateData.priority = priority;
 
-    const updatedTask = await card.updateTask(taskId, updateData);
+    card.updateTask(taskId, updateData);
+    await card.save();
+
+    // Get the updated task
+    const updatedTask = card.tasks.id(taskId);
 
     // Create activity for task completion
     if (completed !== undefined && completed !== task.completed) {
-      await Activity.create({
-        type: completed ? 'task_completed' : 'task_reopened',
-        cardId: card._id,
-        userId: req.user.id,
-        data: { taskId: task._id, taskTitle: task.title }
-      });
+      // Get the board and project info for activity logging
+      const list = await List.findById(card.listId);
+      const board = await Board.findById(list.boardId).populate('project');
+
+      // Create activity (only if board has a project)
+      if (board.project) {
+        await Activity.create({
+          type: completed ? 'card_checklist_item_completed' : 'card_updated',
+          user: req.user.id,
+          project: board.project._id,
+          board: board._id,
+          card: card._id,
+          data: { taskId: task._id, taskTitle: task.title }
+        });
+      }
     }
 
     res.status(200).json({
@@ -756,15 +898,24 @@ router.delete('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, 
     }
 
     const taskTitle = task.title;
-    await card.deleteTask(taskId);
+    card.deleteTask(taskId);
+    await card.save();
 
-    // Create activity
-    await Activity.create({
-      type: 'task_deleted',
-      cardId: card._id,
-      userId: req.user.id,
-      data: { taskTitle: taskTitle }
-    });
+    // Get the board and project info for activity logging
+    const list = await List.findById(card.listId);
+    const board = await Board.findById(list.boardId).populate('project');
+
+    // Create activity (only if board has a project)
+    if (board.project) {
+      await Activity.create({
+        type: 'card_updated',
+        user: req.user.id,
+        project: board.project._id,
+        board: board._id,
+        card: card._id,
+        data: { taskTitle: taskTitle }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -806,7 +957,8 @@ router.put('/:cardId/tasks/:taskId/reorder', protect, getCardWithAccess, async (
       });
     }
 
-    await card.reorderTask(taskId, newPosition);
+    card.reorderTask(taskId, newPosition);
+    await card.save();
 
     res.status(200).json({
       success: true,

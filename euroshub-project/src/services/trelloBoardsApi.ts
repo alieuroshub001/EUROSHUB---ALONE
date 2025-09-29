@@ -1,6 +1,14 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 // Types
+export interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string;
+  role: string;
+}
 export interface Board {
   _id: string;
   name: string;
@@ -183,10 +191,18 @@ export const boardsApi = {
   },
 
   // Add member
-  addMember: async (boardId: string, userId: string, role: 'member' | 'viewer' = 'member'): Promise<void> => {
+  addMember: async (boardId: string, userId: string, role: 'owner' | 'admin' | 'editor' | 'viewer' = 'viewer'): Promise<void> => {
     await apiCall(`/trello-boards/${boardId}/members`, {
       method: 'POST',
       body: JSON.stringify({ userId, role }),
+    });
+  },
+
+  // Update member role
+  updateMemberRole: async (boardId: string, userId: string, role: 'owner' | 'admin' | 'editor' | 'viewer'): Promise<void> => {
+    await apiCall(`/trello-boards/${boardId}/members/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
     });
   },
 
@@ -334,6 +350,14 @@ export const cardsApi = {
     color?: string;
     labels?: string[];
     dueDate?: Date;
+    startDate?: Date;
+    budget?: number;
+    category?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    status?: 'planning' | 'open' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'on_hold';
+    progress?: number;
+    estimatedHours?: number;
+    actualHours?: number;
   }): Promise<Card> => {
     const response = await apiCall(`/trello-cards/${cardId}`, {
       method: 'PUT',
@@ -378,10 +402,10 @@ export const cardsApi = {
   },
 
   // Add member to card
-  addMember: async (cardId: string, userId: string): Promise<void> => {
+  addMember: async (cardId: string, userId: string, role: string = 'contributor'): Promise<void> => {
     await apiCall(`/trello-cards/${cardId}/members`, {
       method: 'POST',
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, role }),
     });
   },
 
@@ -389,6 +413,14 @@ export const cardsApi = {
   removeMember: async (cardId: string, userId: string): Promise<void> => {
     await apiCall(`/trello-cards/${cardId}/members/${userId}`, {
       method: 'DELETE',
+    });
+  },
+
+  // Update member role
+  updateMemberRole: async (cardId: string, userId: string, role: string): Promise<void> => {
+    await apiCall(`/trello-cards/${cardId}/members/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
     });
   },
 
@@ -451,6 +483,21 @@ export const cardsApi = {
       body: formData,
     });
 
+    return response.data;
+  },
+};
+
+// Users API calls
+export const usersApi = {
+  // Get all registered users
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await apiCall('/users');
+    return response.data;
+  },
+
+  // Search users by name or email
+  searchUsers: async (query: string): Promise<User[]> => {
+    const response = await apiCall(`/users/search?q=${encodeURIComponent(query)}`);
     return response.data;
   },
 };

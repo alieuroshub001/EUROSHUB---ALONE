@@ -78,20 +78,19 @@ interface CreateBoardModalProps {
     name: string;
     description?: string;
     background?: string;
-    visibility?: 'private' | 'team' | 'public';
-  }) => void;
+  }) => Promise<void> | void;
 }
 
 const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    background: '#6366f1',
-    visibility: 'private' as 'private' | 'team' | 'public'
+    background: '#6366f1'
   });
   const [backgroundType, setBackgroundType] = useState<'color' | 'image'>('color');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,28 +108,35 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || isSubmitting) return;
 
-    let backgroundUrl = formData.background;
+    setIsSubmitting(true);
+    try {
+      let backgroundUrl = formData.background;
 
-    // If user selected image and uploaded a file
-    if (backgroundType === 'image' && imageFile) {
-      try {
-        const uploadResult = await boardsApi.uploadBackground(imageFile);
-        backgroundUrl = uploadResult.url;
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        alert('Failed to upload image. Please try again.');
-        return;
+      // If user selected image and uploaded a file
+      if (backgroundType === 'image' && imageFile) {
+        try {
+          const uploadResult = await boardsApi.uploadBackground(imageFile);
+          backgroundUrl = uploadResult.url;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          alert('Failed to upload image. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       }
-    }
 
-    onSubmit({
-      name: formData.name.trim(),
-      description: formData.description || undefined,
-      background: backgroundUrl,
-      visibility: formData.visibility
-    });
+      await onSubmit({
+        name: formData.name.trim(),
+        description: formData.description || undefined,
+        background: backgroundUrl
+      });
+    } catch (error) {
+      console.error('Error creating board:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const backgroundOptions = [
@@ -272,20 +278,6 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Visibility
-              </label>
-              <select
-                value={formData.visibility}
-                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value as any }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="private">Private - Only you and invited members</option>
-                <option value="team">Team - All team members can see</option>
-                <option value="public">Public - Anyone can view</option>
-              </select>
-            </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <button
@@ -297,10 +289,13 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               </button>
               <button
                 type="submit"
-                disabled={!formData.name.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md"
+                disabled={!formData.name.trim() || isSubmitting}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-colors flex items-center space-x-2"
               >
-                Create Board
+                {isSubmitting && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>{isSubmitting ? 'Creating...' : 'Create Board'}</span>
               </button>
             </div>
           </form>
@@ -563,6 +558,8 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'created' | 'member'>('all');
+  const [sortBy, setSortBy] = useState<'latest' | 'oldest' | 'name'>('latest');
 
   // Permission checks based on role
   const canCreateBoards = ['superadmin', 'admin', 'hr', 'employee'].includes(userRole);
@@ -602,11 +599,40 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     }
   };
 
-  // Filter boards based on search term
-  const filteredBoards = boards.filter(board =>
-    board.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    board.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter boards based on search term and filters
+  const filteredBoards = boards
+    .filter(board => {
+      // Search filter
+      const matchesSearch = !searchTerm ||
+        board.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        board.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Type filter
+      switch (filterType) {
+        case 'created':
+          return board.createdBy._id === user?.id;
+        case 'member':
+          return board.createdBy._id !== user?.id &&
+                 board.members?.some(member => member.userId._id === user?.id);
+        case 'all':
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      // Sort logic
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'latest':
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
 
   // Board actions
   const handleViewBoard = (boardId: string) => {
@@ -659,11 +685,11 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     name: string;
     description?: string;
     background?: string;
-    visibility?: 'private' | 'team' | 'public';
   }) => {
     try {
       const newBoard = await boardsApi.createBoard({
         ...boardData,
+        visibility: 'private', // Always create boards as private
         createDefaultLists: true,
       });
       setBoards(prev => [newBoard, ...prev]);
@@ -716,39 +742,75 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       </div>
 
       {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search boards..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search boards..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors duration-200 ${
+                viewMode === 'grid'
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors duration-200 ${
+                viewMode === 'list'
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-colors duration-200 ${
-              viewMode === 'grid'
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-          >
-            <Grid3X3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors duration-200 ${
-              viewMode === 'list'
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-          >
-            <List className="w-4 h-4" />
-          </button>
+        {/* Filter Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as 'all' | 'created' | 'member')}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All boards</option>
+              <option value="created">Created by me</option>
+              <option value="member">Added to by others</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'latest' | 'oldest' | 'name')}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="latest">Latest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+          </div>
+
+          {/* Results count */}
+          <div className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
+            {filteredBoards.length} {filteredBoards.length === 1 ? 'board' : 'boards'}
+          </div>
         </div>
       </div>
 

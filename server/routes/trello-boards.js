@@ -156,13 +156,15 @@ router.post('/', protect, async (req, res) => {
       await board.save();
     }
 
-    // Populate for response
-    await board.populate('createdBy', 'firstName lastName avatar');
+    // Reload board to get the updated members from pre-save middleware
+    const savedBoard = await Board.findById(board._id)
+      .populate('createdBy', 'firstName lastName avatar')
+      .populate('members.userId', 'firstName lastName avatar');
 
-    const boardObj = board.toObject();
+    const boardObj = savedBoard.toObject();
     boardObj.isStarred = false;
-    boardObj.listsCount = board.metadata?.totalLists || 0;
-    boardObj.cardsCount = board.metadata?.totalCards || 0;
+    boardObj.listsCount = savedBoard.metadata?.totalLists || 0;
+    boardObj.cardsCount = savedBoard.metadata?.totalCards || 0;
 
     res.status(201).json({
       success: true,
@@ -400,6 +402,63 @@ router.delete('/:boardId/members/:userId', protect, getBoardWithAccess, async (r
     res.status(500).json({
       success: false,
       message: 'Error removing member'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/boards/:boardId/members/:userId/role
+ * @desc    Update member role on board
+ * @access  Private
+ */
+router.put('/:boardId/members/:userId/role', protect, getBoardWithAccess, async (req, res) => {
+  try {
+    const board = req.board;
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Check permission - only board owners/admins can change roles
+    const userMember = board.members.find(m => m.userId && m.userId.toString() === req.user.id.toString());
+    const userRole = userMember?.role || 'viewer';
+
+    if (!['owner', 'admin'].includes(userRole) && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update member roles'
+      });
+    }
+
+    // Validate role
+    const validRoles = ['owner', 'admin', 'editor', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role specified'
+      });
+    }
+
+    // Find and update the member
+    const memberIndex = board.members.findIndex(m => m.userId && m.userId.toString() === userId);
+    if (memberIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Member not found in this board'
+      });
+    }
+
+    board.members[memberIndex].role = role;
+    await board.save();
+
+    res.status(200).json({
+      success: true,
+      data: { member: board.members[memberIndex] },
+      message: 'Member role updated successfully'
+    });
+  } catch (error) {
+    console.error('Update member role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating member role'
     });
   }
 });

@@ -8,8 +8,6 @@ import {
   Users,
   Settings,
   MoreVertical,
-  UserPlus,
-  Share,
   Archive,
   Trash2
 } from 'lucide-react';
@@ -22,6 +20,7 @@ import DragDropProvider from './DragDropProvider';
 import { Board, UserRole } from './BoardManagement';
 import { boardsApi, listsApi, cardsApi } from '@/services/trelloBoardsApi';
 import BoardSwitcherDock from './BoardSwitcherDock';
+import BoardMembersModal from './BoardMembersModal';
 
 interface BoardViewProps {
   boardId: string;
@@ -40,11 +39,29 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   const [showMenu, setShowMenu] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Permission checks
-  const canEditBoard = ['superadmin', 'admin'].includes(userRole) || board?.createdBy._id === user?.id;
-  const canDeleteBoard = ['superadmin', 'admin'].includes(userRole) || board?.createdBy._id === user?.id;
-  const canCreateLists = ['superadmin', 'admin', 'hr', 'employee'].includes(userRole);
+  const getCurrentUserBoardRole = () => {
+    if (!user || !board) return null;
+    const member = board.members.find(m => m.userId._id === user.id);
+    return member?.role || null;
+  };
+
+  const currentUserBoardRole = getCurrentUserBoardRole();
+  const canEditBoard = ['superadmin', 'admin'].includes(userRole) ||
+                      board?.createdBy._id === user?.id ||
+                      ['owner', 'admin', 'editor'].includes(currentUserBoardRole || '');
+  const canDeleteBoard = ['superadmin', 'admin'].includes(userRole) ||
+                         board?.createdBy._id === user?.id ||
+                         currentUserBoardRole === 'owner';
+  const canCreateLists = ['superadmin', 'admin', 'hr', 'employee'].includes(userRole) ||
+                        ['owner', 'admin', 'editor'].includes(currentUserBoardRole || '');
+  const canManageMembers = ['superadmin', 'admin'].includes(userRole) ||
+                          board?.createdBy._id === user?.id ||
+                          ['owner', 'admin'].includes(currentUserBoardRole || '');
 
   // Load board data
   useEffect(() => {
@@ -117,8 +134,25 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       setCards({ ...cards, [newList._id]: [] });
       console.log('Created list:', newList);
     } catch (err) {
-      console.error('Error creating list:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create list');
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create list';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission') || errorMsg.includes('create lists');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to create lists in this board');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        console.error('Error creating list:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
+      // Only set the general error state for non-permission errors
+      if (!isPermissionError) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -136,8 +170,25 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
       console.log('Created card:', newCard);
     } catch (err) {
-      console.error('Error creating card:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create card');
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create card';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to create cards in this list');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        console.error('Error creating card:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
+      // Only set general error state for non-permission errors
+      if (!errorMsg.includes('permission') && !errorMsg.includes('not have permission')) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -186,8 +237,25 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
       console.log('Deleted list:', listId);
     } catch (err) {
-      console.error('Error deleting list:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete list');
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete list';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to delete this list');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        console.error('Error deleting list:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
+      // Only set general error state for non-permission errors
+      if (!errorMsg.includes('permission') && !errorMsg.includes('not have permission')) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -250,8 +318,25 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
       console.log('Updated card:', cardId, updatedCard);
     } catch (err) {
-      console.error('Error updating card:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update card');
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update card';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to update this card');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        console.error('Error updating card:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
+      // Only set general error state for non-permission errors
+      if (!errorMsg.includes('permission') && !errorMsg.includes('not have permission')) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -273,8 +358,25 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       setSelectedCard(null);
       console.log('Deleted card:', cardId);
     } catch (err) {
-      console.error('Error deleting card:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete card');
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete card';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to delete this card');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        console.error('Error deleting card:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
+      // Only set general error state for non-permission errors
+      if (!errorMsg.includes('permission') && !errorMsg.includes('not have permission')) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -307,7 +409,33 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       return;
     }
 
-    console.log('Moving card:', { cardId, fromListId, toListId, newPosition, sourceCard: sourceCard.title });
+    // Validate target list exists
+    const targetList = lists.find(list => list._id === toListId);
+    if (!targetList) {
+      console.error('Target list not found:', toListId);
+      setError('Target list not found');
+      return;
+    }
+
+    // Ensure target list cards array exists
+    if (!cards[toListId]) {
+      setCards(prev => ({ ...prev, [toListId]: [] }));
+    }
+
+    // Validate position
+    const maxPosition = cards[toListId]?.length || 0;
+    const validPosition = Math.max(0, Math.min(newPosition, maxPosition));
+
+    console.log('Moving card:', {
+      cardId,
+      fromListId,
+      toListId,
+      originalPosition: newPosition,
+      validPosition,
+      sourceCard: sourceCard.title,
+      sourceListName: lists.find(l => l._id === fromListId)?.name,
+      targetListName: targetList.name
+    });
 
     // Optimistically update UI
     setCards(prev => {
@@ -321,28 +449,72 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       const [movedCard] = sourceCards.splice(cardIndex, 1);
       newCards[fromListId] = sourceCards;
 
-      // Add card to target list at new position
+      // Add card to target list at validated position
       const targetCards = [...(newCards[toListId] || [])];
-      targetCards.splice(newPosition, 0, { ...movedCard, listId: toListId });
+      targetCards.splice(validPosition, 0, { ...movedCard, listId: toListId });
       newCards[toListId] = targetCards;
 
       return newCards;
     });
 
+    // Temporarily store the original console.error to restore later
+    const originalConsoleError = console.error;
+
     try {
+      // Temporarily suppress console.error for permission-related errors
+      console.error = (...args: any[]) => {
+        const message = args.join(' ');
+        if (!message.includes('permission') && !message.includes('not have permission')) {
+          originalConsoleError(...args);
+        }
+      };
+
       // Call API to persist the move
       if (fromListId !== toListId) {
-        await cardsApi.moveCard(cardId, toListId, newPosition);
+        await cardsApi.moveCard(cardId, toListId, validPosition);
       } else {
-        await cardsApi.reorderCard(cardId, newPosition);
+        await cardsApi.reorderCard(cardId, validPosition);
       }
-      console.log(`Successfully moved card ${cardId} from ${fromListId} to ${toListId} at position ${newPosition}`);
+      console.log(`Successfully moved card ${cardId} from ${fromListId} to ${toListId} at position ${validPosition}`);
     } catch (err) {
-      console.error('Error moving card:', err);
-      console.error('Card details:', { cardId, fromListId, toListId, newPosition });
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to move card';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission') || errorMsg.includes('move this card');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to move this card');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        originalConsoleError('Error moving card:', err);
+        originalConsoleError('Card details:', {
+          cardId,
+          fromListId,
+          toListId,
+          newPosition,
+          sourceCard: sourceCard ? {
+            id: sourceCard._id,
+            title: sourceCard.title,
+            listId: sourceCard.listId
+          } : null,
+          cardsInSourceList: cards[fromListId]?.length || 0,
+          cardsInTargetList: cards[toListId]?.length || 0
+        });
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
       // Revert the optimistic update
       loadBoardData();
-      setError(err instanceof Error ? err.message : 'Failed to move card');
+
+      // Only set general error state for non-permission errors
+      if (!isPermissionError) {
+        setError(errorMsg);
+      }
+    } finally {
+      // Always restore the original console.error
+      console.error = originalConsoleError;
     }
   };
 
@@ -369,7 +541,18 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       });
     }
 
+    // Temporarily store the original console.error to restore later
+    const originalConsoleError = console.error;
+
     try {
+      // Temporarily suppress console.error for permission-related errors
+      console.error = (...args: any[]) => {
+        const message = args.join(' ');
+        if (!message.includes('permission') && !message.includes('not have permission') && !message.includes('reorder')) {
+          originalConsoleError(...args);
+        }
+      };
+
       // Call API to persist the move with complete list order
       const currentLists = newListOrder || lists;
       const listOrderData = currentLists.map(list => ({ listId: list._id }));
@@ -377,10 +560,31 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       await listsApi.reorderList(listId, newPosition, listOrderData);
       console.log(`Moved list ${listId} to position ${newPosition}`);
     } catch (err) {
-      console.error('Error moving list:', err);
+      // Check if it's a permission error
+      const errorMsg = err instanceof Error ? err.message : 'Failed to move list';
+      const isPermissionError = errorMsg.includes('permission') || errorMsg.includes('not have permission') || errorMsg.includes('reorder this list');
+
+      if (isPermissionError) {
+        // For permission errors, only show the modal - no console logging
+        setErrorMessage('You do not have permission to reorder this list');
+        setShowErrorModal(true);
+      } else {
+        // For other errors, log to console and show modal
+        originalConsoleError('Error moving list:', err);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+
       // Revert the optimistic update
       loadBoardData();
-      setError(err instanceof Error ? err.message : 'Failed to move list');
+
+      // Only set general error state for non-permission errors
+      if (!isPermissionError) {
+        setError(errorMsg);
+      }
+    } finally {
+      // Always restore the original console.error
+      console.error = originalConsoleError;
     }
   };
 
@@ -453,6 +657,44 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
     '--scrollbar-track': `${primaryColor}20`,
     '--scrollbar-thumb-hover': getHoverColor(primaryColor),
   } as React.CSSProperties;
+
+  // Board member management functions
+  const handleAddBoardMember = async (userId: string, role: string) => {
+    try {
+      await boardsApi.addMember(boardId, userId, role as any);
+
+      // Reload board data to get updated members
+      await loadBoardData();
+    } catch (error) {
+      console.error('Error adding board member:', error);
+      setError('Failed to add member to board');
+    }
+  };
+
+  const handleRemoveBoardMember = async (userId: string) => {
+    try {
+      await boardsApi.removeMember(boardId, userId);
+
+      // Reload board data to get updated members
+      await loadBoardData();
+    } catch (error) {
+      console.error('Error removing board member:', error);
+      setError('Failed to remove member from board');
+    }
+  };
+
+  const handleUpdateBoardMemberRole = async (userId: string, newRole: string) => {
+    try {
+      // Update member role through board API
+      await boardsApi.updateMemberRole(boardId, userId, newRole as any);
+
+      // Reload board data to get updated members
+      await loadBoardData();
+    } catch (error) {
+      console.error('Error updating board member role:', error);
+      setError('Failed to update member role');
+    }
+  };
 
   return (
     <div className="h-full flex flex-col" style={backgroundStyle}>
@@ -554,19 +796,18 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
               </div>
 
               {/* Enhanced Action Buttons */}
-              {canEditBoard && (
-                <div className="flex items-center gap-2">
-                  <button className="group px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-2xl flex items-center gap-2 text-sm font-medium transition-all duration-300 border border-white/20 hover:border-white/30 hover:shadow-lg">
-                    <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                    <span className="hidden sm:inline text-white/90">Invite</span>
+              <div className="flex items-center gap-2">
+                {canManageMembers && (
+                  <button
+                    onClick={() => setShowMembersModal(true)}
+                    className="group px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-2xl flex items-center gap-2 text-sm font-medium transition-all duration-300 border border-white/20 hover:border-white/30 hover:shadow-lg"
+                  >
+                    <Users className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                    <span className="hidden sm:inline text-white/90">Members</span>
                   </button>
+                )}
 
-                  <button className="group px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-2xl flex items-center gap-2 text-sm font-medium transition-all duration-300 border border-white/20 hover:border-white/30 hover:shadow-lg">
-                    <Share className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                    <span className="hidden sm:inline text-white/90">Share</span>
-                  </button>
-                </div>
-              )}
+              </div>
 
               {/* Enhanced Menu Button */}
               <div className="relative">
@@ -627,6 +868,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
         </div>
       </div>
 
+
       {/* Modern Board Content - Lists */}
       <div
         className="flex-1 p-6 overflow-x-auto bg-black/5 custom-scrollbar-horizontal"
@@ -682,11 +924,88 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
             _id: member.userId._id,
             firstName: member.userId.firstName,
             lastName: member.userId.lastName,
-            email: member.userId.email || '',
             avatar: member.userId.avatar,
             role: member.role
           })) || []}
         />
+      )}
+
+      {/* Board Members Modal */}
+      {board && (
+        <BoardMembersModal
+          isOpen={showMembersModal}
+          onClose={() => setShowMembersModal(false)}
+          boardId={boardId}
+          boardTitle={board.name}
+          currentMembers={board.members.map(member => ({
+            userId: member.userId,
+            role: member.role,
+            joinedAt: member.joinedAt
+          }))}
+          onAddMember={handleAddBoardMember}
+          onRemoveMember={handleRemoveBoardMember}
+          onUpdateMemberRole={handleUpdateBoardMemberRole}
+          currentUserId={user?.id}
+        />
+      )}
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowErrorModal(false);
+              setErrorMessage('');
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm w-full mx-4 transform transition-all duration-300 scale-100">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                    <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Permission Error
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                    {errorMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowErrorModal(false);
+                    setErrorMessage('');
+                  }}
+                  className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowErrorModal(false);
+                    setErrorMessage('');
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
+                >
+                  Understood
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Board Switcher Dock */}

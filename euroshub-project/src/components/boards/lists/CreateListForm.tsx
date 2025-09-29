@@ -5,7 +5,7 @@ import { Plus, X } from 'lucide-react';
 
 interface CreateListFormProps {
   boardId: string;
-  onCreateList: (boardId: string, name: string) => void;
+  onCreateList: (boardId: string, name: string) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -41,7 +41,8 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
       setIsCreating(false);
     } catch (error) {
       console.error('Error creating list:', error);
-      // TODO: Show error message to user
+      // Error handling is now done in the parent component (BoardView)
+      // which will show the error modal to the user
     } finally {
       setIsLoading(false);
     }

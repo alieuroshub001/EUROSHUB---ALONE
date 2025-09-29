@@ -1,6 +1,8 @@
 export interface User {
   _id: string;
-  name: string;
+  name?: string; // Optional legacy field
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: 'superadmin' | 'admin' | 'hr' | 'employee' | 'client';
   avatar?: string;

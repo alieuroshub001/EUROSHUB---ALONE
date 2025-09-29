@@ -223,6 +223,14 @@ router.post('/', protect, checkProjectCreatePermission, async (req, res) => {
       estimatedHours: estimatedHours || 0
     });
 
+    // Add creator as a project manager member
+    project.members.push({
+      user: req.user.id,
+      role: 'project_manager',
+      addedBy: req.user.id,
+      joinedAt: new Date()
+    });
+
     await project.save();
 
     // Log activity
@@ -236,7 +244,7 @@ router.post('/', protect, checkProjectCreatePermission, async (req, res) => {
       }
     });
 
-    // Populate for response
+    // Populate for response with members
     await project.populate([
       {
         path: 'owner',
@@ -246,6 +254,16 @@ router.post('/', protect, checkProjectCreatePermission, async (req, res) => {
       {
         path: 'client',
         select: 'firstName lastName email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.user',
+        select: 'firstName lastName avatar email',
+        match: { _id: { $ne: null } }
+      },
+      {
+        path: 'members.addedBy',
+        select: 'firstName lastName',
         match: { _id: { $ne: null } }
       }
     ]);

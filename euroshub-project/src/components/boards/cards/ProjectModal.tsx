@@ -29,16 +29,16 @@ import {
   Send
 } from 'lucide-react';
 import { Card } from '../lists/ListContainer';
-import MemberAssignmentModal from './MemberAssignmentModal';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
+import { useAuth } from '@/hooks/useAuth';
 
 interface User {
   _id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   avatar?: string;
   role: string;
 }
@@ -106,7 +106,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   canDelete,
   boardMembers = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'members' | 'files' | 'activity'>('overview');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'activity'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Card>>(card);
   const [newComment, setNewComment] = useState('');
@@ -116,20 +117,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [newTask, setNewTask] = useState('');
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [showMemberModal, setShowMemberModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Extended project data
   const [projectData, setProjectData] = useState({
-    budget: 0,
-    status: 'planning',
-    priority: 'medium',
-    startDate: '',
-    endDate: '',
-    progress: 0,
-    category: '',
-    objectives: [] as string[],
+    budget: card.budget || 0,
+    status: card.status || 'planning',
+    priority: card.priority || 'medium',
+    startDate: card.startDate ? new Date(card.startDate).toISOString().split('T')[0] : '',
+    endDate: card.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : '',
+    progress: card.progress || 0,
+    category: card.category || '',
+    estimatedHours: card.estimatedHours || 0,
+    actualHours: card.actualHours || 0,
   });
 
   // Note: boardMembers now comes from props
@@ -139,34 +141,76 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     setEditData(card);
     setIsEditing(false);
 
+    // Update project data when card changes
+    setProjectData({
+      budget: card.budget || 0,
+      status: card.status || 'planning',
+      priority: card.priority || 'medium',
+      startDate: card.startDate ? new Date(card.startDate).toISOString().split('T')[0] : '',
+      endDate: card.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : '',
+      progress: card.progress || 0,
+      category: card.category || '',
+      estimatedHours: card.estimatedHours || 0,
+      actualHours: card.actualHours || 0,
+    });
+
     if (card._id) {
       loadCardData();
     }
   }, [card]);
 
+  // Refresh data when modal is opened
+  useEffect(() => {
+    if (isOpen && card._id) {
+      setError(null); // Clear any previous errors
+      setTasks([]); // Clear existing tasks to prevent stale data
+      loadCardData();
+    }
+  }, [isOpen, card._id]);
+
   const loadCardData = async () => {
     setIsLoading(true);
     try {
       // Get detailed card data with tasks and comments from backend
-      const cardData = await cardsApi.getCard(card._id);
+      const cardData = await cardsApi.getCard(card._id) as any;
 
-      // Set tasks from backend
-      if (cardData.tasks) {
-        setTasks(cardData.tasks);
+      // Set tasks from backend with deduplication and proper population
+      if (cardData.tasks && Array.isArray(cardData.tasks)) {
+        // Remove duplicates based on _id and ensure proper structure
+        const uniqueTasks = cardData.tasks.filter((task: any, index: number, array: any[]) =>
+          array.findIndex((t: any) => t._id === task._id) === index
+        ).map((task: any) => ({
+          _id: task._id,
+          title: task.title,
+          description: task.description || '',
+          completed: Boolean(task.completed),
+          assignedTo: task.assignedTo,
+          dueDate: task.dueDate,
+          priority: task.priority || 'medium',
+          createdAt: task.createdAt || new Date()
+        }));
+
+        console.log('LOADED TASKS DEBUG:', {
+          cardId: card._id,
+          rawTasks: cardData.tasks,
+          processedTasks: uniqueTasks
+        });
+
+        setTasks(uniqueTasks);
       } else {
         setTasks([]);
       }
 
       // Set comments from backend
-      if (cardData.comments) {
+      if (cardData.comments && Array.isArray(cardData.comments)) {
         setComments(cardData.comments);
       } else {
         setComments([]);
       }
 
       // Set files from backend
-      if (cardData.attachments) {
-        const formattedFiles = cardData.attachments.map(attachment => ({
+      if (cardData.attachments && Array.isArray(cardData.attachments)) {
+        const formattedFiles = cardData.attachments.map((attachment: any) => ({
           _id: attachment._id,
           filename: attachment.filename,
           url: attachment.url,
@@ -182,6 +226,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
     } catch (error) {
       console.error('Error loading card data:', error);
+      setError('Failed to load card data. Please try again.');
       // Set empty arrays on error
       setTasks([]);
       setComments([]);
@@ -196,7 +241,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await onUpdateCard(card._id, editData);
+      // Combine basic card data with project data
+      const updateData = {
+        ...editData,
+        budget: projectData.budget,
+        status: projectData.status,
+        priority: projectData.priority,
+        startDate: projectData.startDate ? new Date(projectData.startDate) : undefined,
+        dueDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
+        progress: projectData.progress,
+        category: projectData.category,
+        estimatedHours: projectData.estimatedHours,
+        actualHours: projectData.actualHours,
+      };
+
+      await onUpdateCard(card._id, updateData);
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating card:', error);
@@ -259,22 +318,34 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       };
 
       const newTaskFromAPI = await cardsApi.addTask(card._id, taskData);
-      setTasks([...tasks, newTaskFromAPI]);
+
+      // Create properly structured task object
+      const formattedTask = {
+        _id: newTaskFromAPI._id,
+        title: newTaskFromAPI.title,
+        description: newTaskFromAPI.description || '',
+        completed: Boolean(newTaskFromAPI.completed),
+        assignedTo: newTaskFromAPI.assignedTo,
+        dueDate: newTaskFromAPI.dueDate,
+        priority: newTaskFromAPI.priority || 'medium',
+        createdAt: newTaskFromAPI.createdAt || new Date()
+      };
+
+      // Add new task to the list, ensuring no duplicates
+      setTasks(prevTasks => {
+        const existingIds = prevTasks.map(t => t._id);
+        if (existingIds.includes(formattedTask._id)) {
+          return prevTasks; // Task already exists
+        }
+        return [...prevTasks, formattedTask];
+      });
+
       setNewTask('');
       setShowTaskForm(false);
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error adding task:', error);
-      // Fallback to local update if API fails
-      const task: Task = {
-        _id: `task_${Date.now()}`,
-        title: newTask.trim(),
-        completed: false,
-        priority: 'medium',
-        createdAt: new Date()
-      };
-      setTasks([...tasks, task]);
-      setNewTask('');
-      setShowTaskForm(false);
+      setError('Failed to add task. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -284,100 +355,94 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     const task = tasks.find(t => t._id === taskId);
     if (!task) return;
 
-    const updatedTask = { ...task, completed: !task.completed };
+    const newCompletedState = !task.completed;
+    const updatedTask = { ...task, completed: newCompletedState };
 
     // Optimistically update UI
-    setTasks(tasks.map(t =>
+    setTasks(prevTasks => prevTasks.map(t =>
       t._id === taskId ? updatedTask : t
     ));
 
     try {
-      await cardsApi.updateTask(card._id, taskId, { completed: !task.completed });
+      await cardsApi.updateTask(card._id, taskId, { completed: newCompletedState });
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error updating task:', error);
+      setError('Failed to update task. Please try again.');
       // Revert on error
-      setTasks(tasks.map(t =>
+      setTasks(prevTasks => prevTasks.map(t =>
         t._id === taskId ? task : t
       ));
     }
   };
 
-  // Member management functions
-  const handleAddMember = async (userId: string, role: string) => {
-    try {
-      await cardsApi.addMember(card._id, userId);
-
-      // Find the user and add to local state
-      const user = boardMembers.find(u => u._id === userId);
-      if (user) {
-        const newMember = {
-          userId: user,
-          role,
-          assignedAt: new Date()
-        };
-
-        const updatedCard = {
-          ...editData,
-          members: [...(editData.members || []), newMember]
-        };
-        setEditData(updatedCard);
-      }
-    } catch (error) {
-      console.error('Error adding member:', error);
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    try {
-      await cardsApi.removeMember(card._id, userId);
-
-      // Update local state
-      const updatedMembers = (editData.members || []).filter(member => member.userId._id !== userId);
-      const updatedCard = { ...editData, members: updatedMembers };
-      setEditData(updatedCard);
-    } catch (error) {
-      console.error('Error removing member:', error);
-    }
-  };
-
-  const handleUpdateMemberRole = async (userId: string, newRole: string) => {
-    // Update local state immediately
-    const updatedMembers = (editData.members || []).map(member =>
-      member.userId._id === userId ? { ...member, role: newRole } : member
-    );
-    const updatedCard = { ...editData, members: updatedMembers };
-    setEditData(updatedCard);
-
-    // TODO: Implement role update API call when backend supports it
-    // For now, just update locally
-  };
 
   // Task management functions
   const handleTaskClick = (task: Task) => {
+    console.log('TASK CLICK DEBUG:', {
+      taskId: task._id,
+      cardId: card._id,
+      taskTitle: task.title,
+      fullTask: task
+    });
     setSelectedTask(task);
     setShowTaskModal(true);
   };
 
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    // Update local state immediately
+    console.log('UPDATE TASK DEBUG:', {
+      taskId,
+      cardId: card._id,
+      updates,
+      availableTasks: tasks.map(t => ({ id: t._id, title: t.title }))
+    });
+
+    const originalTask = tasks.find(t => t._id === taskId);
+    if (!originalTask) {
+      console.error('TASK NOT FOUND:', { taskId, availableTaskIds: tasks.map(t => t._id) });
+      return;
+    }
+
+    // Prepare properly formatted update object
+    const formattedUpdates = {
+      ...updates,
+      assignedTo: updates.assignedTo && typeof updates.assignedTo === 'object'
+        ? (updates.assignedTo as any)._id
+        : updates.assignedTo
+    };
+
+    // Update local state immediately (optimistic update)
     setTasks(prev => prev.map(task =>
       task._id === taskId ? { ...task, ...updates } : task
     ));
 
     try {
-      await cardsApi.updateTask(card._id, taskId, updates);
+      await cardsApi.updateTask(card._id, taskId, formattedUpdates);
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error updating task:', error);
-      // TODO: Revert changes on error
+      setError('Failed to update task. Please try again.');
+      // Revert changes on error
+      setTasks(prev => prev.map(task =>
+        task._id === taskId ? originalTask : task
+      ));
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
+    const originalTasks = [...tasks];
+
+    // Optimistically remove task from UI
+    setTasks(prev => prev.filter(task => task._id !== taskId));
+
     try {
       await cardsApi.deleteTask(card._id, taskId);
-      setTasks(prev => prev.filter(task => task._id !== taskId));
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error deleting task:', error);
+      setError('Failed to delete task. Please try again.');
+      // Revert on error
+      setTasks(originalTasks);
     }
   };
 
@@ -429,22 +494,51 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-            projectData.status === 'completed' ? 'bg-green-100 text-green-600' :
-            projectData.status === 'in-progress' ? 'bg-blue-100 text-blue-600' :
-            projectData.status === 'on-hold' ? 'bg-yellow-100 text-yellow-600' :
-            'bg-gray-100 text-gray-600'
-          }`}>
-            {projectData.status.charAt(0).toUpperCase() + projectData.status.slice(1)}
-          </span>
+          {isEditing ? (
+            <select
+              value={projectData.status}
+              onChange={(e) => setProjectData(prev => ({ ...prev, status: e.target.value as any }))}
+              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="planning">Planning</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="review">Review</option>
+              <option value="blocked">Blocked</option>
+              <option value="completed">Completed</option>
+              <option value="on_hold">On Hold</option>
+            </select>
+          ) : (
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              projectData.status === 'completed' ? 'bg-green-100 text-green-600' :
+              projectData.status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
+              projectData.status === 'on_hold' ? 'bg-yellow-100 text-yellow-600' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {projectData.status.charAt(0).toUpperCase() + projectData.status.slice(1)}
+            </span>
+          )}
 
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-            projectData.priority === 'high' ? 'bg-red-100 text-red-600' :
-            projectData.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-            'bg-green-100 text-green-600'
-          }`}>
-            {projectData.priority.charAt(0).toUpperCase() + projectData.priority.slice(1)}
-          </span>
+          {isEditing ? (
+            <select
+              value={projectData.priority}
+              onChange={(e) => setProjectData(prev => ({ ...prev, priority: e.target.value as any }))}
+              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          ) : (
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              projectData.priority === 'high' ? 'bg-red-100 text-red-600' :
+              projectData.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+              'bg-green-100 text-green-600'
+            }`}>
+              {projectData.priority.charAt(0).toUpperCase() + projectData.priority.slice(1)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -498,7 +592,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                   ].map((color) => (
                     <button
                       key={color}
-                      onClick={() => setEditData(prev => ({ ...prev, color: color === '#ffffff' ? null : color }))}
+                      onClick={() => setEditData(prev => ({ ...prev, color: color === '#ffffff' ? undefined : color }))}
                       className={`w-8 h-8 rounded-lg border-2 transition-all ${
                         (editData.color === color || (!editData.color && color === '#ffffff'))
                           ? 'border-blue-500 scale-110'
@@ -521,7 +615,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                   <span className="text-sm text-gray-600 dark:text-gray-400">Custom color</span>
                   {editData.color && (
                     <button
-                      onClick={() => setEditData(prev => ({ ...prev, color: null }))}
+                      onClick={() => setEditData(prev => ({ ...prev, color: undefined }))}
                       className="text-xs text-red-600 hover:text-red-700 underline"
                     >
                       Remove color
@@ -635,12 +729,30 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4 text-gray-400" />
               <span className="text-gray-600 dark:text-gray-400">Start:</span>
-              <span className="text-gray-900 dark:text-white">{projectData.startDate || 'Not set'}</span>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={projectData.startDate}
+                  onChange={(e) => setProjectData(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              ) : (
+                <span className="text-gray-900 dark:text-white">{projectData.startDate || 'Not set'}</span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4 text-gray-400" />
               <span className="text-gray-600 dark:text-gray-400">End:</span>
-              <span className="text-gray-900 dark:text-white">{projectData.endDate || 'Not set'}</span>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={projectData.endDate}
+                  onChange={(e) => setProjectData(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              ) : (
+                <span className="text-gray-900 dark:text-white">{projectData.endDate || 'Not set'}</span>
+              )}
             </div>
           </div>
         </div>
@@ -650,12 +762,69 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           <h4 className="font-medium text-gray-900 dark:text-white">Budget</h4>
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="w-4 h-4 text-gray-400" />
-            <span className="text-lg font-semibold text-gray-900 dark:text-white">
-              ${projectData.budget.toLocaleString()}
-            </span>
+            {isEditing ? (
+              <input
+                type="number"
+                value={projectData.budget}
+                onChange={(e) => setProjectData(prev => ({ ...prev, budget: parseFloat(e.target.value) || 0 }))}
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-32"
+                min="0"
+                step="0.01"
+              />
+            ) : (
+              <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                ${projectData.budget.toLocaleString()}
+              </span>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Additional Project Fields */}
+      {isEditing && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Category */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-gray-900 dark:text-white">Category</h4>
+            <input
+              type="text"
+              value={projectData.category}
+              onChange={(e) => setProjectData(prev => ({ ...prev, category: e.target.value }))}
+              placeholder="e.g., Web Development, Marketing"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+
+          {/* Time Tracking */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-gray-900 dark:text-white">Time Tracking (hours)</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Estimated</label>
+                <input
+                  type="number"
+                  value={projectData.estimatedHours}
+                  onChange={(e) => setProjectData(prev => ({ ...prev, estimatedHours: parseFloat(e.target.value) || 0 }))}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="0"
+                  step="0.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Actual</label>
+                <input
+                  type="number"
+                  value={projectData.actualHours}
+                  onChange={(e) => setProjectData(prev => ({ ...prev, actualHours: parseFloat(e.target.value) || 0 }))}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="0"
+                  step="0.5"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Team Members */}
       <div>
@@ -681,15 +850,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               </span>
             </div>
           ))}
-          {canEdit && (
-            <button
-              onClick={() => setShowMemberModal(true)}
-              className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full border border-blue-200 dark:border-blue-800"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Member
-            </button>
-          )}
         </div>
       </div>
 
@@ -835,173 +995,322 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     </div>
   );
 
-  const renderMembersTab = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Team Members ({card.members.length})
-        </h3>
-        {canEdit && (
-          <button
-            onClick={() => setShowMemberModal(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Member
-          </button>
-        )}
-      </div>
 
-      <div className="space-y-3">
-        {card.members.map((member) => (
-          <div key={member.userId._id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-              {member.userId.avatar ? (
-                <img
-                  src={member.userId.avatar}
-                  alt={`${member.userId.firstName} ${member.userId.lastName}`}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
-                </span>
-              )}
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900 dark:text-white">
-                {member.userId.firstName} {member.userId.lastName}
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {member.role || 'Member'}
-              </p>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Joined {formatDate(member.assignedAt || card.createdAt)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const renderFilesTab = () => {
+    // Check if current user can upload files based on their role or creator status
+    const currentUserMember = card.members.find(m => m.userId._id === user?.id);
+    const currentUserRole = currentUserMember?.role || 'viewer';
+    const isCreator = canEdit; // Board/project creator has edit access
+    const canUploadFiles = isCreator || ['project-manager', 'lead', 'contributor'].includes(currentUserRole);
 
-  const renderFilesTab = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Files ({files.length})
-        </h3>
-        {canEdit && (
-          <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
-            <Paperclip className="w-4 h-4" />
-            Upload File
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        {files.map((file) => (
-          <div key={file._id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900 dark:text-white">{file.filename}</h4>
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <span>{formatFileSize(file.size)}</span>
-                <span>•</span>
-                <span>by {file.uploadedBy.firstName} {file.uploadedBy.lastName}</span>
-                <span>•</span>
-                <span>{formatDate(file.uploadedAt)}</span>
-              </div>
-            </div>
-            <button className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded">
-              Download
-            </button>
-          </div>
-        ))}
-
-        {files.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No files uploaded yet</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderActivityTab = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-        Activity & Comments ({comments.length})
-      </h3>
-
-      {/* Add Comment */}
-      <form onSubmit={handleAddComment} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Write a comment..."
-          rows={3}
-          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-        />
-        <div className="flex justify-end mt-2">
-          <button
-            type="submit"
-            disabled={!newComment.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm"
-          >
-            <Send className="w-4 h-4" />
-            Comment
-          </button>
-        </div>
-      </form>
-
-      {/* Comments List */}
+    return (
       <div className="space-y-4">
-        {comments.map((comment) => (
-          <div key={comment._id} className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium">
-              {comment.userId.avatar ? (
-                <img
-                  src={comment.userId.avatar}
-                  alt={`${comment.userId.firstName} ${comment.userId.lastName}`}
-                  className="w-full h-full rounded-full object-cover"
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Files ({files.length})
+          </h3>
+          {canEdit && canUploadFiles && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm cursor-pointer">
+                <Paperclip className="w-4 h-4" />
+                Upload File
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const selectedFiles = Array.from(e.target.files || []);
+                    if (selectedFiles.length === 0) return;
+
+                    setIsLoading(true);
+                    try {
+                      // TODO: Implement file upload API
+                      console.log('Files to upload:', selectedFiles);
+                      // Simulate upload for now
+                      setTimeout(() => {
+                        setIsLoading(false);
+                        // Add uploaded files to state (mock)
+                        const mockFiles = selectedFiles.map((file, index) => ({
+                          _id: `file_${Date.now()}_${index}`,
+                          filename: file.name,
+                          url: URL.createObjectURL(file),
+                          size: file.size,
+                          type: file.type,
+                          uploadedBy: {
+                            _id: user?.id || '1',
+                            firstName: user?.firstName || 'Current',
+                            lastName: user?.lastName || 'User'
+                          },
+                          uploadedAt: new Date()
+                        }));
+                        setFiles(prev => [...prev, ...mockFiles]);
+                      }, 1000);
+                    } catch (error) {
+                      console.error('Error uploading files:', error);
+                      setIsLoading(false);
+                    }
+                  }}
                 />
-              ) : (
-                <span className="text-gray-600 dark:text-gray-300">
-                  {comment.userId.firstName.charAt(0)}{comment.userId.lastName.charAt(0)}
-                </span>
-              )}
+              </label>
             </div>
-            <div className="flex-1">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {comment.userId.firstName} {comment.userId.lastName}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDateTime(comment.createdAt)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {comment.content}
+          )}
+          {canEdit && !canUploadFiles && (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              File upload requires Contributor access or higher
+            </div>
+          )}
+        </div>
+
+        {/* File Upload Permission Info */}
+        {canEdit && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <div className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5">ℹ</div>
+              <div className="text-sm">
+                <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">File Upload Permissions</p>
+                <p className="text-blue-700 dark:text-blue-300">
+                  <strong>Board/Project Creator:</strong> Full access - can upload and delete any file<br/>
+                  <strong>Project Manager & Team Lead:</strong> Can upload any file type<br/>
+                  <strong>Contributor:</strong> Can upload documents, images, and project files<br/>
+                  <strong>Commenter & Viewer:</strong> Can only download and view files
                 </p>
               </div>
             </div>
           </div>
-        ))}
+        )}
 
-        {comments.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No comments yet</p>
+        <div className="space-y-3">
+          {files.map((file) => {
+            const canDeleteFile = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
+                                 file.uploadedBy._id === user?.id;
+
+            return (
+              <div key={file._id} className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-gray-900 dark:text-white truncate">{file.filename}</h4>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <span>{formatFileSize(file.size)}</span>
+                    <span>•</span>
+                    <span>by {file.uploadedBy.firstName} {file.uploadedBy.lastName}</span>
+                    <span>•</span>
+                    <span>{formatDate(file.uploadedAt)}</span>
+                  </div>
+                  <div className="mt-2">
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
+                      {file.type || 'Unknown type'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      // Create download link
+                      const link = document.createElement('a');
+                      link.href = file.url;
+                      link.download = file.filename;
+                      link.click();
+                    }}
+                    className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                  >
+                    Download
+                  </button>
+
+                  {canDeleteFile && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this file?')) {
+                          setFiles(prev => prev.filter(f => f._id !== file._id));
+                        }
+                      }}
+                      className="px-2 py-1 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {files.length === 0 && (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No files uploaded yet</p>
+              {canUploadFiles ? (
+                <p className="text-sm mt-1">Upload files to share with your team</p>
+              ) : (
+                <p className="text-sm mt-1">Contact a project manager to upload files</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderActivityTab = () => {
+    // Check if current user can comment based on their role or creator status
+    const currentUserMember = card.members.find(m => m.userId._id === user?.id);
+    const currentUserRole = currentUserMember?.role || 'viewer';
+    const isCreator = canEdit; // Board/project creator has edit access
+    const canComment = isCreator || ['project-manager', 'lead', 'contributor', 'commenter'].includes(currentUserRole);
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Activity & Comments ({comments.length})
+        </h3>
+
+        {/* Add Comment */}
+        {canComment ? (
+          <form onSubmit={handleAddComment} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={`${user.firstName} ${user.lastName}`}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-gray-600 dark:text-gray-300">
+                    {user?.firstName?.charAt(0) || 'U'}{user?.lastName?.charAt(0) || 'U'}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Write a comment..."
+                  rows={3}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Commenting as <span className="font-medium">{currentUserRole}</span>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!newComment.trim() || isLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm"
+                  >
+                    <Send className="w-4 h-4" />
+                    Comment
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 text-yellow-600 dark:text-yellow-400">⚠</div>
+              <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                <p className="font-medium">Commenting Restricted</p>
+                <p>You need at least Commenter access to add comments to this project.</p>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Comments List */}
+        <div className="space-y-4">
+          {comments.map((comment) => {
+            const commentUserMember = card.members.find(m => m.userId._id === comment.userId._id);
+            const commentUserRole = commentUserMember?.role || 'viewer';
+            const canDeleteComment = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
+                                   comment.userId._id === user?.id;
+
+            return (
+              <div key={comment._id} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
+                  {comment.userId.avatar ? (
+                    <img
+                      src={comment.userId.avatar}
+                      alt={`${comment.userId.firstName} ${comment.userId.lastName}`}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {comment.userId.firstName.charAt(0)}{comment.userId.lastName.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {comment.userId.firstName} {comment.userId.lastName}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${{
+                          'project-manager': 'text-purple-600 bg-purple-100',
+                          'lead': 'text-blue-600 bg-blue-100',
+                          'contributor': 'text-green-600 bg-green-100',
+                          'commenter': 'text-yellow-600 bg-yellow-100',
+                          'viewer': 'text-gray-600 bg-gray-100'
+                        }[commentUserRole] || 'text-gray-600 bg-gray-100'}`}>
+                          {commentUserRole}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDateTime(comment.createdAt)}
+                        </span>
+                      </div>
+
+                      {canDeleteComment && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this comment?')) {
+                              setComments(prev => prev.filter(c => c._id !== comment._id));
+                            }
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {comment.content}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {comments.length === 0 && (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No comments yet</p>
+              {canComment ? (
+                <p className="text-sm mt-1">Start the conversation by adding a comment</p>
+              ) : (
+                <p className="text-sm mt-1">Comments will appear here when added by team members</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Activity Permission Info */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mt-6">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Comment Permissions</h4>
+          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+            <div><strong>Board/Project Creator:</strong> Full access - can comment and delete any comment</div>
+            <div><strong>Project Manager & Team Lead:</strong> Can comment and delete any comment</div>
+            <div><strong>Contributor & Commenter:</strong> Can comment and delete own comments</div>
+            <div><strong>Viewer:</strong> Can only read comments</div>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Portal>
@@ -1066,13 +1375,28 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 text-red-600 dark:text-red-400">⚠</div>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex px-6">
             {[
               { id: 'overview', label: 'Overview', icon: Target },
               { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-              { id: 'members', label: 'Members', icon: Users },
               { id: 'files', label: 'Files', icon: FileText },
               { id: 'activity', label: 'Activity', icon: MessageSquare },
             ].map((tab) => (
@@ -1096,7 +1420,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         <div className="p-6 overflow-y-auto flex-1">
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'tasks' && renderTasksTab()}
-          {activeTab === 'members' && renderMembersTab()}
           {activeTab === 'files' && renderFilesTab()}
           {activeTab === 'activity' && renderActivityTab()}
         </div>
@@ -1133,16 +1456,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         </div>
       </div>
 
-      {/* Member Assignment Modal */}
-      <MemberAssignmentModal
-        isOpen={showMemberModal}
-        onClose={() => setShowMemberModal(false)}
-        currentMembers={editData.members || []}
-        onAddMember={handleAddMember}
-        onRemoveMember={handleRemoveMember}
-        onUpdateMemberRole={handleUpdateMemberRole}
-        boardMembers={boardMembers}
-      />
 
       {/* Task Modal */}
       <TaskModal
