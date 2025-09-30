@@ -83,10 +83,11 @@ export async function POST(request: NextRequest) {
       success: true
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Password reset rejected email error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to send password reset rejected email', details: error.message },
+      { error: 'Failed to send password reset rejected email', details: errorMessage },
       { status: 500 }
     );
   }

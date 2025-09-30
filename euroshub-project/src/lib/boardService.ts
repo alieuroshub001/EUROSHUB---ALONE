@@ -166,6 +166,7 @@ export interface Card {
   };
   customFields: Array<{
     name: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
     type: 'text' | 'number' | 'date' | 'boolean' | 'select';
   }>;
@@ -246,6 +247,7 @@ export interface CreateCardRequest {
   position?: number;
   customFields?: Array<{
     name: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
     type: 'text' | 'number' | 'date' | 'boolean' | 'select';
   }>;
@@ -270,6 +272,7 @@ export interface UpdateCardRequest {
   }>;
   customFields?: Array<{
     name: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
     type: 'text' | 'number' | 'date' | 'boolean' | 'select';
   }>;
@@ -666,6 +669,7 @@ export const boardService = {
     }
   },
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getAssignedCards(filters?: { status?: string; priority?: string; dueDate?: string; page?: number; limit?: number }): Promise<{ data: Card[]; pagination: any }> {
     try {
       const params = new URLSearchParams();
@@ -691,6 +695,7 @@ export const boardService = {
 
   // Note: Board members are currently managed at project level
   // This is a placeholder that simulates the API call for frontend functionality
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateBoardMembers(boardId: string, memberIds: string[]): Promise<any> {
     try {
       // For now, we'll just return a success response since board members

@@ -18,7 +18,7 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       subject,
       html
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -81,12 +81,13 @@ export async function POST(request: NextRequest) {
       message: `Project member notification sent successfully to ${memberEmail}`
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Project member email API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         error: 'Failed to send project member email',
-        details: error.message
+        details: errorMessage
       },
       { status: 500 }
     );

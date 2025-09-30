@@ -22,8 +22,9 @@ const sendEmail = async (to: string, subject: string, html: string) => {
     });
 
     console.log(`📧 Email sent successfully: ${subject} to ${to}`);
-  } catch (error: any) {
-    console.error(`📧 Email sending failed for ${to}:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`📧 Email sending failed for ${to}:`, errorMessage);
 
     // Log helpful debugging info
     if (!process.env.EMAIL_USERNAME) {
@@ -65,12 +66,13 @@ export async function POST(request: NextRequest) {
       type: type || 'general'
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Email API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         error: 'Failed to send email',
-        details: error.message
+        details: errorMessage
       },
       { status: 500 }
     );

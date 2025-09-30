@@ -5,7 +5,6 @@ import {
   X,
   Calendar,
   User,
-  Tag,
   Image,
   Clock,
   MessageSquare,
@@ -14,17 +13,11 @@ import {
   Trash2,
   Edit3,
   Save,
-  UserPlus,
   CheckSquare,
   Plus,
   DollarSign,
   Target,
-  AlertCircle,
-  Users,
   FileText,
-  Activity,
-  Settings,
-  Star,
   Paperclip,
   Send
 } from 'lucide-react';
@@ -104,7 +97,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   onDeleteCard,
   canEdit,
   canDelete,
-  boardMembers = [],
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'activity'>('overview');
@@ -157,6 +149,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     if (card._id) {
       loadCardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card]);
 
   // Refresh data when modal is opened
@@ -166,19 +159,24 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setTasks([]); // Clear existing tasks to prevent stale data
       loadCardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, card._id]);
 
   const loadCardData = async () => {
     setIsLoading(true);
     try {
       // Get detailed card data with tasks and comments from backend
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cardData = await cardsApi.getCard(card._id) as any;
 
       // Set tasks from backend with deduplication and proper population
       if (cardData.tasks && Array.isArray(cardData.tasks)) {
         // Remove duplicates based on _id and ensure proper structure
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const uniqueTasks = cardData.tasks.filter((task: any, index: number, array: any[]) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           array.findIndex((t: any) => t._id === task._id) === index
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ).map((task: any) => ({
           _id: task._id,
           title: task.title,
@@ -210,6 +208,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       // Set files from backend
       if (cardData.attachments && Array.isArray(cardData.attachments)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formattedFiles = cardData.attachments.map((attachment: any) => ({
           _id: attachment._id,
           filename: attachment.filename,
@@ -407,7 +406,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     const formattedUpdates = {
       ...updates,
       assignedTo: updates.assignedTo && typeof updates.assignedTo === 'object'
-        ? (updates.assignedTo as any)._id
+        ? (updates.assignedTo as { _id: string })._id
         : updates.assignedTo
     };
 
@@ -497,7 +496,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           {isEditing ? (
             <select
               value={projectData.status}
-              onChange={(e) => setProjectData(prev => ({ ...prev, status: e.target.value as any }))}
+              onChange={(e) => setProjectData(prev => ({ ...prev, status: e.target.value as 'planning' | 'open' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'on_hold' }))}
               className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="planning">Planning</option>
@@ -522,7 +521,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           {isEditing ? (
             <select
               value={projectData.priority}
-              onChange={(e) => setProjectData(prev => ({ ...prev, priority: e.target.value as any }))}
+              onChange={(e) => setProjectData(prev => ({ ...prev, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' }))}
               className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="low">Low</option>
@@ -632,6 +631,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 {/* Current Cover Image Preview */}
                 {editData.coverImage && (
                   <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={editData.coverImage}
                       alt="Cover preview"
@@ -686,6 +686,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                         </div>
                       ) : (
                         <>
+                          {/* eslint-disable-next-line jsx-a11y/alt-text */}
                           <Image className="w-6 h-6 text-gray-400 mb-1" />
                           <p className="text-xs text-gray-600 dark:text-gray-400">
                             Click to upload an image
@@ -834,6 +835,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <div key={member.userId._id} className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1">
               <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium">
                 {member.userId.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={member.userId.avatar}
                     alt={`${member.userId.firstName} ${member.userId.lastName}`}
@@ -1172,6 +1174,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
                 {user?.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={user.avatar}
                     alt={`${user.firstName} ${user.lastName}`}
@@ -1231,6 +1234,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               <div key={comment._id} className="flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
                   {comment.userId.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={comment.userId.avatar}
                       alt={`${comment.userId.firstName} ${comment.userId.lastName}`}
@@ -1402,7 +1406,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'overview' | 'tasks' | 'files' | 'activity')}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'

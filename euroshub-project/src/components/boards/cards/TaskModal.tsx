@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, User, AlertCircle, Save, Trash2, Tag } from 'lucide-react';
+import { X, AlertCircle, Save, Trash2 } from 'lucide-react';
+import Image from 'next/image';
 import Portal from '../../shared/Portal';
 
 interface Task {
@@ -195,12 +196,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
             {editData.assignedTo && (
               <div className="mt-2 flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
                   {editData.assignedTo?.avatar ? (
-                    <img
+                    <Image
                       src={editData.assignedTo.avatar}
                       alt={`${editData.assignedTo?.firstName || ''} ${editData.assignedTo?.lastName || ''}`}
-                      className="w-full h-full rounded-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">

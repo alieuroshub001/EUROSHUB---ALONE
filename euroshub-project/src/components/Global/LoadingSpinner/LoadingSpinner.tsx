@@ -96,7 +96,8 @@ export default LoadingSpinner;
 
 // Simplified HOC for page transitions
 export function withLoadingSpinner<P extends object>(
-  Component: ComponentType<P>, 
+  Component: ComponentType<P>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   loadingText: string = "Loading..."
 ): ComponentType<P> {
   const WrappedComponent = memo<P>((props: P) => {

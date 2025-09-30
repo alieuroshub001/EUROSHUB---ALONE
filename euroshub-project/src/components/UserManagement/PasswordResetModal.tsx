@@ -20,7 +20,7 @@ export default function PasswordResetModal({ request, onClose, onProcess }: Pass
 
     try {
       await onProcess(request.id, action, notes);
-    } catch (error) {
+    } catch  {
       // Error is handled in parent component
     } finally {
       setLoading(false);

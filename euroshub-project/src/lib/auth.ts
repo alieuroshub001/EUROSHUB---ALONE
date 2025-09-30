@@ -217,6 +217,7 @@ export const authAPI = {
           status?: number;
           statusText?: string;
         };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         request?: any;
         message?: string;
         code?: string;

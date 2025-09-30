@@ -6,7 +6,7 @@ interface ApiOptions extends RequestInit {
   requireAuth?: boolean;
 }
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -20,9 +20,9 @@ interface ApiResponse<T = any> {
 
 export class ApiError extends Error {
   status: number;
-  response?: any;
+  response?: unknown;
 
-  constructor(message: string, status: number, response?: any) {
+  constructor(message: string, status: number, response?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -30,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiCall<T = any>(
+export async function apiCall<T = unknown>(
   endpoint: string,
   options: ApiOptions = {}
 ): Promise<ApiResponse<T>> {
@@ -86,33 +86,139 @@ export async function apiCall<T = any>(
 
 // Helper functions for common HTTP methods
 export const api = {
-  get: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method'>) =>
+  get: <T = unknown>(endpoint: string, options?: Omit<ApiOptions, 'method'>) =>
     apiCall<T>(endpoint, { ...options, method: 'GET' }),
 
-  post: <T = any>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>) =>
+  post: <T = unknown>(endpoint: string, data?: unknown, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiCall<T>(endpoint, {
       ...options,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  put: <T = any>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>) =>
+  put: <T = unknown>(endpoint: string, data?: unknown, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiCall<T>(endpoint, {
       ...options,
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  patch: <T = any>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>) =>
+  patch: <T = unknown>(endpoint: string, data?: unknown, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiCall<T>(endpoint, {
       ...options,
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method'>) =>
+  delete: <T = unknown>(endpoint: string, options?: Omit<ApiOptions, 'method'>) =>
     apiCall<T>(endpoint, { ...options, method: 'DELETE' }),
 };
+
+// Type definitions for API requests
+interface CreateProjectData {
+  name: string;
+  description?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface UpdateProjectData {
+  name?: string;
+  description?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface AddMemberData {
+  userId: string;
+  role: string;
+}
+
+interface UpdateMemberRoleData {
+  role: string;
+}
+
+interface CreateBoardData {
+  title: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface UpdateBoardData {
+  title?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface DuplicateBoardData {
+  title: string;
+  includeCards?: boolean;
+}
+
+interface CreateListData {
+  title: string;
+  position?: number;
+  [key: string]: unknown;
+}
+
+interface UpdateListData {
+  title?: string;
+  position?: number;
+  [key: string]: unknown;
+}
+
+interface MoveAllCardsData {
+  targetListId: string;
+}
+
+interface CreateCardData {
+  title: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface UpdateCardData {
+  title?: string;
+  description?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface MoveCardData {
+  targetListId: string;
+  position?: number;
+}
+
+interface AssignUsersData {
+  userIds: string[];
+}
+
+interface AddCommentData {
+  text: string;
+  mentions?: string[];
+}
+
+interface UpdateCommentData {
+  text: string;
+}
+
+interface AddTimeEntryData {
+  hours: number;
+  description?: string;
+}
+
+interface CreateUserData {
+  email: string;
+  name: string;
+  password?: string;
+  [key: string]: unknown;
+}
+
+interface UpdateUserData {
+  email?: string;
+  name?: string;
+  [key: string]: unknown;
+}
 
 // Project Management API functions
 export const projectsApi = {
@@ -124,17 +230,17 @@ export const projectsApi = {
 
   getProject: (id: string) => api.get(`/projects/${id}`),
 
-  createProject: (data: any) => api.post('/projects', data),
+  createProject: (data: CreateProjectData) => api.post('/projects', data),
 
-  updateProject: (id: string, data: any) => api.put(`/projects/${id}`, data),
+  updateProject: (id: string, data: UpdateProjectData) => api.put(`/projects/${id}`, data),
 
   deleteProject: (id: string) => api.delete(`/projects/${id}`),
 
   // Project Members
-  addMember: (projectId: string, data: { userId: string; role: string }) =>
+  addMember: (projectId: string, data: AddMemberData) =>
     api.post(`/projects/${projectId}/members`, data),
 
-  updateMemberRole: (projectId: string, memberId: string, data: { role: string }) =>
+  updateMemberRole: (projectId: string, memberId: string, data: UpdateMemberRoleData) =>
     api.put(`/projects/${projectId}/members/${memberId}`, data),
 
   removeMember: (projectId: string, memberId: string) =>
@@ -151,16 +257,16 @@ export const projectsApi = {
     return api.get(`/projects/${projectId}/boards${query}`);
   },
 
-  createBoard: (projectId: string, data: any) =>
+  createBoard: (projectId: string, data: CreateBoardData) =>
     api.post(`/projects/${projectId}/boards`, data),
 
   getBoard: (boardId: string) => api.get(`/boards/${boardId}`),
 
-  updateBoard: (boardId: string, data: any) => api.put(`/boards/${boardId}`, data),
+  updateBoard: (boardId: string, data: UpdateBoardData) => api.put(`/boards/${boardId}`, data),
 
   deleteBoard: (boardId: string) => api.delete(`/boards/${boardId}`),
 
-  duplicateBoard: (boardId: string, data: { title: string; includeCards?: boolean }) =>
+  duplicateBoard: (boardId: string, data: DuplicateBoardData) =>
     api.post(`/boards/${boardId}/duplicate`, data),
 
   // Lists
@@ -169,14 +275,14 @@ export const projectsApi = {
     return api.get(`/boards/${boardId}/lists${query}`);
   },
 
-  createList: (boardId: string, data: any) =>
+  createList: (boardId: string, data: CreateListData) =>
     api.post(`/boards/${boardId}/lists`, data),
 
-  updateList: (listId: string, data: any) => api.put(`/lists/${listId}`, data),
+  updateList: (listId: string, data: UpdateListData) => api.put(`/lists/${listId}`, data),
 
   deleteList: (listId: string) => api.delete(`/lists/${listId}`),
 
-  moveAllCards: (listId: string, data: { targetListId: string }) =>
+  moveAllCards: (listId: string, data: MoveAllCardsData) =>
     api.post(`/lists/${listId}/move-all-cards`, data),
 
   // Cards
@@ -185,31 +291,31 @@ export const projectsApi = {
     return api.get(`/lists/${listId}/cards${query}`);
   },
 
-  createCard: (listId: string, data: any) =>
+  createCard: (listId: string, data: CreateCardData) =>
     api.post(`/lists/${listId}/cards`, data),
 
   getCard: (cardId: string) => api.get(`/cards/${cardId}`),
 
-  updateCard: (cardId: string, data: any) => api.put(`/cards/${cardId}`, data),
+  updateCard: (cardId: string, data: UpdateCardData) => api.put(`/cards/${cardId}`, data),
 
   deleteCard: (cardId: string) => api.delete(`/cards/${cardId}`),
 
-  moveCard: (cardId: string, data: { targetListId: string; position?: number }) =>
+  moveCard: (cardId: string, data: MoveCardData) =>
     api.put(`/cards/${cardId}/move`, data),
 
-  assignUsers: (cardId: string, data: { userIds: string[] }) =>
+  assignUsers: (cardId: string, data: AssignUsersData) =>
     api.put(`/cards/${cardId}/assign`, data),
 
-  unassignUsers: (cardId: string, data: { userIds: string[] }) =>
+  unassignUsers: (cardId: string, data: AssignUsersData) =>
     api.put(`/cards/${cardId}/unassign`, data),
 
-  addComment: (cardId: string, data: { text: string; mentions?: string[] }) =>
+  addComment: (cardId: string, data: AddCommentData) =>
     api.post(`/cards/${cardId}/comments`, data),
 
-  updateComment: (cardId: string, commentId: string, data: { text: string }) =>
+  updateComment: (cardId: string, commentId: string, data: UpdateCommentData) =>
     api.put(`/cards/${cardId}/comments/${commentId}`, data),
 
-  addTimeEntry: (cardId: string, data: { hours: number; description?: string }) =>
+  addTimeEntry: (cardId: string, data: AddTimeEntryData) =>
     api.post(`/cards/${cardId}/time`, data),
 
   getMyAssignedCards: (params?: Record<string, string>) => {
@@ -245,9 +351,9 @@ export const usersApi = {
 
   getUser: (id: string) => api.get(`/users/${id}`),
 
-  createUser: (data: any) => api.post('/users', data),
+  createUser: (data: CreateUserData) => api.post('/users', data),
 
-  updateUser: (id: string, data: any) => api.put(`/users/${id}`, data),
+  updateUser: (id: string, data: UpdateUserData) => api.put(`/users/${id}`, data),
 
   deleteUser: (id: string) => api.delete(`/users/${id}`),
 

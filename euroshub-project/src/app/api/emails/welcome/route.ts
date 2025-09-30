@@ -32,14 +32,14 @@ const sendEmail = async (to: string, subject: string, html: string) => {
 
     console.log(`📧 Email sent successfully to ${to}, messageId: ${result.messageId}`);
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Email sending failed:', error);
-    if (error.code === 'EAUTH') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'EAUTH') {
       throw new Error('Authentication failed. Check Gmail credentials and app password.');
-    } else if (error.code === 'ENOTFOUND') {
+    } else if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOTFOUND') {
       throw new Error('Network error. Unable to connect to Gmail servers.');
     }
-    throw error;
+    throw error instanceof Error ? error : new Error('Unknown error occurred');
   }
 };
 
@@ -108,13 +108,15 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Welcome email API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorCode = error && typeof error === 'object' && 'code' in error ? (error.code as string) : undefined;
     return NextResponse.json(
       {
         error: 'Failed to send welcome email',
-        details: error.message,
-        code: error.code,
+        details: errorMessage,
+        code: errorCode,
         timestamp: new Date().toISOString(),
         envCheck: {
           EMAIL_USERNAME: process.env.EMAIL_USERNAME ? 'SET' : 'NOT_SET',

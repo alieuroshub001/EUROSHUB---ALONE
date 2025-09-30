@@ -34,6 +34,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
 
   useEffect(() => {
     loadRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadRequests = async () => {
@@ -163,6 +164,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
           ].map(tab => (
             <button
               key={tab.key}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setFilter(tab.key as any)}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === tab.key

@@ -1,25 +1,32 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, useCallback } from 'react';
 import { FloatingDock } from "@/components/ui/floating-dock";
 import {
-  LayoutDashboard,
   Star,
-  Users,
-  Archive,
   Plus,
   Home,
   Grid3X3
 } from 'lucide-react';
 import { boardsApi } from '@/services/trelloBoardsApi';
 
+interface BoardMember {
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  };
+  role: 'owner' | 'admin' | 'viewer' | 'member';
+  joinedAt: Date;
+}
+
 interface Board {
   _id: string;
   name: string;
   background: string;
   isStarred: boolean;
-  members: any[];
+  members: BoardMember[];
   visibility: 'private' | 'team' | 'public';
 }
 
@@ -32,15 +39,10 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
   currentBoardId,
   baseUrl
 }) => {
-  const router = useRouter();
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadBoards();
-  }, []);
-
-  const loadBoards = async () => {
+  const loadBoards = useCallback(async () => {
     try {
       const allBoards = await boardsApi.getBoards();
       // Filter out current board and show only first 6 boards
@@ -53,7 +55,11 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentBoardId]);
+
+  useEffect(() => {
+    loadBoards();
+  }, [loadBoards]);
 
   const generateBoardIcon = (board: Board) => {
     const bgStyle = board.background?.startsWith('#')

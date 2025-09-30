@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Palette, Settings, Save, AlertCircle } from 'lucide-react';
+import { X, Settings, Save, AlertCircle } from 'lucide-react';
 import { ListData } from './ListContainer';
 
 interface ListSettingsModalProps {

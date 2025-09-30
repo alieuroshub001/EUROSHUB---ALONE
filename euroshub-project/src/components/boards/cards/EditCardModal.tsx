@@ -5,10 +5,7 @@ import {
   X,
   Calendar,
   User,
-  Tag,
-  Image,
   Clock,
-  MessageSquare,
   Archive,
   Copy,
   Trash2,
@@ -16,6 +13,7 @@ import {
   Save,
   UserPlus
 } from 'lucide-react';
+import Image from 'next/image';
 import { Card } from '../lists/ListContainer';
 
 interface EditCardModalProps {
@@ -381,12 +379,13 @@ const EditCardModal: React.FC<EditCardModalProps> = ({
               <div className="space-y-3">
                 {comments.map((comment) => (
                   <div key={comment._id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium overflow-hidden relative">
                       {comment.userId.avatar ? (
-                        <img
+                        <Image
                           src={comment.userId.avatar}
                           alt={`${comment.userId.firstName} ${comment.userId.lastName}`}
-                          className="w-full h-full rounded-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <span className="text-gray-600 dark:text-gray-300">
@@ -484,12 +483,13 @@ const EditCardModal: React.FC<EditCardModalProps> = ({
                   <div className="space-y-2">
                     {card.members.map((member) => (
                       <div key={member.userId._id} className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium">
+                        <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium overflow-hidden relative">
                           {member.userId.avatar ? (
-                            <img
+                            <Image
                               src={member.userId.avatar}
                               alt={`${member.userId.firstName} ${member.userId.lastName}`}
-                              className="w-full h-full rounded-full object-cover"
+                              fill
+                              className="object-cover"
                             />
                           ) : (
                             <span className="text-gray-600 dark:text-gray-300">

@@ -12,7 +12,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import ListContainer, { ListData, Card } from './lists/ListContainer';
+import { ListData, Card } from './lists/ListContainer';
 import SortableListContainer from './lists/SortableListContainer';
 import CreateListForm from './lists/CreateListForm';
 import ProjectModal from './cards/ProjectModal';
@@ -66,6 +66,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   // Load board data
   useEffect(() => {
     loadBoardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
   const loadBoardData = async () => {
@@ -462,6 +463,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
     try {
       // Temporarily suppress console.error for permission-related errors
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       console.error = (...args: any[]) => {
         const message = args.join(' ');
         if (!message.includes('permission') && !message.includes('not have permission')) {
@@ -546,6 +548,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
     try {
       // Temporarily suppress console.error for permission-related errors
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       console.error = (...args: any[]) => {
         const message = args.join(' ');
         if (!message.includes('permission') && !message.includes('not have permission') && !message.includes('reorder')) {
@@ -661,6 +664,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   // Board member management functions
   const handleAddBoardMember = async (userId: string, role: string) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await boardsApi.addMember(boardId, userId, role as any);
 
       // Reload board data to get updated members
@@ -686,6 +690,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   const handleUpdateBoardMemberRole = async (userId: string, newRole: string) => {
     try {
       // Update member role through board API
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await boardsApi.updateMemberRole(boardId, userId, newRole as any);
 
       // Reload board data to get updated members
@@ -766,8 +771,9 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
                       key={member.userId?._id || `board-member-${index}`}
                       className="relative group"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-sm font-semibold shadow-xl hover:scale-110 hover:z-10 transition-all duration-300 cursor-pointer">
+                      <div className="w-15 h-15 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-sm font-semibold shadow-xl hover:scale-110 hover:z-10 transition-all duration-300 cursor-pointer">
                         {member.userId?.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={member.userId.avatar}
                             alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}

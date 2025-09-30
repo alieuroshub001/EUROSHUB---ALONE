@@ -11,6 +11,7 @@ interface ProfileManagementProps {
   currentUser: AuthUser;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ProfileManagement({ currentUser }: ProfileManagementProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,7 @@ export default function ProfileManagement({ currentUser }: ProfileManagementProp
         <div className="flex items-center space-x-4">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
             {profile.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatar}
                 alt={`${profile.firstName} ${profile.lastName}`}

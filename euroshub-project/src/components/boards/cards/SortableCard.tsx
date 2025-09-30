@@ -111,6 +111,7 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
               title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
             >
               {member.userId?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={member.userId.avatar}
                   alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}

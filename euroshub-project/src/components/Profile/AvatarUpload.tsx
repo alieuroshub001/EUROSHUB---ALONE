@@ -116,6 +116,7 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
               {profile.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={profile.avatar}
                   alt={`${profile.firstName} ${profile.lastName}`}

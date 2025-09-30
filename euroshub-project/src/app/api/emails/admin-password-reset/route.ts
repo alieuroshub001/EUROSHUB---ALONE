@@ -32,14 +32,14 @@ const sendEmail = async (to: string, subject: string, html: string) => {
 
     console.log(`📧 Email sent successfully to ${to}, messageId: ${result.messageId}`);
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Email sending failed:', error);
-    if (error.code === 'EAUTH') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'EAUTH') {
       throw new Error('Authentication failed. Check Gmail credentials and app password.');
-    } else if (error.code === 'ENOTFOUND') {
+    } else if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOTFOUND') {
       throw new Error('Network error. Unable to connect to Gmail servers.');
     }
-    throw error;
+    throw error instanceof Error ? error : new Error('Unknown error occurred');
   }
 };
 
@@ -124,14 +124,15 @@ export async function POST(request: NextRequest) {
     `;
 
     // Send to all eligible admins
-    const emailPromises = eligibleAdmins.map(async (admin: any) => {
+    const emailPromises = eligibleAdmins.map(async (admin: { email: string; name: string; role: string }) => {
       try {
         await sendEmail(admin.email, emailSubject, emailHtml);
         console.log(`📧 Password reset notification sent to ${admin.name} (${admin.role}) at ${admin.email}`);
         return { success: true, email: admin.email };
-      } catch (error: any) {
-        console.error(`📧 Failed to send notification to ${admin.email}:`, error.message);
-        return { success: false, email: admin.email, error: error.message };
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`📧 Failed to send notification to ${admin.email}:`, errorMessage);
+        return { success: false, email: admin.email, error: errorMessage };
       }
     });
 
@@ -150,13 +151,15 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Admin password reset email API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorCode = error && typeof error === 'object' && 'code' in error ? (error.code as string) : undefined;
     return NextResponse.json(
       {
         error: 'Failed to send admin password reset notifications',
-        details: error.message,
-        code: error.code,
+        details: errorMessage,
+        code: errorCode,
         timestamp: new Date().toISOString(),
         envCheck: {
           EMAIL_USERNAME: process.env.EMAIL_USERNAME ? 'SET' : 'NOT_SET',

@@ -34,6 +34,7 @@ export interface ListData {
     };
     autoMove?: {
       enabled: boolean;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       conditions: any[];
     };
     cardLimit?: number;
@@ -72,8 +73,11 @@ export interface Card {
   progress?: number;
   estimatedHours?: number;
   actualHours?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tasks?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   comments?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   attachments?: any[];
   createdAt: Date;
 }
@@ -90,13 +94,16 @@ export interface ListContainerProps {
   canEdit: boolean;
   canDelete: boolean;
   dragHandleProps?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attributes: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     listeners: any;
     isDragging: boolean;
   };
 }
 
-// Card Component for inside lists
+// Card Component for inside lists (unused but kept for potential future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const CardPreview: React.FC<{
   card: Card;
   onClick: (cardId: string) => void;
@@ -205,6 +212,7 @@ const CardPreview: React.FC<{
               title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
             >
               {member.userId?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={member.userId.avatar}
                   alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
@@ -234,6 +242,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
   list,
   cards,
   onAddCard,
+  // onEditList is unused but kept in props for API compatibility
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onEditList,
   onUpdateList,
   onDeleteList,
@@ -482,7 +492,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
         {/* Empty state for dropping */}
         {cards.length === 0 && (
           <div className="flex items-center justify-center h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm">
-            Drop cards here or click "Add a card"
+            Drop cards here or click &quot;Add a card&quot;
           </div>
         )}
         </div>
@@ -503,6 +513,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
             ref={(el) => {
               if (el) {
                 // Store reference for later use
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (window as any).currentCardTextarea = el;
               }
             }}

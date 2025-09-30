@@ -53,6 +53,7 @@ export interface List {
     };
     autoMove?: {
       enabled: boolean;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       conditions: any[];
     };
     cardLimit?: number;
@@ -261,6 +262,7 @@ export const listsApi = {
       };
       autoMove?: {
         enabled: boolean;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         conditions: any[];
       };
       cardLimit?: number;
@@ -290,6 +292,7 @@ export const listsApi = {
 
   // Reorder list
   reorderList: async (listId: string, position: number, listOrder?: Array<{ listId: string }>): Promise<void> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body: any = { position };
     if (listOrder) {
       body.listOrder = listOrder;
@@ -337,6 +340,7 @@ export const cardsApi = {
   },
 
   // Get card details
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getCard: async (cardId: string): Promise<Card & { activities: any[] }> => {
     const response = await apiCall(`/trello-cards/${cardId}`);
     return response.data;
@@ -438,6 +442,7 @@ export const cardsApi = {
     description?: string;
     assignedTo?: string;
     priority?: 'low' | 'medium' | 'high';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): Promise<any> => {
     const response = await apiCall(`/trello-cards/${cardId}/tasks`, {
       method: 'POST',
@@ -452,6 +457,7 @@ export const cardsApi = {
     completed?: boolean;
     assignedTo?: string;
     priority?: 'low' | 'medium' | 'high';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): Promise<any> => {
     const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}`, {
       method: 'PUT',

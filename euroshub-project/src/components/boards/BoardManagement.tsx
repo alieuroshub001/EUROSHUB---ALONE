@@ -9,7 +9,6 @@ import {
   Grid3X3,
   List,
   Users,
-  Settings,
   Eye,
   Edit,
   Trash2,
@@ -21,7 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { boardsApi, Board as APIBoard } from '@/services/trelloBoardsApi';
+import { boardsApi } from '@/services/trelloBoardsApi';
 
 // Types for Board Management
 export interface Board {
@@ -256,6 +255,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
 
                   {imagePreview && (
                     <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={imagePreview}
                         alt="Background preview"
@@ -459,6 +459,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
                 title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
               >
                 {member.userId?.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={member.userId.avatar}
                     alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}

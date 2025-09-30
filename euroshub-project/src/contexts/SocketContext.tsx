@@ -5,6 +5,7 @@ import { useSocket } from '@/hooks/useSocket';
 import Cookies from 'js-cookie';
 
 interface SocketContextType {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   socket: any;
   isConnected: boolean;
   error: string | null;
@@ -66,10 +67,10 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
       setOnlineUsers(prev => prev.filter(id => id !== data.userId));
     };
 
-    const handleUserStatusChange = (data: { userId: string; status: string }) => {
+    const handleUserStatusChange = (data: { userId: string; status?: string }) => {
       if (data.status === 'online') {
         setOnlineUsers(prev => [...new Set([...prev, data.userId])]);
-      } else {
+      } else if (data.status === 'offline') {
         setOnlineUsers(prev => prev.filter(id => id !== data.userId));
       }
     };

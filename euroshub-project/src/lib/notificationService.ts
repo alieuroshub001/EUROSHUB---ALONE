@@ -23,6 +23,7 @@ export interface TaskAssignmentNotification {
 export interface EmailNotificationRequest {
   type: 'task_assignment' | 'task_due_reminder' | 'project_update';
   recipients: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }
 
@@ -38,6 +39,7 @@ export const notificationService = {
       return response.data.success || true;
     } catch (error: unknown) {
       // Log warning instead of error to reduce console noise
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       console.warn('Task assignment notification service unavailable:', (error as any)?.code || 'Network error');
       // Don't throw error to avoid breaking task assignment flow
       return false;
@@ -55,6 +57,7 @@ export const notificationService = {
       return response.data.success || true;
     } catch (error: unknown) {
       // Log warning instead of error to reduce console noise
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       console.warn('Email notification service unavailable:', (error as any)?.code || 'Network error');
       // Don't throw error to avoid breaking main functionality
       return false;

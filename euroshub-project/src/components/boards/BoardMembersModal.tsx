@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Search, UserPlus, Users, Shield, Eye, Edit, Trash2, Crown } from 'lucide-react';
+import { X, Search, UserPlus, Users, Shield, Eye, Edit, Crown } from 'lucide-react';
 import Portal from '../shared/Portal';
 import { usersApi, User as FullUser } from '@/services/trelloBoardsApi';
 
@@ -34,7 +34,6 @@ interface BoardMembersModalProps {
 const BoardMembersModal: React.FC<BoardMembersModalProps> = ({
   isOpen,
   onClose,
-  boardId,
   boardTitle,
   currentMembers,
   onAddMember,
@@ -145,7 +144,7 @@ const BoardMembersModal: React.FC<BoardMembersModalProps> = ({
                 Board Members
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Manage access and permissions for "{boardTitle}"
+                Manage access and permissions for &quot;{boardTitle}&quot;
               </p>
             </div>
             <button
@@ -189,6 +188,7 @@ const BoardMembersModal: React.FC<BoardMembersModalProps> = ({
                           {/* Avatar */}
                           <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
                             {member.userId.avatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={member.userId.avatar}
                                 alt={`${member.userId.firstName} ${member.userId.lastName}`}
@@ -325,7 +325,7 @@ const BoardMembersModal: React.FC<BoardMembersModalProps> = ({
                     {availableUsers.length === 0 ? (
                       <p>All users are already members</p>
                     ) : (
-                      <p>No users found matching "{searchTerm}"</p>
+                      <p>No users found matching &quot;{searchTerm}&quot;</p>
                     )}
                   </div>
                 ) : (
@@ -336,6 +336,7 @@ const BoardMembersModal: React.FC<BoardMembersModalProps> = ({
                     >
                       <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
                         {user.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={user.avatar}
                             alt={`${user.firstName} ${user.lastName}`}

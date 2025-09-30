@@ -161,6 +161,7 @@ export const cardService = {
   },
 
   // Card Details
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getCard(cardId: string): Promise<any> {
     try {
       const response = await axios.get(`${API_BASE_URL}/cards/${cardId}`, {

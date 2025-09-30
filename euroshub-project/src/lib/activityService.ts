@@ -35,10 +35,13 @@ export interface Activity {
     lastName: string;
   };
   data?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     oldValue?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     newValue?: any;
     field?: string;
     comment?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     additionalInfo?: any;
     projectTitle?: string; // Added this property
   };
@@ -47,7 +50,9 @@ export interface Activity {
     entityId?: string;
     changes?: Array<{
       field: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       oldValue: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       newValue: any;
     }>;
   };

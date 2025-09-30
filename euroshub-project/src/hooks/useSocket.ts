@@ -9,42 +9,111 @@ interface UseSocketOptions {
   autoConnect?: boolean;
 }
 
+// Define specific types for socket events
+interface ProjectUpdatedData {
+  projectId: string;
+  updates: Record<string, unknown>;
+}
+
+interface ProjectMemberData {
+  projectId: string;
+  userId: string;
+  memberDetails?: Record<string, unknown>;
+}
+
+interface BoardData {
+  boardId: string;
+  projectId: string;
+  [key: string]: unknown;
+}
+
+interface ListData {
+  listId: string;
+  boardId: string;
+  [key: string]: unknown;
+}
+
+interface CardData {
+  cardId: string;
+  listId: string;
+  [key: string]: unknown;
+}
+
+interface CardMovedData {
+  cardId: string;
+  sourceListId: string;
+  targetListId: string;
+  position: number;
+  projectId?: string;
+}
+
+interface CardAssignedData {
+  cardId: string;
+  userId: string;
+  projectId?: string;
+}
+
+interface CommentData {
+  commentId: string;
+  cardId: string;
+  content: string;
+  userId: string;
+  [key: string]: unknown;
+}
+
+interface ActivityData {
+  activityId: string;
+  type: string;
+  [key: string]: unknown;
+}
+
+interface UserPresenceData {
+  userId: string;
+  status?: string;
+}
+
+interface UserTypingData {
+  userId: string;
+  cardId: string;
+  isTyping: boolean;
+}
+
 interface SocketEvents {
   // Project events
-  project_updated: (data: any) => void;
-  project_member_added: (data: any) => void;
-  project_member_removed: (data: any) => void;
+  project_updated: (data: ProjectUpdatedData) => void;
+  project_member_added: (data: ProjectMemberData) => void;
+  project_member_removed: (data: ProjectMemberData) => void;
 
   // Board events
-  board_created: (data: any) => void;
-  board_updated: (data: any) => void;
-  board_deleted: (data: any) => void;
+  board_created: (data: BoardData) => void;
+  board_updated: (data: BoardData) => void;
+  board_deleted: (data: BoardData) => void;
 
   // List events
-  list_created: (data: any) => void;
-  list_updated: (data: any) => void;
-  list_deleted: (data: any) => void;
+  list_created: (data: ListData) => void;
+  list_updated: (data: ListData) => void;
+  list_deleted: (data: ListData) => void;
 
   // Card events
-  card_created: (data: any) => void;
-  card_updated: (data: any) => void;
-  card_deleted: (data: any) => void;
-  card_moved: (data: any) => void;
-  card_assigned: (data: any) => void;
+  card_created: (data: CardData) => void;
+  card_updated: (data: CardData) => void;
+  card_deleted: (data: CardData) => void;
+  card_moved: (data: CardMovedData) => void;
+  card_assigned: (data: CardAssignedData) => void;
 
   // Comment events
-  comment_added: (data: any) => void;
-  comment_updated: (data: any) => void;
-  comment_deleted: (data: any) => void;
+  comment_added: (data: CommentData) => void;
+  comment_updated: (data: CommentData) => void;
+  comment_deleted: (data: CommentData) => void;
 
   // Activity events
-  activity_created: (data: any) => void;
+  activity_created: (data: ActivityData) => void;
 
   // User events
-  user_online: (data: any) => void;
-  user_offline: (data: any) => void;
-  user_typing: (data: any) => void;
-  user_status_change: (data: any) => void;
+  user_online: (data: UserPresenceData) => void;
+  user_offline: (data: UserPresenceData) => void;
+  user_typing: (data: UserTypingData) => void;
+  user_status_change: (data: UserPresenceData) => void;
 }
 
 export const useSocket = (options: UseSocketOptions = {}) => {
@@ -97,7 +166,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     };
   }, [url, token, autoConnect]);
 
-  const emit = (event: string, data: any) => {
+  const emit = (event: string, data: unknown) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit(event, data);
     }
@@ -105,14 +174,14 @@ export const useSocket = (options: UseSocketOptions = {}) => {
 
   const on = <T extends keyof SocketEvents>(event: T, handler: SocketEvents[T]) => {
     if (socketRef.current) {
-      socketRef.current.on(event as string, handler as (...args: any[]) => void);
+      socketRef.current.on(event as string, handler as (...args: unknown[]) => void);
     }
   };
 
   const off = <T extends keyof SocketEvents>(event: T, handler?: SocketEvents[T]) => {
     if (socketRef.current) {
       if (handler) {
-        socketRef.current.off(event as string, handler as (...args: any[]) => void);
+        socketRef.current.off(event as string, handler as (...args: unknown[]) => void);
       } else {
         socketRef.current.off(event as string);
       }
@@ -178,21 +247,24 @@ export const useProjectSocket = (projectId: string, token?: string) => {
       socket.joinProject(projectId);
 
       // Listen for user presence updates
-      socket.on('user_online', (data) => {
+      const handleUserOnline = (data: UserPresenceData) => {
         setOnlineUsers(prev => [...new Set([...prev, data.userId])]);
-      });
+      };
 
-      socket.on('user_offline', (data) => {
+      const handleUserOffline = (data: UserPresenceData) => {
         setOnlineUsers(prev => prev.filter(id => id !== data.userId));
-      });
+      };
+
+      socket.on('user_online', handleUserOnline);
+      socket.on('user_offline', handleUserOffline);
 
       return () => {
         socket.leaveProject(projectId);
-        socket.off('user_online');
-        socket.off('user_offline');
+        socket.off('user_online', handleUserOnline);
+        socket.off('user_offline', handleUserOffline);
       };
     }
-  }, [socket.isConnected, projectId]);
+  }, [socket, projectId]);
 
   const updateCardPosition = (cardId: string, sourceListId: string, targetListId: string, position: number) => {
     socket.emit('card_moved', {
@@ -204,7 +276,7 @@ export const useProjectSocket = (projectId: string, token?: string) => {
     });
   };
 
-  const updateCardInRealTime = (cardId: string, updates: any) => {
+  const updateCardInRealTime = (cardId: string, updates: Record<string, unknown>) => {
     socket.emit('card_updated', {
       projectId,
       cardId,
@@ -212,7 +284,7 @@ export const useProjectSocket = (projectId: string, token?: string) => {
     });
   };
 
-  const addCommentInRealTime = (cardId: string, comment: any) => {
+  const addCommentInRealTime = (cardId: string, comment: Record<string, unknown>) => {
     socket.emit('comment_added', {
       projectId,
       cardId,

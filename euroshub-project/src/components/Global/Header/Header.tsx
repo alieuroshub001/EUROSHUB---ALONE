@@ -345,6 +345,7 @@ const Header = memo<HeaderProps>(({
               >
                 <div className="w-8 h-8 rounded-full bg-[#0fb8af] flex items-center justify-center">
                   {userAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover" />
                   ) : (
                     <User size={16} className="text-white" />

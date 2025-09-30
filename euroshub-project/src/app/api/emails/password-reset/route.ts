@@ -18,7 +18,7 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       subject,
       html
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -84,12 +84,13 @@ export async function POST(request: NextRequest) {
       message: `Password reset email sent successfully to ${email}`
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Password reset email API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         error: 'Failed to send password reset email',
-        details: error.message
+        details: errorMessage
       },
       { status: 500 }
     );

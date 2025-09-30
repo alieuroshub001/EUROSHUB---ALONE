@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Search, UserPlus, Check, Crown, Shield, User as UserIcon } from 'lucide-react';
+import { X, Search, UserPlus, Crown, Shield, User as UserIcon } from 'lucide-react';
+import Image from 'next/image';
 import Portal from '../../shared/Portal';
 
 interface User {
@@ -172,20 +173,20 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                     array.findIndex(m => m.userId._id === member.userId._id) === index
                   )
                   .map((member, index) => {
-                  const roleInfo = getRoleInfo(member.role);
-                  const RoleIcon = roleInfo.icon;
+                  // const roleInfo = getRoleInfo(member.role);
 
                   return (
                     <div
                       key={`${member.userId._id}-${index}`}
                       className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
                         {member.userId.avatar ? (
-                          <img
+                          <Image
                             src={member.userId.avatar}
                             alt={`${member.userId.firstName} ${member.userId.lastName}`}
-                            className="w-full h-full rounded-full object-cover"
+                            fill
+                            className="object-cover"
                           />
                         ) : (
                           <span className="text-gray-600 dark:text-gray-300 font-medium">
@@ -302,7 +303,7 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                   {availableUsers.length === 0 ? (
                     <p>All board members are already assigned to this project</p>
                   ) : (
-                    <p>No members found matching "{searchTerm}"</p>
+                    <p>No members found matching &quot;{searchTerm}&quot;</p>
                   )}
                 </div>
               ) : (
@@ -311,12 +312,13 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                     key={user._id}
                     className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
                       {user.avatar ? (
-                        <img
+                        <Image
                           src={user.avatar}
                           alt={`${user.firstName} ${user.lastName}`}
-                          className="w-full h-full rounded-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">

@@ -80,10 +80,11 @@ export async function POST(request: NextRequest) {
       success: true
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Task status change email error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to send task status change notification', details: error.message },
+      { error: 'Failed to send task status change notification', details: errorMessage },
       { status: 500 }
     );
   }

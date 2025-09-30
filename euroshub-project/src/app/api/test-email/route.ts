@@ -19,12 +19,13 @@ export async function GET() {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Email config check error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         error: 'Failed to check email configuration',
-        details: error.message
+        details: errorMessage
       },
       { status: 500 }
     );
@@ -95,14 +96,16 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('📧 Test email error:', error);
 
     // Provide specific error details
-    let errorDetails = error.message;
-    if (error.code === 'EAUTH') {
+    let errorDetails = error instanceof Error ? error.message : 'Unknown error';
+    const errorCode = error && typeof error === 'object' && 'code' in error ? (error.code as string) : undefined;
+
+    if (errorCode === 'EAUTH') {
       errorDetails = 'Authentication failed. Check your Gmail credentials and ensure 2FA app password is correct.';
-    } else if (error.code === 'ENOTFOUND') {
+    } else if (errorCode === 'ENOTFOUND') {
       errorDetails = 'Network error. Check your internet connection.';
     }
 
@@ -110,7 +113,7 @@ export async function POST(request: NextRequest) {
       {
         error: 'Failed to send test email',
         details: errorDetails,
-        code: error.code,
+        code: errorCode,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
