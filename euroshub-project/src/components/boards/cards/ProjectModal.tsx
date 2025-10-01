@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Calendar,
@@ -27,8 +27,11 @@ import {
   Grid3x3,
   List,
   History,
-  MessageCircle
+  MessageCircle,
+  Smile,
+  SmilePlus
 } from 'lucide-react';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
@@ -62,12 +65,12 @@ interface Task {
   _id: string;
   title: string;
   completed: boolean;
-  assignedTo?: {
+  assignedTo?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  }>;
   dueDate?: Date;
   priority: 'low' | 'medium' | 'high';
   description?: string;
@@ -128,6 +131,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   onDeleteCard,
   canEdit,
   canDelete,
+  boardMembers = [],
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'comments' | 'activity'>('overview');
@@ -135,6 +139,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [editData, setEditData] = useState<Partial<Card>>(card);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
@@ -195,8 +202,22 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setTasks([]); // Clear existing tasks to prevent stale data
       loadCardData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, card._id]);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+        setShowReactionPicker(null);
+      }
+    };
+
+    if (showEmojiPicker || showReactionPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEmojiPicker, showReactionPicker]);
 
   const loadCardData = async () => {
     setIsLoading(true);
@@ -218,7 +239,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           title: task.title,
           description: task.description || '',
           completed: Boolean(task.completed),
-          assignedTo: task.assignedTo,
+          assignedTo: task.assignedTo
+            ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo])
+            : [],
           dueDate: task.dueDate,
           priority: task.priority || 'medium',
           createdAt: task.createdAt || new Date()
@@ -351,11 +374,45 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       // Add the new comment to state
       setComments([...comments, result.data]);
       setNewComment('');
+      setShowEmojiPicker(false);
     } catch (error) {
       console.error('Error adding comment:', error);
       alert('Failed to add comment. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setNewComment(prev => prev + emojiData.emoji);
+  };
+
+  const handleReactionClick = async (commentId: string, emoji: string) => {
+    try {
+      // Check if user already reacted with this emoji
+      const comment = comments.find(c => c._id === commentId);
+      const existingReaction = comment?.reactions?.find(
+        r => {
+          // Handle both populated and non-populated user objects
+          const userId = typeof r.user === 'string' ? r.user : r.user?._id;
+          return userId === user?.id && r.emoji === emoji;
+        }
+      );
+
+      if (existingReaction) {
+        // Remove reaction
+        await commentsApi.removeReaction(commentId, emoji, card._id);
+      } else {
+        // Add reaction
+        await commentsApi.addReaction(commentId, { emoji, cardId: card._id });
+      }
+
+      // Reload comments to get updated reactions
+      const commentsData = await commentsApi.getComments(card._id);
+      setComments(commentsData || []);
+      setShowReactionPicker(null);
+    } catch (error) {
+      console.error('Error toggling reaction:', error);
     }
   };
 
@@ -458,8 +515,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     // Prepare properly formatted update object
     const formattedUpdates = {
       ...updates,
-      assignedTo: updates.assignedTo && typeof updates.assignedTo === 'object'
-        ? (updates.assignedTo as { _id: string })._id
+      assignedTo: updates.assignedTo
+        ? (Array.isArray(updates.assignedTo)
+            ? updates.assignedTo.map(a => typeof a === 'string' ? a : a._id)
+            : (typeof updates.assignedTo === 'object' ? [updates.assignedTo._id] : [updates.assignedTo]))
         : updates.assignedTo
     };
 
@@ -469,7 +528,28 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     ));
 
     try {
-      await cardsApi.updateTask(card._id, taskId, formattedUpdates);
+      const response = await cardsApi.updateTask(card._id, taskId, formattedUpdates);
+
+      console.log('TASK UPDATE RESPONSE:', {
+        taskId,
+        response,
+        assignedTo: response?.assignedTo
+      });
+
+      // Update with the response data which has populated assignedTo
+      if (response) {
+        const updatedTaskData = {
+          ...response,
+          assignedTo: response.assignedTo
+            ? (Array.isArray(response.assignedTo) ? response.assignedTo : [response.assignedTo])
+            : []
+        };
+        console.log('UPDATING LOCAL STATE WITH:', updatedTaskData);
+        setTasks(prev => prev.map(task =>
+          task._id === taskId ? { ...task, ...updatedTaskData } : task
+        ));
+      }
+
       setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error updating task:', error);
@@ -1013,10 +1093,40 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 )}
 
                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {task.assignedTo && (
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {task.assignedTo.firstName} {task.assignedTo.lastName}
+                  {task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <div className="flex -space-x-2">
+                        {task.assignedTo.slice(0, 3).map((assigned, index) => {
+                          if (!assigned || typeof assigned === 'string') return null;
+                          return (
+                            <div
+                              key={assigned._id || index}
+                              className="w-5 h-5 rounded-full border border-white dark:border-gray-800 overflow-hidden"
+                              title={`${assigned.firstName} ${assigned.lastName}`}
+                            >
+                              {assigned.avatar ? (
+                                <img
+                                  src={assigned.avatar}
+                                  alt={`${assigned.firstName} ${assigned.lastName}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[8px] font-medium">
+                                  {assigned.firstName?.charAt(0)}{assigned.lastName?.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {task.assignedTo.length > 3 && (
+                          <div className="w-5 h-5 rounded-full border border-white dark:border-gray-800 bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-[8px] font-medium">
+                            +{task.assignedTo.length - 3}
+                          </div>
+                        )}
+                      </div>
+                      <span>
+                        {task.assignedTo.filter(a => a && typeof a !== 'string').map(a => `${a.firstName} ${a.lastName}`).join(', ')}
+                      </span>
                     </span>
                   )}
 
@@ -1470,8 +1580,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const renderCommentsTab = () => {
     // Check if current user can comment based on their role or creator status
     const currentUserMember = card.members.find(m => m.userId._id === user?.id);
-    const currentUserRole = currentUserMember?.role || 'viewer';
     const isCreator = canEdit; // Board/project creator has edit access
+    const currentUserRole = isCreator ? 'owner' : (currentUserMember?.role || 'viewer');
     const canComment = isCreator || ['project-manager', 'lead', 'contributor', 'commenter'].includes(currentUserRole);
 
     return (
@@ -1507,8 +1617,25 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                   className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                 />
                 <div className="flex justify-between items-center mt-2">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    Commenting as <span className="font-medium">{currentUserRole}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Commenting as <span className="font-medium">{currentUserRole}</span>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                        title="Add emoji"
+                      >
+                        <Smile className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                      </button>
+                      {showEmojiPicker && (
+                        <div ref={emojiPickerRef} className="absolute bottom-full left-0 mb-2 z-50">
+                          <EmojiPicker onEmojiClick={handleEmojiClick} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="submit"
@@ -1538,7 +1665,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         <div className="space-y-4">
           {comments.map((comment) => {
             const commentUserMember = card.members.find(m => m.userId._id === comment.author._id);
-            const commentUserRole = commentUserMember?.role || 'viewer';
+            // Check if comment author is the card creator (owner)
+            const isCommentAuthorOwner = card.createdBy && (card.createdBy._id === comment.author._id || card.createdBy === comment.author._id);
+            const commentUserRole = isCommentAuthorOwner ? 'owner' : (commentUserMember?.role || 'viewer');
             const canDeleteComment = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
                                    comment.author._id === user?.id;
 
@@ -1566,11 +1695,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                           {comment.author.firstName} {comment.author.lastName}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${{
-                          'project-manager': 'text-purple-600 bg-purple-100',
-                          'lead': 'text-blue-600 bg-blue-100',
-                          'contributor': 'text-green-600 bg-green-100',
-                          'commenter': 'text-yellow-600 bg-yellow-100',
-                          'viewer': 'text-gray-600 bg-gray-100'
+                          'owner': 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+                          'project-manager': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900',
+                          'lead': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
+                          'contributor': 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+                          'commenter': 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900',
+                          'viewer': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700'
                         }[commentUserRole] || 'text-gray-600 bg-gray-100'}`}>
                           {commentUserRole}
                         </span>
@@ -1595,6 +1725,67 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {comment.text}
                     </p>
+
+                    {/* Reactions */}
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      {/* Display existing reactions grouped by emoji */}
+                      {comment.reactions && comment.reactions.length > 0 && (
+                        <>
+                          {Object.entries(
+                            comment.reactions.reduce((acc, reaction) => {
+                              if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
+                              acc[reaction.emoji].push(reaction.user);
+                              return acc;
+                            }, {} as Record<string, typeof comment.reactions[0]['user'][]>)
+                          ).map(([emoji, users]) => {
+                            const userReacted = users.some(u => {
+                              const userId = typeof u === 'string' ? u : u?._id;
+                              return userId === user?.id;
+                            });
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReactionClick(comment._id, emoji)}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-colors ${
+                                  userReacted
+                                    ? 'bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700'
+                                    : 'bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                                title={users.map(u => {
+                                  if (typeof u === 'string') return 'User';
+                                  return `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'User';
+                                }).join(', ')}
+                              >
+                                <span>{emoji}</span>
+                                <span className="text-xs text-gray-600 dark:text-gray-300">{users.length}</span>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+
+                      {/* Add reaction button */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowReactionPicker(showReactionPicker === comment._id ? null : comment._id)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                          title="Add reaction"
+                        >
+                          <SmilePlus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                        </button>
+
+                        {showReactionPicker === comment._id && (
+                          <div className="absolute bottom-full left-0 mb-2 z-50">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                handleReactionClick(comment._id, emojiData.emoji);
+                              }}
+                              reactionsDefaultOpen={true}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1868,7 +2059,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         }}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
-        projectMembers={editData.members || []}
+        projectMembers={boardMembers.map(member => ({
+          userId: {
+            _id: member._id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            avatar: member.avatar
+          },
+          role: member.role
+        }))}
         canEdit={canEdit}
       />
       </div>

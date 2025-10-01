@@ -189,6 +189,12 @@ router.get('/:cardId', protect, getCardWithAccess, async (req, res) => {
   try {
     const card = req.card;
 
+    // Populate tasks.assignedTo before returning
+    await card.populate({
+      path: 'tasks.assignedTo',
+      select: 'firstName lastName avatar'
+    });
+
     // Get activities for this card
     const activities = await Activity.find({ cardId: card._id })
       .populate('userId', 'firstName lastName avatar')
@@ -811,15 +817,21 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
       });
     }
 
-    // Verify assigned user exists if provided
+    // Verify assigned users exist if provided
     if (assignedTo) {
       const User = require('../models/User');
-      const user = await User.findById(assignedTo);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Assigned user not found'
-        });
+      const userIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+
+      for (const userId of userIds) {
+        if (userId) {
+          const user = await User.findById(userId);
+          if (!user) {
+            return res.status(404).json({
+              success: false,
+              message: `Assigned user ${userId} not found`
+            });
+          }
+        }
       }
     }
 
@@ -827,11 +839,20 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     if (title !== undefined && title.trim()) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description;
     if (completed !== undefined) updateData.completed = completed;
-    if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
+    if (assignedTo !== undefined) {
+      // Convert to array if not already
+      updateData.assignedTo = Array.isArray(assignedTo) ? assignedTo : (assignedTo ? [assignedTo] : []);
+    }
     if (priority !== undefined) updateData.priority = priority;
 
     card.updateTask(taskId, updateData);
     await card.save();
+
+    // Populate assignedTo before returning
+    await card.populate({
+      path: 'tasks.assignedTo',
+      select: 'firstName lastName avatar'
+    });
 
     // Get the updated task
     const updatedTask = card.tasks.id(taskId);

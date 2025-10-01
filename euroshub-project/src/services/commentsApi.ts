@@ -40,15 +40,13 @@ export const commentsApi = {
 
   // Add reaction
   addReaction: async (commentId: string, data: { emoji: string; cardId: string }) => {
-    const response = await apiClient.post(`/comments/${commentId}/reactions`, data);
+    const response = await apiClient.post(`/cards/${data.cardId}/comments/${commentId}/reactions`, { emoji: data.emoji });
     return response.data;
   },
 
   // Remove reaction
   removeReaction: async (commentId: string, emoji: string, cardId: string) => {
-    const response = await apiClient.delete(`/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`, {
-      params: { cardId },
-    });
+    const response = await apiClient.delete(`/cards/${cardId}/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`);
     return response.data;
   },
 };

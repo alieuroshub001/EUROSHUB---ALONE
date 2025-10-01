@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { X, AlertCircle, Save, Trash2 } from 'lucide-react';
-import Image from 'next/image';
 import Portal from '../../shared/Portal';
 
 interface Task {
   _id: string;
   title: string;
   completed: boolean;
-  assignedTo?: {
+  assignedTo?: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  }> | {
     _id: string;
     firstName: string;
     lastName: string;
@@ -70,7 +74,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
     setIsLoading(true);
     try {
-      onUpdateTask(task._id, editData);
+      // Convert assignedTo to array of IDs
+      const updatedData = {
+        ...editData,
+        assignedTo: Array.isArray(editData.assignedTo)
+          ? editData.assignedTo.map(assigned => typeof assigned === 'string' ? assigned : assigned._id)
+          : (editData.assignedTo ? [(typeof editData.assignedTo === 'string' ? editData.assignedTo : editData.assignedTo._id)] : [])
+      };
+
+      onUpdateTask(task._id, updatedData);
       onClose();
     } catch (error) {
       console.error('Error updating task:', error);
@@ -174,45 +186,103 @@ const TaskModal: React.FC<TaskModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Assigned To
             </label>
-            <select
-              value={editData.assignedTo?._id || ''}
-              onChange={(e) => {
-                const member = projectMembers.find(m => m.userId._id === e.target.value);
-                setEditData(prev => ({
-                  ...prev,
-                  assignedTo: member ? member.userId : undefined
-                }));
-              }}
-              disabled={!canEdit}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800"
-            >
-              <option value="">Unassigned</option>
-              {projectMembers.map((member) => (
-                <option key={member.userId._id} value={member.userId._id}>
-                  {member.userId.firstName} {member.userId.lastName} ({member.role})
-                </option>
-              ))}
-            </select>
+            <div className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 max-h-48 overflow-y-auto">
+              {projectMembers.map((member) => {
+                const assignedToArray = Array.isArray(editData.assignedTo)
+                  ? editData.assignedTo
+                  : (editData.assignedTo ? [editData.assignedTo] : []);
+                const isSelected = assignedToArray.some(assigned =>
+                  (typeof assigned === 'string' ? assigned : assigned._id) === member.userId._id
+                );
 
-            {editData.assignedTo && (
-              <div className="mt-2 flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
-                  {editData.assignedTo?.avatar ? (
-                    <Image
-                      src={editData.assignedTo.avatar}
-                      alt={`${editData.assignedTo?.firstName || ''} ${editData.assignedTo?.lastName || ''}`}
-                      fill
-                      className="object-cover"
+                return (
+                  <label
+                    key={member.userId._id}
+                    className={`flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${
+                      !canEdit ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (!canEdit) return;
+
+                        setEditData(prev => {
+                          const currentAssigned = Array.isArray(prev.assignedTo)
+                            ? prev.assignedTo
+                            : (prev.assignedTo ? [prev.assignedTo] : []);
+
+                          if (e.target.checked) {
+                            return {
+                              ...prev,
+                              assignedTo: [...currentAssigned, member.userId]
+                            };
+                          } else {
+                            return {
+                              ...prev,
+                              assignedTo: currentAssigned.filter(assigned =>
+                                (typeof assigned === 'string' ? assigned : assigned._id) !== member.userId._id
+                              )
+                            };
+                          }
+                        });
+                      }}
+                      disabled={!canEdit}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                     />
-                  ) : (
-                    <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">
-                      {editData.assignedTo?.firstName?.charAt(0) || '?'}{editData.assignedTo?.lastName?.charAt(0) || '?'}
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {editData.assignedTo?.firstName || ''} {editData.assignedTo?.lastName || ''}
-                </span>
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {member.userId.avatar ? (
+                        <img
+                          src={member.userId.avatar}
+                          alt={`${member.userId.firstName} ${member.userId.lastName}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">
+                          {member.userId.firstName?.charAt(0)}{member.userId.lastName?.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {member.userId.firstName} {member.userId.lastName}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {member.role}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Display selected members */}
+            {Array.isArray(editData.assignedTo) && editData.assignedTo.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {editData.assignedTo.map((assigned) => {
+                  if (typeof assigned === 'string') return null;
+                  return (
+                    <div key={assigned._id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+                      <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden">
+                        {assigned.avatar ? (
+                          <img
+                            src={assigned.avatar}
+                            alt={`${assigned.firstName} ${assigned.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">
+                            {assigned.firstName?.charAt(0)}{assigned.lastName?.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-700 dark:text-gray-300">
+                        {assigned.firstName} {assigned.lastName}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

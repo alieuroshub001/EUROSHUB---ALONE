@@ -178,10 +178,10 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  assignedTo: {
+  assignedTo: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  },
+  }],
   dueDate: Date,
   priority: {
     type: String,

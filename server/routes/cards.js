@@ -52,6 +52,11 @@ router.get('/:cardId', protect, checkCardAccess, async (req, res) => {
         path: 'timeTracking.entries.user',
         select: 'firstName lastName avatar',
         match: { _id: { $ne: null } }
+      },
+      {
+        path: 'tasks.assignedTo',
+        select: 'firstName lastName avatar',
+        match: { _id: { $ne: null } }
       }
     ]);
 
@@ -706,11 +711,17 @@ router.get('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
   try {
     const card = req.card;
 
-    // Populate comments with author details
-    await card.populate({
-      path: 'comments.author',
-      select: 'firstName lastName avatar email'
-    });
+    // Populate comments with author and reaction user details
+    await card.populate([
+      {
+        path: 'comments.author',
+        select: 'firstName lastName avatar email'
+      },
+      {
+        path: 'comments.reactions.user',
+        select: 'firstName lastName avatar'
+      }
+    ]);
 
     // Filter out deleted comments
     const activeComments = card.comments.filter(comment => !comment.isDeleted);
@@ -808,6 +819,114 @@ router.delete('/:cardId/comments/:commentId', protect, checkCardAccess, async (r
     res.status(500).json({
       success: false,
       message: 'Error deleting comment'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/comments/:commentId/reactions
+ * @desc    Add reaction to comment
+ * @access  Private
+ */
+router.post('/:cardId/comments/:commentId/reactions', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { commentId } = req.params;
+    const { emoji } = req.body;
+
+    const comment = card.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Check if user already reacted with this emoji
+    const existingReaction = comment.reactions?.find(
+      r => r.user.toString() === req.user.id.toString() && r.emoji === emoji
+    );
+
+    if (existingReaction) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already reacted with this emoji'
+      });
+    }
+
+    // Add reaction
+    if (!comment.reactions) comment.reactions = [];
+    comment.reactions.push({
+      emoji,
+      user: req.user.id
+    });
+
+    await card.save();
+
+    // Populate reactions
+    await card.populate({
+      path: 'comments.reactions.user',
+      select: 'firstName lastName avatar'
+    });
+
+    const updatedComment = card.comments.id(commentId);
+
+    res.status(200).json({
+      success: true,
+      data: updatedComment.reactions,
+      message: 'Reaction added successfully'
+    });
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding reaction'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/cards/:cardId/comments/:commentId/reactions/:emoji
+ * @desc    Remove reaction from comment
+ * @access  Private
+ */
+router.delete('/:cardId/comments/:commentId/reactions/:emoji', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { commentId, emoji } = req.params;
+
+    const comment = card.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Find and remove the reaction
+    const reactionIndex = comment.reactions?.findIndex(
+      r => r.user.toString() === req.user.id.toString() && r.emoji === decodeURIComponent(emoji)
+    );
+
+    if (reactionIndex === -1 || reactionIndex === undefined) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reaction not found'
+      });
+    }
+
+    comment.reactions.splice(reactionIndex, 1);
+    await card.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Reaction removed successfully'
+    });
+  } catch (error) {
+    console.error('Remove reaction error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error removing reaction'
     });
   }
 });

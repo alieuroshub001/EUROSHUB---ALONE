@@ -80,6 +80,7 @@ export interface Card {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   attachments?: any[];
   createdAt: Date;
+  createdBy?: string | { _id: string; firstName: string; lastName: string; avatar?: string };
 }
 
 export interface ListContainerProps {
