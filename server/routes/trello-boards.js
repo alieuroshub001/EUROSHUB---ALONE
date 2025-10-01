@@ -88,7 +88,10 @@ router.get('/', protect, async (req, res) => {
       const boardObj = board.toObject();
 
       // Add starred status for current user
-      boardObj.isStarred = boardObj.starredBy?.includes(req.user.id) || false;
+      const userIdStr = req.user.id.toString();
+      boardObj.isStarred = boardObj.starredBy?.some(id => id.toString() === userIdStr) || false;
+
+      console.log(`Board ${boardObj.name}: starredBy=${boardObj.starredBy?.map(id => id.toString())}, isStarred=${boardObj.isStarred}`);
 
       // Add counts
       boardObj.listsCount = boardObj.metadata?.totalLists || 0;
@@ -215,7 +218,10 @@ router.get('/:boardId', protect, getBoardWithAccess, async (req, res) => {
 
     const boardObj = board.toObject();
     boardObj.lists = listsWithCards;
-    boardObj.isStarred = boardObj.starredBy?.includes(req.user.id) || false;
+
+    // Add starred status for current user
+    const userIdStr = req.user.id.toString();
+    boardObj.isStarred = boardObj.starredBy?.some(id => id.toString() === userIdStr) || false;
 
     // Clean up
     delete boardObj.starredBy;
@@ -320,9 +326,15 @@ router.delete('/:boardId', protect, getBoardWithAccess, async (req, res) => {
 router.post('/:boardId/star', protect, getBoardWithAccess, async (req, res) => {
   try {
     const board = req.board;
+    console.log('Before toggle - starredBy:', board.starredBy);
+    console.log('User ID:', req.user.id, 'Type:', typeof req.user.id);
+
     await board.toggleStar(req.user.id);
 
-    const isStarred = board.starredBy.includes(req.user.id);
+    const isStarred = board.starredBy.some(id => id.toString() === req.user.id.toString());
+
+    console.log('After toggle - starredBy:', board.starredBy);
+    console.log('Is starred:', isStarred);
 
     res.status(200).json({
       success: true,

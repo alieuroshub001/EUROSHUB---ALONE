@@ -559,7 +559,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filterType, setFilterType] = useState<'all' | 'created' | 'member'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'created' | 'member' | 'starred'>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'oldest' | 'name'>('latest');
 
   // Permission checks based on role
@@ -591,6 +591,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       setError(null);
 
       const boardsData = await boardsApi.getBoards();
+      console.log('Loaded boards:', boardsData.map(b => ({ id: b._id, name: b.name, isStarred: b.isStarred })));
       setBoards(boardsData);
     } catch (err) {
       console.error('Error loading boards:', err);
@@ -617,13 +618,21 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
         case 'member':
           return board.createdBy._id !== user?.id &&
                  board.members?.some(member => member.userId._id === user?.id);
+        case 'starred':
+          return board.isStarred === true;
         case 'all':
         default:
           return true;
       }
     })
     .sort((a, b) => {
-      // Sort logic
+      // Always prioritize starred boards first (unless filtering by starred)
+      if (filterType !== 'starred') {
+        if (a.isStarred && !b.isStarred) return -1;
+        if (!a.isStarred && b.isStarred) return 1;
+      }
+
+      // Then apply secondary sort
       switch (sortBy) {
         case 'oldest':
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -666,7 +675,9 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
 
   const handleStarBoard = async (boardId: string) => {
     try {
+      console.log('Toggling star for board:', boardId);
       const result = await boardsApi.toggleStar(boardId);
+      console.log('Star toggle result:', result);
       setBoards(prev => prev.map(board =>
         board._id === boardId
           ? { ...board, isStarred: result.isStarred }
@@ -786,10 +797,11 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value as 'all' | 'created' | 'member')}
+              onChange={(e) => setFilterType(e.target.value as 'all' | 'created' | 'member' | 'starred')}
               className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All boards</option>
+              <option value="starred">Starred</option>
               <option value="created">Created by me</option>
               <option value="member">Added to by others</option>
             </select>
@@ -819,15 +831,26 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       {filteredBoards.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-            <Grid3X3 className="w-8 h-8 text-gray-400" />
+            {filterType === 'starred' ? (
+              <Star className="w-8 h-8 text-gray-400" />
+            ) : (
+              <Grid3X3 className="w-8 h-8 text-gray-400" />
+            )}
           </div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            {searchTerm ? 'No boards found' : 'No boards yet'}
+            {filterType === 'starred'
+              ? 'No starred boards'
+              : searchTerm
+                ? 'No boards found'
+                : 'No boards yet'
+            }
           </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            {searchTerm
-              ? 'Try adjusting your search criteria'
-              : 'Create your first board to get started organizing your work'
+            {filterType === 'starred'
+              ? 'Star boards to quickly access them from this view'
+              : searchTerm
+                ? 'Try adjusting your search criteria'
+                : 'Create your first board to get started organizing your work'
             }
           </p>
           {canCreateBoards && !searchTerm && (

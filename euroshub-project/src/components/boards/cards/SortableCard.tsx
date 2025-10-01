@@ -50,14 +50,15 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`${card.color ? '' : 'bg-white dark:bg-gray-800'} rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer group ${
-        isDragging ? 'z-50 shadow-xl' : ''
+      className={`${card.color ? '' : 'bg-white dark:bg-gray-800'} rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
+        isDragging ? 'opacity-50' : ''
       }`}
     >
+
       {/* Cover Image */}
       {card.coverImage && (
         <div
-          className="h-20 rounded-md mb-3 bg-cover bg-center"
+          className="h-32 rounded-lg mb-3 bg-cover bg-center"
           style={{ backgroundImage: `url(${card.coverImage})` }}
         />
       )}
@@ -103,7 +104,7 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
         )}
 
         {/* Members */}
-        <div className="flex -space-x-2">
+        <div className="flex -space-x-1">
           {card.members.slice(0, 3).map((member, index) => (
             <div
               key={member.userId?._id || `sortable-member-${index}`}

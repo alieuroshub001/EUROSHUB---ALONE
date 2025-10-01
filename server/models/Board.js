@@ -225,13 +225,19 @@ boardSchema.methods.removeMember = async function(userId) {
 
 // Instance method to toggle star
 boardSchema.methods.toggleStar = async function(userId) {
-  const isStarred = this.starredBy.includes(userId);
+  const userIdStr = userId.toString();
+  const isStarred = this.starredBy.some(id => id.toString() === userIdStr);
 
   if (isStarred) {
-    this.starredBy = this.starredBy.filter(id => id.toString() !== userId.toString());
+    // Remove user from starredBy array
+    this.starredBy = this.starredBy.filter(id => id.toString() !== userIdStr);
   } else {
+    // Add user to starredBy array
     this.starredBy.push(userId);
   }
+
+  // Mark the field as modified to ensure Mongoose saves it
+  this.markModified('starredBy');
 
   return await this.save();
 };

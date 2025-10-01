@@ -771,7 +771,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
                       key={member.userId?._id || `board-member-${index}`}
                       className="relative group"
                     >
-                      <div className="w-15 h-15 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-sm font-semibold shadow-xl hover:scale-110 hover:z-10 transition-all duration-300 cursor-pointer">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-sm font-semibold shadow-xl hover:scale-110 hover:z-10 transition-all duration-300 cursor-pointer">
                         {member.userId?.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img

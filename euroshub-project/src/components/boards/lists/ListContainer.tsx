@@ -415,11 +415,11 @@ const ListContainer: React.FC<ListContainerProps> = ({
         {/* Drag Handle */}
         {dragHandleProps && !isCollapsed && (
           <div
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded mr-2"
+            className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors mr-2"
             {...dragHandleProps.attributes}
             {...dragHandleProps.listeners}
           >
-            <GripVertical className="w-4 h-4 text-gray-400" />
+            <GripVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           </div>
         )}
 
@@ -433,21 +433,21 @@ const ListContainer: React.FC<ListContainerProps> = ({
                 onChange={(e) => setTempTitle(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={handleKeyPress}
-                className="w-full font-medium text-gray-900 dark:text-white bg-transparent border-2 border-blue-500 rounded px-2 py-1 text-sm focus:outline-none"
+                className="w-full font-bold text-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
                 autoFocus
               />
             ) : (
               <h3
                 onClick={canEdit ? handleTitleEdit : undefined}
-                className={`font-medium text-gray-900 dark:text-white text-sm ${
-                  canEdit ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : ''
+                className={`font-bold text-lg text-gray-900 dark:text-white ${
+                  canEdit ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : 'px-1'
                 }`}
                 title={canEdit ? 'Click to edit list name' : ''}
               >
                 {list.name}
                 {list.settings.wipLimit?.enabled && (
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                    ({cards.length}/{list.settings.wipLimit.limit})
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 rounded">
+                    {cards.length}/{list.settings.wipLimit.limit}
                   </span>
                 )}
               </h3>
@@ -461,9 +461,9 @@ const ListContainer: React.FC<ListContainerProps> = ({
             <button
               ref={setButtonRef}
               onClick={handleMenuToggle}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
             >
-              <MoreVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button>
 
           </div>
@@ -491,8 +491,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
         {/* Empty state for dropping */}
         {cards.length === 0 && (
-          <div className="flex items-center justify-center h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm">
-            Drop cards here or click &quot;Add a card&quot;
+          <div className="flex items-center justify-center h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm">
+            Drop cards here
           </div>
         )}
         </div>
@@ -502,7 +502,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
       {!isCollapsed && (!showCreateForm ? (
         <button
           onClick={() => setShowCreateForm(true)}
-          className="w-full py-2 px-3 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
+          className="w-full py-2 px-3 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
         >
           <Plus className="w-4 h-4" />
           Add a card
@@ -518,8 +518,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
               }
             }}
             placeholder="Enter a title for this card..."
-            className="w-full p-2 border-0 resize-none focus:outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-            rows={2}
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded"
+            rows={3}
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -545,13 +545,13 @@ const ListContainer: React.FC<ListContainerProps> = ({
                   setShowCreateForm(false);
                 }
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
             >
               Add card
             </button>
             <button
               onClick={() => setShowCreateForm(false)}
-              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
             >
               <X className="w-4 h-4" />
             </button>
