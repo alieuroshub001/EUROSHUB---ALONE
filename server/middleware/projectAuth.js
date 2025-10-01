@@ -229,11 +229,11 @@ const checkCardAccess = async (req, res, next) => {
       });
     }
 
-    // Find the card and populate list, board, and project
+    // Find the card and populate listId, boardId, and project
     const card = await Card.findById(cardId).populate({
-      path: 'list',
+      path: 'listId',
       populate: {
-        path: 'board',
+        path: 'boardId',
         populate: {
           path: 'project'
         }
@@ -257,9 +257,9 @@ const checkCardAccess = async (req, res, next) => {
     }
 
     req.card = card;
-    req.list = card.list;
-    req.board = card.list.board;
-    req.project = card.list.board.project;
+    req.list = card.listId;
+    req.board = card.listId ? card.listId.boardId : null;
+    req.project = card.listId && card.listId.boardId ? card.listId.boardId.project : null;
     next();
   } catch (error) {
     console.error('Card access check error:', error);

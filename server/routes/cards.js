@@ -376,7 +376,7 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
         user: req.user.id,
         project: card.project,
         board: card.board,
-        list: card.list,
+        list: card.listId,
         card: card._id,
         metadata: {
           entityName: card.title,
@@ -435,7 +435,7 @@ router.delete('/:cardId', protect, checkCardAccess, async (req, res) => {
     const cardTitle = card.title;
     const projectId = card.project;
     const boardId = card.board;
-    const listId = card.list;
+    const listId = card.listId;
 
     // Log activity before deletion
     await Activity.logActivity({
@@ -512,7 +512,7 @@ router.put('/:cardId/assign', protect, checkCardAccess, async (req, res) => {
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       data: {
         newValue: userIds
@@ -589,7 +589,7 @@ router.put('/:cardId/unassign', protect, checkCardAccess, async (req, res) => {
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       data: {
         oldValue: userIds
@@ -657,7 +657,7 @@ router.post('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -693,6 +693,37 @@ router.post('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding comment'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/cards/:cardId/comments
+ * @desc    Get all comments for a card
+ * @access  Private
+ */
+router.get('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+
+    // Populate comments with author details
+    await card.populate({
+      path: 'comments.author',
+      select: 'firstName lastName avatar email'
+    });
+
+    // Filter out deleted comments
+    const activeComments = card.comments.filter(comment => !comment.isDeleted);
+
+    res.status(200).json({
+      success: true,
+      data: activeComments
+    });
+  } catch (error) {
+    console.error('Get comments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching comments'
     });
   }
 });
@@ -858,7 +889,7 @@ router.put('/:cardId/move', protect, checkCardAccess, async (req, res) => {
       });
     }
 
-    const oldListId = card.list;
+    const oldListId = card.listId;
 
     // Move card to new list
     await card.moveToList(targetListId, position);
@@ -1101,7 +1132,7 @@ router.post('/:cardId/attachments', protect, checkCardAccess, (req, res, next) =
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1187,7 +1218,7 @@ router.post('/:cardId/images', protect, checkCardAccess, uploadImage.single('ima
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1276,7 +1307,7 @@ router.delete('/:cardId/attachments/:attachmentId', protect, checkCardAccess, as
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1364,7 +1395,7 @@ router.post('/:cardId/attachments/multiple', protect, checkCardAccess, (req, res
         user: req.user.id,
         project: card.project,
         board: card.board,
-        list: card.list,
+        list: card.listId,
         card: card._id,
         metadata: {
           entityName: card.title,
@@ -1483,7 +1514,7 @@ router.post('/:cardId/checklist', protect, checkCardAccess, async (req, res) => 
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1572,7 +1603,7 @@ router.post('/:cardId/checklist/bulk', protect, checkCardAccess, async (req, res
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1671,7 +1702,7 @@ router.put('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req, r
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,
@@ -1741,7 +1772,7 @@ router.delete('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req
       user: req.user.id,
       project: card.project,
       board: card.board,
-      list: card.list,
+      list: card.listId,
       card: card._id,
       metadata: {
         entityName: card.title,

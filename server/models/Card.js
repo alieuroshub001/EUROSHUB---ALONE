@@ -41,7 +41,35 @@ const attachmentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  cloudflareKey: {
+    type: String,
+    required: false // For Cloudflare R2 storage key
+  },
+  folderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Folder',
+    default: null // null means root level (not in any folder)
+  },
   uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true
+});
+
+const reactionSchema = new mongoose.Schema({
+  emoji: {
+    type: String,
+    required: true,
+    maxlength: 10
+  },
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -66,11 +94,16 @@ const commentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  reactions: [reactionSchema],
   isEdited: {
     type: Boolean,
     default: false
   },
-  editedAt: Date
+  editedAt: Date,
+  isDeleted: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true
 });

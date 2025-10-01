@@ -19,13 +19,24 @@ import {
   Target,
   FileText,
   Paperclip,
-  Send
+  Send,
+  FolderPlus,
+  Folder,
+  Download,
+  ChevronRight,
+  Grid3x3,
+  List,
+  History,
+  MessageCircle
 } from 'lucide-react';
 import { Card } from '../lists/ListContainer';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
+import { folderApi, fileApi } from '../../../services/filesApi';
+import { commentsApi } from '../../../services/commentsApi';
 import { useAuth } from '@/hooks/useAuth';
+import FolderTree from './FolderTree';
 
 interface User {
   _id: string;
@@ -65,28 +76,48 @@ interface Task {
 
 interface Comment {
   _id: string;
-  userId: {
+  author: {
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
+    email?: string;
   };
-  content: string;
+  text: string;
+  mentions?: string[];
+  reactions?: Array<{
+    emoji: string;
+    user: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+  }>;
+  isEdited?: boolean;
+  editedAt?: Date;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 interface ProjectFile {
   _id: string;
   filename: string;
+  originalName: string;
   url: string;
   size: number;
   type: string;
+  mimetype: string;
+  folderId: string | null;
+  cloudflareKey?: string;
   uploadedBy: {
     _id: string;
     firstName: string;
     lastName: string;
   };
   uploadedAt: Date;
+  createdAt: Date;
+  isDeleted: boolean;
 }
 
 const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -99,13 +130,18 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   canDelete,
 }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'comments' | 'activity'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Card>>(card);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [folders, setFolders] = useState<any[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [fileViewMode, setFileViewMode] = useState<'list' | 'grid'>('list');
   const [isLoading, setIsLoading] = useState(false);
   const [newTask, setNewTask] = useState('');
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -199,10 +235,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         setTasks([]);
       }
 
-      // Set comments from backend
-      if (cardData.comments && Array.isArray(cardData.comments)) {
-        setComments(cardData.comments);
-      } else {
+      // Load comments from API
+      try {
+        const commentsData = await commentsApi.getComments(card._id);
+        setComments(commentsData || []);
+      } catch (error) {
+        console.error('Error loading comments:', error);
         setComments([]);
       }
 
@@ -212,15 +250,30 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         const formattedFiles = cardData.attachments.map((attachment: any) => ({
           _id: attachment._id,
           filename: attachment.filename,
+          originalName: attachment.originalName || attachment.filename,
           url: attachment.url,
           size: attachment.size,
+          mimetype: attachment.mimetype,
           type: attachment.mimetype,
+          cloudflareKey: attachment.cloudflareKey,
+          folderId: attachment.folderId || null,
           uploadedBy: attachment.uploadedBy,
-          uploadedAt: attachment.uploadedAt || attachment.createdAt
+          uploadedAt: attachment.uploadedAt || attachment.createdAt,
+          createdAt: attachment.createdAt || new Date(),
+          isDeleted: attachment.isDeleted || false
         }));
-        setFiles(formattedFiles);
+        setFiles(formattedFiles.filter((f: any) => !f.isDeleted));
       } else {
         setFiles([]);
+      }
+
+      // Load folders
+      try {
+        const foldersData = await folderApi.getFolders(card._id);
+        setFolders(foldersData.folders || []);
+      } catch (folderError) {
+        console.error('Error loading folders:', folderError);
+        setFolders([]);
       }
 
     } catch (error) {
@@ -230,6 +283,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setTasks([]);
       setComments([]);
       setFiles([]);
+      setFolders([]);
     } finally {
       setIsLoading(false);
     }
@@ -288,19 +342,18 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
     setIsLoading(true);
     try {
-      // For now, add the comment locally
-      // TODO: Implement comments API endpoint on backend
-      const comment: Comment = {
-        _id: `comment_${Date.now()}`,
-        userId: { _id: '1', firstName: 'Current', lastName: 'User' },
-        content: newComment.trim(),
-        createdAt: new Date()
-      };
+      // Add comment via API
+      const result = await commentsApi.addComment(card._id, {
+        text: newComment.trim(),
+        mentions: [] // TODO: Extract mentions from comment text
+      });
 
-      setComments([...comments, comment]);
+      // Add the new comment to state
+      setComments([...comments, result.data]);
       setNewComment('');
     } catch (error) {
       console.error('Error adding comment:', error);
+      alert('Failed to add comment. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -998,6 +1051,115 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   );
 
 
+  // Folder and file handlers
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    setIsLoading(true);
+    try {
+      await folderApi.createFolder(card._id, {
+        name: newFolderName.trim(),
+        parentFolderId: currentFolderId
+      });
+
+      // Reload folders
+      const foldersData = await folderApi.getFolders(card._id);
+      setFolders(foldersData.folders || []);
+
+      setNewFolderName('');
+      setShowCreateFolderModal(false);
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      setError('Failed to create folder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFolderRename = async (folderId: string, newName: string) => {
+    setIsLoading(true);
+    try {
+      await folderApi.renameFolder(folderId, newName);
+
+      // Reload folders
+      const foldersData = await folderApi.getFolders(card._id);
+      setFolders(foldersData.folders || []);
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      setError('Failed to rename folder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFolderDelete = async (folderId: string) => {
+    setIsLoading(true);
+    try {
+      await folderApi.deleteFolder(folderId);
+
+      // Reload folders and files
+      const foldersData = await folderApi.getFolders(card._id);
+      setFolders(foldersData.folders || []);
+      await loadCardData();
+
+      if (currentFolderId === folderId) {
+        setCurrentFolderId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      setError('Failed to delete folder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (selectedFiles: File[]) => {
+    if (selectedFiles.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      await fileApi.uploadFiles(card._id, selectedFiles, currentFolderId);
+
+      // Reload card data to get updated files
+      await loadCardData();
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      setError('Failed to upload files');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileDownload = async (fileId: string) => {
+    setIsLoading(true);
+    try {
+      const file = files.find(f => f._id === fileId);
+      if (file) {
+        await fileApi.downloadFile(fileId, card._id, file.originalName || file.filename);
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setError('Failed to download file');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    setIsLoading(true);
+    try {
+      await fileApi.deleteFile(fileId, card._id);
+
+      // Reload files
+      await loadCardData();
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      setError('Failed to delete file');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderFilesTab = () => {
     // Check if current user can upload files based on their role or creator status
     const currentUserMember = card.members.find(m => m.userId._id === user?.id);
@@ -1005,157 +1167,307 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     const isCreator = canEdit; // Board/project creator has edit access
     const canUploadFiles = isCreator || ['project-manager', 'lead', 'contributor'].includes(currentUserRole);
 
+    // Get current folder files
+    const currentFolderFiles = files.filter(f =>
+      !f.isDeleted && (
+        currentFolderId === null
+          ? !f.folderId
+          : f.folderId === currentFolderId
+      )
+    );
+
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Files ({files.length})
-          </h3>
-          {canEdit && canUploadFiles && (
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm cursor-pointer">
-                <Paperclip className="w-4 h-4" />
-                Upload File
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={async (e) => {
-                    const selectedFiles = Array.from(e.target.files || []);
-                    if (selectedFiles.length === 0) return;
-
-                    setIsLoading(true);
-                    try {
-                      // TODO: Implement file upload API
-                      console.log('Files to upload:', selectedFiles);
-                      // Simulate upload for now
-                      setTimeout(() => {
-                        setIsLoading(false);
-                        // Add uploaded files to state (mock)
-                        const mockFiles = selectedFiles.map((file, index) => ({
-                          _id: `file_${Date.now()}_${index}`,
-                          filename: file.name,
-                          url: URL.createObjectURL(file),
-                          size: file.size,
-                          type: file.type,
-                          uploadedBy: {
-                            _id: user?.id || '1',
-                            firstName: user?.firstName || 'Current',
-                            lastName: user?.lastName || 'User'
-                          },
-                          uploadedAt: new Date()
-                        }));
-                        setFiles(prev => [...prev, ...mockFiles]);
-                      }, 1000);
-                    } catch (error) {
-                      console.error('Error uploading files:', error);
-                      setIsLoading(false);
-                    }
-                  }}
-                />
-              </label>
-            </div>
-          )}
-          {canEdit && !canUploadFiles && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              File upload requires Contributor access or higher
-            </div>
-          )}
-        </div>
-
-        {/* File Upload Permission Info */}
-        {canEdit && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5">ℹ</div>
-              <div className="text-sm">
-                <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">File Upload Permissions</p>
-                <p className="text-blue-700 dark:text-blue-300">
-                  <strong>Board/Project Creator:</strong> Full access - can upload and delete any file<br/>
-                  <strong>Project Manager & Team Lead:</strong> Can upload any file type<br/>
-                  <strong>Contributor:</strong> Can upload documents, images, and project files<br/>
-                  <strong>Commenter & Viewer:</strong> Can only download and view files
-                </p>
-              </div>
+      <div className="grid grid-cols-12 gap-4 h-full relative">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Processing...
+              </p>
             </div>
           </div>
         )}
 
-        <div className="space-y-3">
-          {files.map((file) => {
-            const canDeleteFile = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
-                                 file.uploadedBy._id === user?.id;
+        {/* Folder tree sidebar */}
+        <div className="col-span-3 border-r border-gray-200 dark:border-gray-700 pr-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+              Folders
+              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                (Click to navigate)
+              </span>
+            </h4>
+            {canEdit && canUploadFiles && (
+              <button
+                onClick={() => setShowCreateFolderModal(true)}
+                disabled={isLoading}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                title="Create folder"
+              >
+                <FolderPlus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
+          </div>
 
-            return (
-              <div key={file._id} className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
+          <FolderTree
+            folders={folders}
+            files={files}
+            currentFolderId={currentFolderId}
+            onFolderClick={setCurrentFolderId}
+            onFolderRename={handleFolderRename}
+            onFolderDelete={handleFolderDelete}
+            onFileDownload={handleFileDownload}
+            onFileDelete={handleFileDelete}
+            canEdit={canEdit && canUploadFiles}
+          />
+        </div>
 
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-gray-900 dark:text-white truncate">{file.filename}</h4>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    <span>{formatFileSize(file.size)}</span>
-                    <span>•</span>
-                    <span>by {file.uploadedBy.firstName} {file.uploadedBy.lastName}</span>
-                    <span>•</span>
-                    <span>{formatDate(file.uploadedAt)}</span>
-                  </div>
-                  <div className="mt-2">
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 rounded">
-                      {file.type || 'Unknown type'}
-                    </span>
-                  </div>
-                </div>
+        {/* Files content */}
+        <div className="col-span-9">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Files ({currentFolderFiles.length})
+              </h3>
 
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {/* View toggle */}
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                   <button
-                    onClick={() => {
-                      // Create download link
-                      const link = document.createElement('a');
-                      link.href = file.url;
-                      link.download = file.filename;
-                      link.click();
-                    }}
-                    className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                    onClick={() => setFileViewMode('list')}
+                    className={`p-1.5 rounded transition-all ${
+                      fileViewMode === 'list'
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                    title="List view"
                   >
-                    Download
+                    <List className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => setFileViewMode('grid')}
+                    className={`p-1.5 rounded transition-all ${
+                      fileViewMode === 'grid'
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                    title="Grid view"
+                  >
+                    <Grid3x3 className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  {canDeleteFile && (
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this file?')) {
-                          setFiles(prev => prev.filter(f => f._id !== file._id));
-                        }
+                {canEdit && canUploadFiles && (
+                  <label className={`flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm cursor-pointer transition-all ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}>
+                    <Paperclip className="w-4 h-4" />
+                    {isLoading ? 'Uploading...' : 'Upload Files'}
+                    <input
+                      type="file"
+                      multiple
+                      disabled={isLoading}
+                      className="hidden"
+                      onChange={(e) => {
+                        const selectedFiles = Array.from(e.target.files || []);
+                        handleFileUpload(selectedFiles);
+                        e.target.value = ''; // Reset input
                       }}
-                      className="px-2 py-1 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Files list/grid */}
+            <div className={fileViewMode === 'grid' ? 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-3'}>
+              {currentFolderFiles.map((file) => {
+                const canDeleteFile = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
+                                     file.uploadedBy._id === user?.id;
+
+                // Grid View
+                if (fileViewMode === 'grid') {
+                  return (
+                    <div
+                      key={file._id}
+                      className="group flex flex-col p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer"
+                      onClick={() => handleFileDownload(file._id)}
                     >
-                      Delete
-                    </button>
+                      {/* File icon */}
+                      <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg flex items-center justify-center mb-3">
+                        <FileText className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                      </div>
+
+                      {/* File info */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 dark:text-white truncate text-sm mb-1" title={file.originalName || file.filename}>
+                          {file.originalName || file.filename}
+                        </h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                          {formatFileSize(file.size)}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {file.uploadedBy.firstName} {file.uploadedBy.lastName}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleFileDownload(file._id)}
+                          disabled={isLoading}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          title="Download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
+
+                        {canDeleteFile && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this file?')) {
+                                handleFileDelete(file._id);
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // List View
+                return (
+                  <div
+                    key={file._id}
+                    className="group flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer"
+                    onClick={() => handleFileDownload(file._id)}
+                  >
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                          {file.originalName || file.filename}
+                        </h4>
+                        <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <span>{formatFileSize(file.size)}</span>
+                        <span>•</span>
+                        <span>by {file.uploadedBy.firstName} {file.uploadedBy.lastName}</span>
+                        <span>•</span>
+                        <span>{formatDate(file.uploadedAt)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Click to download
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleFileDownload(file._id)}
+                        disabled={isLoading}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download
+                      </button>
+
+                      {canDeleteFile && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this file?')) {
+                              handleFileDelete(file._id);
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="px-2 py-1 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {currentFolderFiles.length === 0 && !isLoading && (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <FileText className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                  <p className="text-lg font-medium">No files in this folder</p>
+                  {canUploadFiles && (
+                    <p className="text-sm mt-1">Upload files to get started</p>
                   )}
                 </div>
-              </div>
-            );
-          })}
-
-          {files.length === 0 && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>No files uploaded yet</p>
-              {canUploadFiles ? (
-                <p className="text-sm mt-1">Upload files to share with your team</p>
-              ) : (
-                <p className="text-sm mt-1">Contact a project manager to upload files</p>
               )}
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Create folder modal */}
+        {showCreateFolderModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Create New Folder
+              </h3>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name..."
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-4 disabled:opacity-50"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isLoading) handleCreateFolder();
+                  if (e.key === 'Escape') {
+                    setShowCreateFolderModal(false);
+                    setNewFolderName('');
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowCreateFolderModal(false);
+                    setNewFolderName('');
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim() || isLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg"
+                >
+                  {isLoading && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  {isLoading ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  const renderActivityTab = () => {
+  const renderCommentsTab = () => {
     // Check if current user can comment based on their role or creator status
     const currentUserMember = card.members.find(m => m.userId._id === user?.id);
     const currentUserRole = currentUserMember?.role || 'viewer';
@@ -1165,7 +1477,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Activity & Comments ({comments.length})
+          Comments ({comments.length})
         </h3>
 
         {/* Add Comment */}
@@ -1225,24 +1537,24 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         {/* Comments List */}
         <div className="space-y-4">
           {comments.map((comment) => {
-            const commentUserMember = card.members.find(m => m.userId._id === comment.userId._id);
+            const commentUserMember = card.members.find(m => m.userId._id === comment.author._id);
             const commentUserRole = commentUserMember?.role || 'viewer';
             const canDeleteComment = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
-                                   comment.userId._id === user?.id;
+                                   comment.author._id === user?.id;
 
             return (
               <div key={comment._id} className="flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
-                  {comment.userId.avatar ? (
+                  {comment.author.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={comment.userId.avatar}
-                      alt={`${comment.userId.firstName} ${comment.userId.lastName}`}
+                      src={comment.author.avatar}
+                      alt={`${comment.author.firstName} ${comment.author.lastName}`}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
                     <span className="text-gray-600 dark:text-gray-300">
-                      {comment.userId.firstName.charAt(0)}{comment.userId.lastName.charAt(0)}
+                      {comment.author.firstName.charAt(0)}{comment.author.lastName.charAt(0)}
                     </span>
                   )}
                 </div>
@@ -1251,7 +1563,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {comment.userId.firstName} {comment.userId.lastName}
+                          {comment.author.firstName} {comment.author.lastName}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${{
                           'project-manager': 'text-purple-600 bg-purple-100',
@@ -1281,7 +1593,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {comment.content}
+                      {comment.text}
                     </p>
                   </div>
                 </div>
@@ -1310,6 +1622,89 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <div><strong>Project Manager & Team Lead:</strong> Can comment and delete any comment</div>
             <div><strong>Contributor & Commenter:</strong> Can comment and delete own comments</div>
             <div><strong>Viewer:</strong> Can only read comments</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderActivityTab = () => {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Activity Log
+        </h3>
+
+        {/* Activity Timeline */}
+        <div className="relative">
+          {/* Timeline line */}
+          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+
+          {/* Activity items */}
+          <div className="space-y-4">
+            {/* Mock activity items - will be replaced with real data */}
+            {[
+              { type: 'card_created', user: 'John Doe', time: '2 hours ago', icon: Plus },
+              { type: 'comment_added', user: 'Jane Smith', time: '1 hour ago', icon: MessageCircle },
+              { type: 'file_uploaded', user: 'Mike Johnson', time: '30 minutes ago', icon: Paperclip, details: 'project_proposal.pdf' },
+              { type: 'task_completed', user: 'Sarah Wilson', time: '15 minutes ago', icon: CheckSquare, details: 'Review requirements' },
+            ].map((activity, index) => (
+              <div key={index} className="relative flex gap-4 pl-12">
+                {/* Icon */}
+                <div className="absolute left-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border-2 border-white dark:border-gray-900">
+                  <activity.icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        <span className="font-medium">{activity.user}</span>
+                        {' '}
+                        {activity.type === 'card_created' && 'created this card'}
+                        {activity.type === 'comment_added' && 'added a comment'}
+                        {activity.type === 'file_uploaded' && `uploaded ${activity.details}`}
+                        {activity.type === 'task_completed' && `completed task "${activity.details}"`}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Empty state */}
+          {false && (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No activity yet</p>
+              <p className="text-sm mt-1">All card activities will appear here</p>
+            </div>
+          )}
+        </div>
+
+        {/* Info box */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5">ℹ</div>
+            <div className="text-sm">
+              <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">Activity Timeline</p>
+              <p className="text-blue-700 dark:text-blue-300">
+                This tab shows a chronological log of all actions performed on this card, including:
+              </p>
+              <ul className="list-disc list-inside mt-2 text-blue-700 dark:text-blue-300 space-y-1">
+                <li>Card creation and updates</li>
+                <li>Task additions and completions</li>
+                <li>File uploads and deletions</li>
+                <li>Comments and reactions</li>
+                <li>Member assignments</li>
+                <li>Due date changes</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -1402,11 +1797,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               { id: 'overview', label: 'Overview', icon: Target },
               { id: 'tasks', label: 'Tasks', icon: CheckSquare },
               { id: 'files', label: 'Files', icon: FileText },
-              { id: 'activity', label: 'Activity', icon: MessageSquare },
+              { id: 'comments', label: 'Comments', icon: MessageCircle },
+              { id: 'activity', label: 'Activity', icon: History },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'overview' | 'tasks' | 'files' | 'activity')}
+                onClick={() => setActiveTab(tab.id as 'overview' | 'tasks' | 'files' | 'comments' | 'activity')}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -1425,6 +1821,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'tasks' && renderTasksTab()}
           {activeTab === 'files' && renderFilesTab()}
+          {activeTab === 'comments' && renderCommentsTab()}
           {activeTab === 'activity' && renderActivityTab()}
         </div>
 

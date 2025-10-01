@@ -41,6 +41,11 @@ const activityRoutes = require('./routes/activities');
 const automationRoutes = require('./routes/automation');
 const notificationRoutes = require('./routes/notifications');
 const testEmailRoutes = require('./routes/test-email');
+// File and folder management routes
+const folderRoutes = require('./routes/folders');
+const fileRoutes = require('./routes/files');
+// Comment routes
+const commentRoutes = require('./routes/comments');
 const SocketManager = require('./config/socket');
 const ProjectSocketManager = require('./config/projectSocket');
 // Initialize automation service with error handling
@@ -248,6 +253,13 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/test', testEmailRoutes);
+
+// File and folder management routes
+app.use('/api', folderRoutes);
+app.use('/api', fileRoutes);
+
+// Comment routes (integrated into cards routes, so commented out to avoid duplicates)
+// app.use('/api', commentRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

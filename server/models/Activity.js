@@ -18,9 +18,13 @@ const activitySchema = new mongoose.Schema({
       'card_created', 'card_updated', 'card_deleted', 'card_moved',
       'card_assigned', 'card_unassigned', 'card_completed', 'card_reopened',
       'card_due_date_set', 'card_due_date_changed', 'card_comment_added',
+      'card_comment_edited', 'card_comment_deleted', 'card_comment_reacted',
       'card_attachment_added', 'card_attachment_removed', 'card_attachment_deleted',
       'card_image_added', 'card_label_added', 'card_label_removed',
-      'card_checklist_item_completed', 'card_checklist_items_added'
+      'card_checklist_item_completed', 'card_checklist_items_added',
+      'card_file_uploaded', 'card_file_deleted', 'card_folder_created', 'card_folder_deleted',
+      'card_task_added', 'card_task_completed', 'card_task_deleted',
+      'card_member_added', 'card_member_removed', 'card_description_changed'
     ],
     required: true
   },
@@ -104,12 +108,25 @@ activitySchema.virtual('description').get(function() {
     'card_due_date_set': 'set due date for card',
     'card_due_date_changed': 'changed due date for card',
     'card_comment_added': 'added comment to card',
+    'card_comment_edited': 'edited a comment',
+    'card_comment_deleted': 'deleted a comment',
+    'card_comment_reacted': 'reacted to a comment',
     'card_attachment_added': 'added attachment to card',
     'card_attachment_removed': 'removed attachment from card',
     'card_label_added': 'added label to card',
     'card_label_removed': 'removed label from card',
     'card_checklist_item_completed': 'completed checklist item',
-    'card_checklist_items_added': 'added checklist items to card'
+    'card_checklist_items_added': 'added checklist items to card',
+    'card_file_uploaded': 'uploaded a file',
+    'card_file_deleted': 'deleted a file',
+    'card_folder_created': 'created a folder',
+    'card_folder_deleted': 'deleted a folder',
+    'card_task_added': 'added a task',
+    'card_task_completed': 'completed a task',
+    'card_task_deleted': 'deleted a task',
+    'card_member_added': 'added a member',
+    'card_member_removed': 'removed a member',
+    'card_description_changed': 'changed the description'
   };
 
   return descriptions[this.type] || 'performed action';
