@@ -68,7 +68,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/superadmin/project-management',
       description: 'Manage all projects and tasks',
       subItems: [
-        { title: 'Projects', path: '/superadmin/project-management', icon: FolderOpen },
         { title: 'Boards', path: '/superadmin/boards', icon: Kanban }
       ]
     },
