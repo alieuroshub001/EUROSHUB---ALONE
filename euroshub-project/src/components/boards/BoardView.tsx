@@ -702,11 +702,14 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   };
 
   return (
-    <div className="h-full flex flex-col" style={backgroundStyle}>
-      {/* Ultra-Modern Board Header */}
-      <div className="relative">
+    <div className="h-full flex flex-col relative" style={backgroundStyle}>
+      {/* Animated Background Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/20 pointer-events-none"></div>
+
+      {/* Modern Board Header */}
+      <div className="relative z-10">
         {/* Header Background with Glass Effect */}
-        <div className="absolute inset-0 backdrop-blur-xl bg-gradient-to-r from-black/40 via-black/30 to-black/40 border-b border-white/10"></div>
+        <div className="absolute inset-0 backdrop-blur-xl bg-white/10 dark:bg-black/30 border-b border-white/20 dark:border-white/10"></div>
 
         {/* Header Content */}
         <div className="relative px-6 py-4">
@@ -716,28 +719,28 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
               {/* Back Button */}
               <button
                 onClick={handleBack}
-                className="group p-3 hover:bg-white/15 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20"
+                className="group p-2.5 hover:bg-white/20 dark:hover:bg-white/10 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:border-white/30"
               >
-                <ArrowLeft className="w-5 h-5 text-white/90 group-hover:text-white transition-colors duration-200" />
+                <ArrowLeft className="w-5 h-5 text-white group-hover:-translate-x-0.5 transition-transform duration-200" />
               </button>
 
               {/* Board Info */}
               <div className="flex items-center gap-4">
-                {/* Board Title with Gradient */}
+                {/* Board Title */}
                 <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent tracking-tight">
+                  <h1 className="text-2xl font-bold text-white drop-shadow-lg">
                     {board.name}
                   </h1>
 
-                  {/* Star Button with Enhanced Animation */}
+                  {/* Star Button */}
                   <button
                     onClick={handleStarBoard}
-                    className="group p-2 hover:bg-white/15 rounded-xl transition-all duration-300"
+                    className="group p-2 hover:bg-white/15 dark:hover:bg-white/10 rounded-lg transition-all duration-200"
                   >
                     <Star
-                      className={`w-6 h-6 transition-all duration-300 ${
+                      className={`w-5 h-5 transition-all duration-200 ${
                         board.isStarred
-                          ? 'fill-yellow-400 text-yellow-400 scale-110'
+                          ? 'fill-yellow-400 text-yellow-400'
                           : 'text-white/70 hover:text-yellow-300 group-hover:scale-110'
                       }`}
                     />
@@ -746,13 +749,13 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
 
                 {/* Board Stats Badges */}
                 <div className="flex items-center gap-2">
-                  <div className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-                    <span className="text-xs font-medium text-white/90">
+                  <div className="px-3 py-1.5 bg-white/15 dark:bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
+                    <span className="text-xs font-semibold text-white">
                       {lists.length} {lists.length === 1 ? 'List' : 'Lists'}
                     </span>
                   </div>
-                  <div className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-                    <span className="text-xs font-medium text-white/90">
+                  <div className="px-3 py-1.5 bg-white/15 dark:bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
+                    <span className="text-xs font-semibold text-white">
                       {Object.values(cards).flat().length} Cards
                     </span>
                   </div>
@@ -761,17 +764,16 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
             </div>
 
             {/* Right Section */}
-            <div className="flex items-center gap-4">
-              {/* Enhanced Members Section */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-white/70 hidden sm:block">Team</span>
-                <div className="flex -space-x-2">
-                  {board.members.slice(0, 5).map((member, index) => (
+            <div className="flex items-center gap-3">
+              {/* Team Members */}
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-3">
+                  {board.members?.slice(0, 4).map((member, index) => (
                     <div
                       key={member.userId?._id || `board-member-${index}`}
                       className="relative group"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-sm font-semibold shadow-xl hover:scale-110 hover:z-10 transition-all duration-300 cursor-pointer">
+                      <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-sm font-semibold hover:scale-110 hover:z-10 transition-all duration-200 cursor-pointer">
                         {member.userId?.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -780,90 +782,72 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
                             className="w-full h-full rounded-full object-cover"
                           />
                         ) : (
-                          <span className="text-white font-bold">
+                          <span className="text-white text-xs font-bold">
                             {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
                           </span>
                         )}
                       </div>
 
-                      {/* Enhanced Tooltip */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-black/80 backdrop-blur-sm text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20 pointer-events-none">
                         {member.userId?.firstName || ''} {member.userId?.lastName || ''}
-                        <div className="text-xs text-white/70 capitalize">{member.role}</div>
+                        <div className="text-xs text-white/60 capitalize">{member.role}</div>
                       </div>
                     </div>
                   ))}
-                  {board.members.length > 5 && (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/30 to-white/20 backdrop-blur-sm border-2 border-white/40 flex items-center justify-center text-sm font-bold shadow-xl hover:scale-110 transition-all duration-300 cursor-pointer">
-                      <span className="text-white">+{board.members.length - 5}</span>
+                  {board.members && board.members.length > 4 && (
+                    <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-xs font-bold hover:scale-110 transition-all duration-200 cursor-pointer">
+                      <span className="text-white">+{board.members.length - 4}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Enhanced Action Buttons */}
-              <div className="flex items-center gap-2">
-                {canManageMembers && (
-                  <button
-                    onClick={() => setShowMembersModal(true)}
-                    className="group px-4 py-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-2xl flex items-center gap-2 text-sm font-medium transition-all duration-300 border border-white/20 hover:border-white/30 hover:shadow-lg"
-                  >
-                    <Users className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                    <span className="hidden sm:inline text-white/90">Members</span>
-                  </button>
-                )}
+              {/* Action Buttons */}
+              {canManageMembers && (
+                <button
+                  onClick={() => setShowMembersModal(true)}
+                  className="group px-4 py-2 bg-white/15 dark:bg-white/10 backdrop-blur-md hover:bg-white/25 dark:hover:bg-white/20 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200 border border-white/20 hover:border-white/30"
+                >
+                  <Users className="w-4 h-4 text-white" />
+                  <span className="hidden sm:inline text-white">Members</span>
+                </button>
+              )}
 
-              </div>
-
-              {/* Enhanced Menu Button */}
+              {/* Menu Button */}
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="group p-3 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-2xl transition-all duration-300 border border-white/20 hover:border-white/30 hover:shadow-lg"
+                  className="group p-2 bg-white/15 dark:bg-white/10 backdrop-blur-md hover:bg-white/25 dark:hover:bg-white/20 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
                 >
-                  <MoreVertical className="w-5 h-5 text-white/90 group-hover:scale-110 transition-transform duration-200" />
+                  <MoreVertical className="w-5 h-5 text-white" />
                 </button>
 
-                {/* Enhanced Dropdown Menu */}
+                {/* Dropdown Menu */}
                 {showMenu && (
-                  <div className="absolute right-0 top-16 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 min-w-56 animate-in slide-in-from-top-2 duration-200">
+                  <div className="absolute right-0 top-12 bg-white dark:bg-gray-900 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 py-1 z-50 min-w-52 animate-in fade-in zoom-in-95 duration-200">
                     {canEditBoard && (
                       <>
-                        <button className="group w-full px-4 py-3 text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/50 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-all duration-200 hover:translate-x-1">
-                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors duration-200">
-                            <Settings className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Board Settings</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Configure board preferences</div>
-                          </div>
+                        <button className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors">
+                          <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                          <span>Board Settings</span>
                         </button>
 
-                        <button className="group w-full px-4 py-3 text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/50 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-all duration-200 hover:translate-x-1">
-                          <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-lg group-hover:bg-amber-200 dark:group-hover:bg-amber-800/50 transition-colors duration-200">
-                            <Archive className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Archive Board</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Hide from workspace</div>
-                          </div>
+                        <button className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors">
+                          <Archive className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                          <span>Archive Board</span>
                         </button>
 
                         {canDeleteBoard && (
-                          <div className="mx-2 my-2 border-t border-gray-200/50 dark:border-gray-700/50"></div>
+                          <div className="my-1 border-t border-gray-200 dark:border-gray-800"></div>
                         )}
                       </>
                     )}
 
                     {canDeleteBoard && (
-                      <button className="group w-full px-4 py-3 text-left hover:bg-red-50/80 dark:hover:bg-red-900/20 flex items-center gap-3 text-sm transition-all duration-200 hover:translate-x-1">
-                        <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg group-hover:bg-red-200 dark:group-hover:bg-red-800/50 transition-colors duration-200">
-                          <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-red-600 dark:text-red-400">Delete Board</div>
-                          <div className="text-xs text-red-500/70 dark:text-red-400/70">Permanently remove board</div>
-                        </div>
+                      <button className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-sm transition-colors">
+                        <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <span className="text-red-600 dark:text-red-400">Delete Board</span>
                       </button>
                     )}
                   </div>
@@ -875,9 +859,9 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       </div>
 
 
-      {/* Modern Board Content - Lists */}
+      {/* Board Content - Lists */}
       <div
-        className="flex-1 p-6 overflow-x-auto bg-black/5 custom-scrollbar-horizontal"
+        className="flex-1 p-5 overflow-x-auto custom-scrollbar-horizontal relative z-0"
         style={scrollbarStyle}
       >
         <DragDropProvider
@@ -887,7 +871,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
           onMoveList={handleMoveList}
           onReorderCards={handleReorderCards}
         >
-          <div className="flex gap-6 h-full min-h-0">
+          <div className="flex gap-5 h-full min-h-0 pb-4">
             {lists.map((list) => (
               <SortableListContainer
                 key={list._id}
@@ -1018,6 +1002,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
       <BoardSwitcherDock
         currentBoardId={boardId}
         baseUrl={baseUrl}
+        userRole={userRole}
       />
       </div>
   );

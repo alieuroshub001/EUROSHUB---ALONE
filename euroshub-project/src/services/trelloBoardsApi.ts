@@ -15,8 +15,8 @@ export interface Board {
   description?: string;
   background: string;
   visibility: 'private' | 'team' | 'public';
-  members: Array<{
-    userId: {
+  members?: Array<{
+    userId?: {
       _id: string;
       firstName: string;
       lastName: string;
@@ -25,7 +25,7 @@ export interface Board {
     role: 'owner' | 'admin' | 'member' | 'viewer';
     joinedAt: Date;
   }>;
-  createdBy: {
+  createdBy?: {
     _id: string;
     firstName: string;
     lastName: string;
@@ -138,6 +138,18 @@ export const boardsApi = {
   // Get all boards
   getBoards: async (): Promise<Board[]> => {
     const response = await apiCall('/trello-boards');
+    return response.data;
+  },
+
+  // Upload background image
+  uploadBackgroundImage: async (file: File): Promise<{ url: string; publicId: string }> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await apiCall('/trello-boards/upload-background', {
+      method: 'POST',
+      body: formData,
+    });
     return response.data;
   },
 
