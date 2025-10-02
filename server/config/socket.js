@@ -123,6 +123,15 @@ class SocketManager {
         this.leaveProjectRoom(socket, projectId);
       });
 
+      // Handle card room joining
+      socket.on('join-card', (cardId) => {
+        this.joinCardRoom(socket, cardId);
+      });
+
+      socket.on('leave-card', (cardId) => {
+        this.leaveCardRoom(socket, cardId);
+      });
+
       // Handle real-time messaging
       socket.on('send-message', (data) => {
         this.handleMessage(socket, data);
@@ -365,8 +374,36 @@ class SocketManager {
     this.io.to(`project:${projectId}`).emit(event, data);
   }
 
+  notifyCard(cardId, event, data) {
+    this.io.to(`card:${cardId}`).emit(event, data);
+  }
+
   broadcastToAll(event, data) {
     this.io.emit(event, data);
+  }
+
+  joinCardRoom(socket, cardId) {
+    const roomName = `card:${cardId}`;
+    socket.join(roomName);
+
+    const userRooms = this.userRooms.get(socket.userId);
+    if (userRooms) {
+      userRooms.add(roomName);
+    }
+
+    console.log(`User ${socket.user.firstName} joined card room: ${roomName}`);
+  }
+
+  leaveCardRoom(socket, cardId) {
+    const roomName = `card:${cardId}`;
+    socket.leave(roomName);
+
+    const userRooms = this.userRooms.get(socket.userId);
+    if (userRooms) {
+      userRooms.delete(roomName);
+    }
+
+    console.log(`User ${socket.user.firstName} left card room: ${roomName}`);
   }
 
   // Get online users

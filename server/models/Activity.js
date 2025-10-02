@@ -36,7 +36,8 @@ const activitySchema = new mongoose.Schema({
   project: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: true
+    required: false,
+    default: null
   },
   board: {
     type: mongoose.Schema.Types.ObjectId,
@@ -148,6 +149,19 @@ activitySchema.statics.logActivity = async function(activityData) {
       { path: 'card', select: 'title' },
       { path: 'targetUser', select: 'firstName lastName' }
     ]);
+
+    // Emit socket event for real-time updates
+    try {
+      const app = require('../server');
+      const socketManager = app.get('socketManager');
+
+      if (socketManager && activity.card) {
+        socketManager.notifyCard(activity.card._id || activity.card, 'activity-created', activity);
+      }
+    } catch (socketError) {
+      console.error('Error emitting socket event:', socketError);
+      // Don't fail the activity creation if socket emission fails
+    }
 
     return activity;
   } catch (error) {

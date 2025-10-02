@@ -212,6 +212,14 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     leaveRoom(`board:${boardId}`);
   };
 
+  const joinCard = (cardId: string) => {
+    emit('join-card', cardId);
+  };
+
+  const leaveCard = (cardId: string) => {
+    emit('leave-card', cardId);
+  };
+
   const disconnect = () => {
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -233,6 +241,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     leaveProject,
     joinBoard,
     leaveBoard,
+    joinCard,
+    leaveCard,
     disconnect
   };
 };

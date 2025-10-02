@@ -164,6 +164,59 @@ router.get('/types', protect, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/activities/card/:cardId
+ * @desc    Get activities for a specific card
+ * @access  Private
+ */
+router.get('/card/:cardId', protect, async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    const { limit = 50, skip = 0 } = req.query;
+
+    // Get card to check access permissions
+    const Card = require('../models/Card');
+    const card = await Card.findById(cardId);
+
+    if (!card) {
+      return res.status(404).json({
+        success: false,
+        message: 'Card not found'
+      });
+    }
+
+    // Check if user has access to this card
+    const hasPermission = await card.hasPermission(req.user.id, 'read');
+    if (!hasPermission && !['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view this card'
+      });
+    }
+
+    // Get all activities related to this card
+    const activities = await Activity.find({ card: cardId })
+      .populate([
+        { path: 'user', select: 'firstName lastName avatar' },
+        { path: 'targetUser', select: 'firstName lastName avatar' }
+      ])
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
+
+    res.status(200).json({
+      success: true,
+      data: activities
+    });
+  } catch (error) {
+    console.error('Get card activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching card activities'
+    });
+  }
+});
+
+/**
  * @route   GET /api/activities/stats
  * @desc    Get activity statistics for current user
  * @access  Private

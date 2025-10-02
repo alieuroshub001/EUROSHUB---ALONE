@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const Card = require('../models/Card');
+const List = require('../models/List');
 const User = require('../models/User');
 const Activity = require('../models/Activity');
 const automationService = require('../services/automationService');
@@ -11,6 +12,27 @@ const {
   checkCardAccess
 } = require('../middleware/projectAuth');
 const { upload, uploadImage, deleteFile } = require('../config/cloudinary');
+
+/**
+ * Helper function to log card activity with proper board ID
+ */
+async function logCardActivity(card, type, userId, metadata = {}) {
+  const list = await List.findById(card.listId).select('boardId');
+
+  return Activity.logActivity({
+    type,
+    user: userId,
+    project: card.project || null,
+    board: list ? list.boardId : null,
+    list: card.listId,
+    card: card._id,
+    metadata: {
+      entityName: card.title,
+      entityId: card._id,
+      ...metadata
+    }
+  });
+}
 
 /**
  * @route   GET /api/cards/:cardId
@@ -379,8 +401,8 @@ router.put('/:cardId', protect, checkCardAccess, async (req, res) => {
       await Activity.logActivity({
         type: 'card_updated',
         user: req.user.id,
-        project: card.project,
-        board: card.board,
+        project: card.project || null,
+        board: null, // Fixed: card.board does not exist
         list: card.listId,
         card: card._id,
         metadata: {
@@ -515,8 +537,8 @@ router.put('/:cardId/assign', protect, checkCardAccess, async (req, res) => {
     await Activity.logActivity({
       type: 'card_assigned',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       data: {
@@ -592,8 +614,8 @@ router.put('/:cardId/unassign', protect, checkCardAccess, async (req, res) => {
     await Activity.logActivity({
       type: 'card_unassigned',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       data: {
@@ -657,18 +679,7 @@ router.post('/:cardId/comments', protect, checkCardAccess, async (req, res) => {
     await card.save();
 
     // Log activity
-    await Activity.logActivity({
-      type: 'card_comment_added',
-      user: req.user.id,
-      project: card.project,
-      board: card.board,
-      list: card.listId,
-      card: card._id,
-      metadata: {
-        entityName: card.title,
-        entityId: card._id
-      }
-    });
+    await logCardActivity(card, 'card_comment_added', req.user.id);
 
     // Trigger automation for comment notification
     automationService.handleTaskComment(
@@ -1018,8 +1029,8 @@ router.put('/:cardId/move', protect, checkCardAccess, async (req, res) => {
     await Activity.logActivity({
       type: 'card_moved',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: targetListId,
       card: card._id,
       data: {
@@ -1249,8 +1260,8 @@ router.post('/:cardId/attachments', protect, checkCardAccess, (req, res, next) =
     await Activity.logActivity({
       type: 'card_attachment_added',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1335,8 +1346,8 @@ router.post('/:cardId/images', protect, checkCardAccess, uploadImage.single('ima
     await Activity.logActivity({
       type: 'card_image_added',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1424,8 +1435,8 @@ router.delete('/:cardId/attachments/:attachmentId', protect, checkCardAccess, as
     await Activity.logActivity({
       type: 'card_attachment_deleted',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1512,8 +1523,8 @@ router.post('/:cardId/attachments/multiple', protect, checkCardAccess, (req, res
       await Activity.logActivity({
         type: 'card_attachment_added',
         user: req.user.id,
-        project: card.project,
-        board: card.board,
+        project: card.project || null,
+        board: null, // Fixed: card.board does not exist
         list: card.listId,
         card: card._id,
         metadata: {
@@ -1631,8 +1642,8 @@ router.post('/:cardId/checklist', protect, checkCardAccess, async (req, res) => 
     await Activity.logActivity({
       type: 'card_checklist_item_added',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1720,8 +1731,8 @@ router.post('/:cardId/checklist/bulk', protect, checkCardAccess, async (req, res
     await Activity.logActivity({
       type: 'card_checklist_items_added',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1819,8 +1830,8 @@ router.put('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req, r
     await Activity.logActivity({
       type: 'card_checklist_item_updated',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {
@@ -1889,8 +1900,8 @@ router.delete('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req
     await Activity.logActivity({
       type: 'card_checklist_item_deleted',
       user: req.user.id,
-      project: card.project,
-      board: card.board,
+      project: card.project || null,
+      board: null, // Fixed: card.board does not exist
       list: card.listId,
       card: card._id,
       metadata: {

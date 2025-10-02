@@ -29,8 +29,8 @@ interface TaskModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
-  onDeleteTask: (taskId: string) => void;
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => void | Promise<void>;
+  onDeleteTask: (taskId: string) => void | Promise<void>;
   projectMembers: Array<{
     userId: {
       _id: string;
@@ -74,15 +74,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
     setIsLoading(true);
     try {
-      // Convert assignedTo to array of IDs
-      const updatedData = {
-        ...editData,
-        assignedTo: Array.isArray(editData.assignedTo)
-          ? editData.assignedTo.map(assigned => typeof assigned === 'string' ? assigned : assigned._id)
-          : (editData.assignedTo ? [(typeof editData.assignedTo === 'string' ? editData.assignedTo : editData.assignedTo._id)] : [])
-      };
-
-      onUpdateTask(task._id, updatedData);
+      // Keep assignedTo as the Task type expects (array of user objects)
+      onUpdateTask(task._id, editData);
       onClose();
     } catch (error) {
       console.error('Error updating task:', error);

@@ -197,6 +197,25 @@ export const activityService = {
     }
   },
 
+  async getCardActivities(cardId: string, options?: { limit?: number; skip?: number }): Promise<Activity[]> {
+    try {
+      const params = new URLSearchParams();
+      if (options) {
+        if (options.limit) params.append('limit', options.limit.toString());
+        if (options.skip) params.append('skip', options.skip.toString());
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/activities/card/${cardId}?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        withCredentials: true,
+      });
+      return response.data.data || [];
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      throw new Error(err.response?.data?.message || 'Failed to fetch card activities');
+    }
+  },
+
   async getActivityTypes(): Promise<ActivityTypeInfo[]> {
     try {
       const response = await axios.get(`${API_BASE_URL}/activities/types`, {

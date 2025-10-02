@@ -3,6 +3,8 @@ const router = express.Router();
 
 const Folder = require('../models/Folder');
 const Card = require('../models/Card');
+const List = require('../models/List');
+const Activity = require('../models/Activity');
 const { protect } = require('../middleware/auth');
 
 // Middleware to get card and check access
@@ -139,6 +141,23 @@ router.post('/cards/:cardId/folders', protect, getCardWithAccess, async (req, re
     });
 
     await folder.save();
+
+    // Log activity
+    const card = req.card;
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_folder_created',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        folderName: folder.name
+      }
+    });
 
     res.status(201).json({
       success: true,

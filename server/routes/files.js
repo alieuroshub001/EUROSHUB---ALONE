@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 
 const Card = require('../models/Card');
+const List = require('../models/List');
 const Folder = require('../models/Folder');
+const Activity = require('../models/Activity');
 const { protect } = require('../middleware/auth');
 const {
   upload,
@@ -126,6 +128,27 @@ router.post('/cards/:cardId/files', protect, getCardWithAccess, upload.array('fi
     }
 
     await card.save();
+
+    // Log activity for each uploaded file
+    if (uploadedFiles.length > 0) {
+      const list = await List.findById(card.listId).select('boardId');
+
+      for (const file of uploadedFiles) {
+        await Activity.logActivity({
+          type: 'card_file_uploaded',
+          user: req.user.id,
+          project: card.project || null,
+          board: list ? list.boardId : null,
+          list: card.listId,
+          card: card._id,
+          metadata: {
+            entityName: card.title,
+            entityId: card._id,
+            fileName: file.originalName
+          }
+        });
+      }
+    }
 
     // Populate the newly added attachments for response
     await card.populate('attachments.uploadedBy', 'firstName lastName avatar');
@@ -297,6 +320,9 @@ router.delete('/files/:fileId', protect, async (req, res) => {
       });
     }
 
+    // Store file name for activity log
+    const fileName = attachment.originalName;
+
     // Delete from R2
     try {
       await deleteFromR2(attachment.cloudflareKey || attachment.filename);
@@ -308,6 +334,22 @@ router.delete('/files/:fileId', protect, async (req, res) => {
     // Mark as deleted in database (soft delete)
     attachment.isDeleted = true;
     await card.save();
+
+    // Log activity
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_file_deleted',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        fileName: fileName
+      }
+    });
 
     res.status(200).json({
       success: true,

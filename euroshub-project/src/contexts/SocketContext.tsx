@@ -14,6 +14,8 @@ interface SocketContextType {
   leaveProject: (projectId: string) => void;
   joinBoard: (boardId: string) => void;
   leaveBoard: (boardId: string) => void;
+  joinCard: (cardId: string) => void;
+  leaveCard: (cardId: string) => void;
   disconnect: () => void;
 }
 
@@ -49,6 +51,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     leaveProject,
     joinBoard,
     leaveBoard,
+    joinCard,
+    leaveCard,
     disconnect
   } = useSocket({
     token,
@@ -95,6 +99,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     leaveProject,
     joinBoard,
     leaveBoard,
+    joinCard,
+    leaveCard,
     disconnect
   };
 

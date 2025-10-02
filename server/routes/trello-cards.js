@@ -166,6 +166,25 @@ router.post('/:listId/cards', protect, getListWithAccess, async (req, res) => {
       $inc: { 'metadata.cardCount': 1 }
     });
 
+    // Get list and board info for activity logging
+    const list = await List.findById(req.params.listId).select('boardId project');
+
+    // Log activity
+    if (list) {
+      await Activity.logActivity({
+        type: 'card_created',
+        user: req.user.id,
+        project: list.project || null,
+        board: list.boardId,
+        list: req.params.listId,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id
+        }
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: card,
@@ -257,29 +276,102 @@ router.put('/:cardId', protect, getCardWithAccess, async (req, res) => {
       actualHours
     } = req.body;
 
-    // Update fields
-    if (title && title.trim()) card.title = title.trim();
-    if (description !== undefined) card.description = description;
-    if (coverImage !== undefined) card.coverImage = coverImage;
-    if (color !== undefined) card.color = color;
-    if (labels) card.labels = labels;
-    if (dueDate !== undefined) card.dueDate = dueDate;
-    if (startDate !== undefined) card.startDate = startDate;
-    if (budget !== undefined) card.budget = budget;
-    if (category !== undefined) card.category = category;
-    if (priority !== undefined) card.priority = priority;
-    if (status !== undefined) card.status = status;
-    if (progress !== undefined) card.progress = progress;
+    // Track changes for activity log
+    const changes = [];
+
+    // Update fields and track changes
+    if (title && title.trim() && title.trim() !== card.title) {
+      changes.push({ field: 'title', oldValue: card.title, newValue: title.trim() });
+      card.title = title.trim();
+    }
+    if (description !== undefined && description !== card.description) {
+      changes.push({ field: 'description', oldValue: card.description, newValue: description });
+      card.description = description;
+    }
+    if (coverImage !== undefined && coverImage !== card.coverImage) {
+      changes.push({ field: 'coverImage', oldValue: card.coverImage, newValue: coverImage });
+      card.coverImage = coverImage;
+    }
+    if (color !== undefined && color !== card.color) {
+      changes.push({ field: 'color', oldValue: card.color, newValue: color });
+      card.color = color;
+    }
+    if (labels && JSON.stringify(labels) !== JSON.stringify(card.labels)) {
+      changes.push({ field: 'labels', oldValue: [...card.labels], newValue: labels });
+      card.labels = labels;
+    }
+    if (dueDate !== undefined) {
+      const newDueDate = dueDate ? new Date(dueDate) : null;
+      if ((newDueDate && !card.dueDate) || (!newDueDate && card.dueDate) ||
+          (newDueDate && card.dueDate && newDueDate.getTime() !== card.dueDate.getTime())) {
+        changes.push({ field: 'dueDate', oldValue: card.dueDate, newValue: newDueDate });
+        card.dueDate = newDueDate;
+      }
+    }
+    if (startDate !== undefined) {
+      const newStartDate = startDate ? new Date(startDate) : null;
+      if ((newStartDate && !card.startDate) || (!newStartDate && card.startDate) ||
+          (newStartDate && card.startDate && newStartDate.getTime() !== card.startDate.getTime())) {
+        changes.push({ field: 'startDate', oldValue: card.startDate, newValue: newStartDate });
+        card.startDate = newStartDate;
+      }
+    }
+    if (budget !== undefined && budget !== card.budget) {
+      changes.push({ field: 'budget', oldValue: card.budget, newValue: budget });
+      card.budget = budget;
+    }
+    if (category !== undefined && category !== card.category) {
+      changes.push({ field: 'category', oldValue: card.category, newValue: category });
+      card.category = category;
+    }
+    if (priority !== undefined && priority !== card.priority) {
+      changes.push({ field: 'priority', oldValue: card.priority, newValue: priority });
+      card.priority = priority;
+    }
+    if (status !== undefined && status !== card.status) {
+      changes.push({ field: 'status', oldValue: card.status, newValue: status });
+      card.status = status;
+    }
+    if (progress !== undefined && progress !== card.progress) {
+      changes.push({ field: 'progress', oldValue: card.progress, newValue: progress });
+      card.progress = progress;
+    }
     if (estimatedHours !== undefined) {
       if (!card.timeTracking) card.timeTracking = {};
-      card.timeTracking.estimated = estimatedHours;
+      if (estimatedHours !== card.timeTracking.estimated) {
+        changes.push({ field: 'estimatedHours', oldValue: card.timeTracking.estimated, newValue: estimatedHours });
+        card.timeTracking.estimated = estimatedHours;
+      }
     }
     if (actualHours !== undefined) {
       if (!card.timeTracking) card.timeTracking = {};
-      card.timeTracking.spent = actualHours;
+      if (actualHours !== card.timeTracking.spent) {
+        changes.push({ field: 'actualHours', oldValue: card.timeTracking.spent, newValue: actualHours });
+        card.timeTracking.spent = actualHours;
+      }
     }
 
     await card.save();
+
+    // Log activity if there were changes
+    if (changes.length > 0) {
+      // Get board ID from list
+      const list = await List.findById(card.listId).select('boardId');
+
+      await Activity.logActivity({
+        type: 'card_updated',
+        user: req.user.id,
+        project: card.project || null,
+        board: list ? list.boardId : null,
+        list: card.listId,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id,
+          changes
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -312,6 +404,29 @@ router.delete('/:cardId', protect, getCardWithAccess, async (req, res) => {
         message: 'You do not have permission to delete this card'
       });
     }
+
+    // Store card info before deletion for activity log
+    const cardTitle = card.title;
+    const cardId = card._id;
+    const projectId = card.project;
+    const listId = card.listId;
+
+    // Get board ID from list
+    const list = await List.findById(listId).select('boardId');
+
+    // Log activity before deletion
+    await Activity.logActivity({
+      type: 'card_deleted',
+      user: req.user.id,
+      project: projectId || null,
+      board: list ? list.boardId : null,
+      list: listId,
+      card: cardId,
+      metadata: {
+        entityName: cardTitle,
+        entityId: cardId
+      }
+    });
 
     // Delete card (pre-remove middleware will handle cleanup)
     await card.deleteOne();
@@ -752,21 +867,22 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       totalTasks: card.tasks.length
     });
 
-    // Get the board and project info for activity logging
-    const list = await List.findById(card.listId);
-    const board = await Board.findById(list.boardId).populate('project');
-
-    // Create activity (only if board has a project)
-    if (board.project) {
-      await Activity.create({
-        type: 'card_checklist_items_added',
-        user: req.user.id,
-        project: board.project._id,
-        board: board._id,
-        card: card._id,
-        data: { taskId: addedTask._id, taskTitle: addedTask.title }
-      });
-    }
+    // Log activity for task creation
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_task_added',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        taskTitle: addedTask.title,
+        taskId: addedTask._id
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -857,23 +973,23 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     // Get the updated task
     const updatedTask = card.tasks.id(taskId);
 
-    // Create activity for task completion
+    // Log activity for task completion
     if (completed !== undefined && completed !== task.completed) {
-      // Get the board and project info for activity logging
-      const list = await List.findById(card.listId);
-      const board = await Board.findById(list.boardId).populate('project');
-
-      // Create activity (only if board has a project)
-      if (board.project) {
-        await Activity.create({
-          type: completed ? 'card_checklist_item_completed' : 'card_updated',
-          user: req.user.id,
-          project: board.project._id,
-          board: board._id,
-          card: card._id,
-          data: { taskId: task._id, taskTitle: task.title }
-        });
-      }
+      const list = await List.findById(card.listId).select('boardId');
+      await Activity.logActivity({
+        type: completed ? 'card_task_completed' : 'card_updated',
+        user: req.user.id,
+        project: card.project || null,
+        board: list ? list.boardId : null,
+        list: card.listId,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id,
+          taskTitle: task.title,
+          taskId: task._id
+        }
+      });
     }
 
     res.status(200).json({
@@ -922,21 +1038,21 @@ router.delete('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, 
     card.deleteTask(taskId);
     await card.save();
 
-    // Get the board and project info for activity logging
-    const list = await List.findById(card.listId);
-    const board = await Board.findById(list.boardId).populate('project');
-
-    // Create activity (only if board has a project)
-    if (board.project) {
-      await Activity.create({
-        type: 'card_updated',
-        user: req.user.id,
-        project: board.project._id,
-        board: board._id,
-        card: card._id,
-        data: { taskTitle: taskTitle }
-      });
-    }
+    // Log activity for task deletion
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_task_deleted',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        taskTitle: taskTitle
+      }
+    });
 
     res.status(200).json({
       success: true,

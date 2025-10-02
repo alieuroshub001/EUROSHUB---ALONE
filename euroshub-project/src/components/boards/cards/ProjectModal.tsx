@@ -38,7 +38,9 @@ import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
 import { folderApi, fileApi } from '../../../services/filesApi';
 import { commentsApi } from '../../../services/commentsApi';
+import { activityService, Activity } from '../../../lib/activityService';
 import { useAuth } from '@/hooks/useAuth';
+import { useSocketContext } from '@/contexts/SocketContext';
 import FolderTree from './FolderTree';
 
 interface User {
@@ -134,6 +136,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   boardMembers = [],
 }) => {
   const { user } = useAuth();
+  const { socket, isConnected, joinCard, leaveCard } = useSocketContext();
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'comments' | 'activity'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Card>>(card);
@@ -155,6 +158,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   // Extended project data
   const [projectData, setProjectData] = useState({
@@ -218,6 +222,27 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showEmojiPicker, showReactionPicker]);
+
+  // Socket.IO real-time activity updates
+  useEffect(() => {
+    if (!socket || !isConnected || !isOpen || !card._id) return;
+
+    // Join card room for real-time updates
+    joinCard(card._id);
+
+    // Listen for activity events
+    const handleActivityCreated = (activity: Activity) => {
+      console.log('New activity received:', activity);
+      setActivities(prev => [activity, ...prev]);
+    };
+
+    socket.on('activity-created', handleActivityCreated);
+
+    return () => {
+      socket.off('activity-created', handleActivityCreated);
+      leaveCard(card._id);
+    };
+  }, [socket, isConnected, isOpen, card._id, joinCard, leaveCard]);
 
   const loadCardData = async () => {
     setIsLoading(true);
@@ -299,6 +324,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         setFolders([]);
       }
 
+      // Load activities
+      try {
+        const activitiesData = await activityService.getCardActivities(card._id);
+        setActivities(activitiesData || []);
+      } catch (activityError) {
+        console.error('Error loading activities:', activityError);
+        setActivities([]);
+      }
+
     } catch (error) {
       console.error('Error loading card data:', error);
       setError('Failed to load card data. Please try again.');
@@ -307,6 +341,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setComments([]);
       setFiles([]);
       setFolders([]);
+      setActivities([]);
     } finally {
       setIsLoading(false);
     }
@@ -513,13 +548,23 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     }
 
     // Prepare properly formatted update object
-    const formattedUpdates = {
-      ...updates,
-      assignedTo: updates.assignedTo
-        ? (Array.isArray(updates.assignedTo)
-            ? updates.assignedTo.map(a => typeof a === 'string' ? a : a._id)
-            : (typeof updates.assignedTo === 'object' ? [updates.assignedTo._id] : [updates.assignedTo]))
-        : updates.assignedTo
+    const formattedUpdates: {
+      title?: string;
+      description?: string;
+      completed?: boolean;
+      assignedTo?: string;
+      priority?: 'low' | 'medium' | 'high';
+      dueDate?: Date;
+    } = {
+      title: updates.title,
+      description: updates.description,
+      completed: updates.completed,
+      priority: updates.priority,
+      dueDate: updates.dueDate,
+      // Convert assignedTo to a single string (first assigned user ID) for API compatibility
+      assignedTo: updates.assignedTo && Array.isArray(updates.assignedTo) && updates.assignedTo.length > 0
+        ? (typeof updates.assignedTo[0] === 'string' ? updates.assignedTo[0] : updates.assignedTo[0]._id)
+        : undefined
     };
 
     // Update local state immediately (optimistic update)
@@ -1666,7 +1711,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           {comments.map((comment) => {
             const commentUserMember = card.members.find(m => m.userId._id === comment.author._id);
             // Check if comment author is the card creator (owner)
-            const isCommentAuthorOwner = card.createdBy && (card.createdBy._id === comment.author._id || card.createdBy === comment.author._id);
+            const createdById = typeof card.createdBy === 'string' ? card.createdBy : card.createdBy?._id;
+            const isCommentAuthorOwner = createdById === comment.author._id;
             const commentUserRole = isCommentAuthorOwner ? 'owner' : (commentUserMember?.role || 'viewer');
             const canDeleteComment = isCreator || ['project-manager', 'lead'].includes(currentUserRole) ||
                                    comment.author._id === user?.id;
@@ -1819,61 +1865,147 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     );
   };
 
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'card_created':
+        return Plus;
+      case 'card_updated':
+      case 'card_description_changed':
+        return Edit3;
+      case 'card_comment_added':
+        return MessageCircle;
+      case 'card_attachment_added':
+      case 'card_image_added':
+      case 'card_file_uploaded':
+        return Paperclip;
+      case 'card_task_added':
+        return CheckSquare;
+      case 'card_task_completed':
+      case 'card_completed':
+      case 'card_checklist_item_completed':
+        return CheckSquare;
+      case 'card_member_added':
+        return User;
+      case 'card_moved':
+        return Archive;
+      case 'card_deleted':
+      case 'card_file_deleted':
+      case 'card_attachment_deleted':
+        return Trash2;
+      case 'card_folder_created':
+        return Folder;
+      default:
+        return Clock;
+    }
+  };
+
   const renderActivityTab = () => {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Activity Log
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Activity Log ({activities.length})
+          </h3>
+          <button
+            onClick={() => loadCardData()}
+            className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+          >
+            <History className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
 
         {/* Activity Timeline */}
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+          {activities.length > 0 && (
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+          )}
 
           {/* Activity items */}
           <div className="space-y-4">
-            {/* Mock activity items - will be replaced with real data */}
-            {[
-              { type: 'card_created', user: 'John Doe', time: '2 hours ago', icon: Plus },
-              { type: 'comment_added', user: 'Jane Smith', time: '1 hour ago', icon: MessageCircle },
-              { type: 'file_uploaded', user: 'Mike Johnson', time: '30 minutes ago', icon: Paperclip, details: 'project_proposal.pdf' },
-              { type: 'task_completed', user: 'Sarah Wilson', time: '15 minutes ago', icon: CheckSquare, details: 'Review requirements' },
-            ].map((activity, index) => (
-              <div key={index} className="relative flex gap-4 pl-12">
-                {/* Icon */}
-                <div className="absolute left-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border-2 border-white dark:border-gray-900">
-                  <activity.icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </div>
+            {activities.map((activity) => {
+              const ActivityIcon = getActivityIcon(activity.type);
+              const userName = `${activity.user.firstName} ${activity.user.lastName}`;
+              const activityMessage = activityService.formatActivityMessage(activity);
+              const timeAgo = activityService.formatTimeAgo(activity.createdAt);
 
-                {/* Content */}
-                <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        <span className="font-medium">{activity.user}</span>
-                        {' '}
-                        {activity.type === 'card_created' && 'created this card'}
-                        {activity.type === 'comment_added' && 'added a comment'}
-                        {activity.type === 'file_uploaded' && `uploaded ${activity.details}`}
-                        {activity.type === 'task_completed' && `completed task "${activity.details}"`}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {activity.time}
-                      </p>
+              return (
+                <div key={activity._id} className="relative flex gap-4 pl-12">
+                  {/* Icon */}
+                  <div className="absolute left-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border-2 border-white dark:border-gray-900">
+                    <ActivityIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {activity.user.avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={activity.user.avatar}
+                              alt={userName}
+                              className="w-5 h-5 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300">
+                              {activity.user.firstName.charAt(0)}{activity.user.lastName.charAt(0)}
+                            </div>
+                          )}
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {activityMessage}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {timeAgo}
+                        </p>
+
+                        {/* Show additional details if available */}
+                        {activity.metadata?.changes && activity.metadata.changes.length > 0 && (
+                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                            {activity.metadata.changes.slice(0, 3).map((change, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <span className="font-medium">{change.field}:</span>
+                                <span className="line-through text-red-600 dark:text-red-400">
+                                  {String(change.oldValue || 'none').substring(0, 50)}
+                                </span>
+                                <span>→</span>
+                                <span className="text-green-600 dark:text-green-400">
+                                  {String(change.newValue || 'none').substring(0, 50)}
+                                </span>
+                              </div>
+                            ))}
+                            {activity.metadata.changes.length > 3 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                +{activity.metadata.changes.length - 3} more changes
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Empty state */}
-          {false && (
+          {activities.length === 0 && !isLoading && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No activity yet</p>
               <p className="text-sm mt-1">All card activities will appear here</p>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoading && activities.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">Loading activities...</p>
             </div>
           )}
         </div>
@@ -1893,7 +2025,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 <li>File uploads and deletions</li>
                 <li>Comments and reactions</li>
                 <li>Member assignments</li>
-                <li>Due date changes</li>
+                <li>Description changes</li>
               </ul>
             </div>
           </div>
@@ -2057,8 +2189,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
-        onUpdateTask={handleUpdateTask}
-        onDeleteTask={handleDeleteTask}
+        onUpdateTask={handleUpdateTask as (taskId: string, updates: any) => void}
+        onDeleteTask={handleDeleteTask as (taskId: string) => void}
         projectMembers={boardMembers.map(member => ({
           userId: {
             _id: member._id,
