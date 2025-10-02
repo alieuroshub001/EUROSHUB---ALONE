@@ -195,6 +195,14 @@ export const boardsApi = {
     });
   },
 
+  // Archive board
+  archiveBoard: async (boardId: string): Promise<{ isArchived: boolean }> => {
+    const response = await apiCall(`/trello-boards/${boardId}/archive`, {
+      method: 'PUT',
+    });
+    return response.data;
+  },
+
   // Toggle star
   toggleStar: async (boardId: string): Promise<{ isStarred: boolean }> => {
     const response = await apiCall(`/trello-boards/${boardId}/star`, {

@@ -10,29 +10,8 @@ import {
   Settings,
   X,
   Check,
-  GripVertical
 } from 'lucide-react';
-import { boardsApi } from '@/services/trelloBoardsApi';
-
-interface BoardMember {
-  userId: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
-  role: 'owner' | 'admin' | 'viewer' | 'member';
-  joinedAt: Date;
-}
-
-interface Board {
-  _id: string;
-  name: string;
-  background: string;
-  isStarred: boolean;
-  members: BoardMember[];
-  visibility: 'private' | 'team' | 'public';
-}
+import { boardsApi, Board } from '@/services/trelloBoardsApi';
 
 interface BoardSwitcherDockProps {
   currentBoardId: string;
@@ -253,7 +232,7 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
                           <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
                         )}
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {board.members.length} {board.members.length === 1 ? 'member' : 'members'}
+                          {board.members?.length || 0} {board.members?.length === 1 ? 'member' : 'members'}
                         </span>
                       </div>
                     </div>

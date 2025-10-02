@@ -46,22 +46,18 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   // Permission checks
   const getCurrentUserBoardRole = () => {
     if (!user || !board) return null;
-    const member = board.members.find(m => m.userId._id === user.id);
-    return member?.role || null;
+const member = board.members?.find(m => m.userId?._id === user.id);    return member?.role || null;
   };
 
   const currentUserBoardRole = getCurrentUserBoardRole();
   const canEditBoard = ['superadmin', 'admin'].includes(userRole) ||
-                      board?.createdBy._id === user?.id ||
-                      ['owner', 'admin', 'editor'].includes(currentUserBoardRole || '');
+board?.createdBy?._id === user?.id ||                      ['owner', 'admin', 'editor'].includes(currentUserBoardRole || '');
   const canDeleteBoard = ['superadmin', 'admin'].includes(userRole) ||
-                         board?.createdBy._id === user?.id ||
-                         currentUserBoardRole === 'owner';
+board?.createdBy?._id === user?.id ||                         currentUserBoardRole === 'owner';
   const canCreateLists = ['superadmin', 'admin', 'hr', 'employee'].includes(userRole) ||
                         ['owner', 'admin', 'editor'].includes(currentUserBoardRole || '');
   const canManageMembers = ['superadmin', 'admin'].includes(userRole) ||
-                          board?.createdBy._id === user?.id ||
-                          ['owner', 'admin'].includes(currentUserBoardRole || '');
+board?.createdBy?._id === user?.id ||                          ['owner', 'admin'].includes(currentUserBoardRole || '');
 
   // Load board data
   useEffect(() => {
@@ -788,8 +784,8 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
                         )}
                       </div>
 
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20 pointer-events-none">
+                                        {/* Tooltip */}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20 pointer-events-none">
                         {member.userId?.firstName || ''} {member.userId?.lastName || ''}
                         <div className="text-xs text-white/60 capitalize">{member.role}</div>
                       </div>
@@ -910,13 +906,13 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
           onDeleteCard={handleDeleteCard}
           canEdit={canEditBoard}
           canDelete={canDeleteBoard}
-          boardMembers={board?.members?.map(member => ({
-            _id: member.userId._id,
-            firstName: member.userId.firstName,
-            lastName: member.userId.lastName,
-            avatar: member.userId.avatar,
-            role: member.role
-          })) || []}
+       boardMembers={board?.members?.map(member => ({
+  _id: member.userId?._id || '',
+  firstName: member.userId?.firstName || '',
+  lastName: member.userId?.lastName || '',
+  avatar: member.userId?.avatar,
+  role: member.role
+})) || []}
         />
       )}
 
@@ -927,11 +923,11 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
           onClose={() => setShowMembersModal(false)}
           boardId={boardId}
           boardTitle={board.name}
-          currentMembers={board.members.map(member => ({
-            userId: member.userId,
-            role: member.role,
-            joinedAt: member.joinedAt
-          }))}
+       currentMembers={board.members?.filter(member => member.userId).map(member => ({
+  userId: member.userId!,
+  role: member.role,
+  joinedAt: member.joinedAt
+})) || []}
           onAddMember={handleAddBoardMember}
           onRemoveMember={handleRemoveBoardMember}
           onUpdateMemberRole={handleUpdateBoardMemberRole}
