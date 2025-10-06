@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authAPI, getRoleDashboardPath } from '@/lib/auth';
 
@@ -8,7 +8,7 @@ interface LoginFormProps {
   onSuccess?: () => void;
 }
 
-export default function LoginForm({ onSuccess }: LoginFormProps) {
+function LoginFormContent({ onSuccess }: LoginFormProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -463,5 +463,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoginForm(props: LoginFormProps) {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto bg-white shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-4"><div className="animate-pulse h-96"></div></div>}>
+      <LoginFormContent {...props} />
+    </Suspense>
   );
 }
