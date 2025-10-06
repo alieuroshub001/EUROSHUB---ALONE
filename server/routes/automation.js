@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const automationService = require('../services/automationService');
-const emailService = require('../utils/emailService');
+// const emailService = require('../utils/emailService');
 const { protect } = require('../middleware/auth');
 
 /**
@@ -34,12 +34,12 @@ router.post('/test-email', protect, async (req, res) => {
       </ul>
     `;
 
-    const htmlContent = emailService.generateEmailTemplate(subject, content);
-    await emailService.sendEmail(emailToTest, subject, htmlContent);
+    // const htmlContent = emailService.generateEmailTemplate(subject, content);
+    // await emailService.sendEmail(emailToTest, subject, htmlContent);
 
     res.status(200).json({
-      success: true,
-      message: `Test email sent successfully to ${emailToTest}`
+      success: false,
+      message: `Email service is disabled. Please configure email service to send test emails.`
     });
   } catch (error) {
     console.error('Test email error:', error);
@@ -87,15 +87,15 @@ router.post('/send-digest', protect, async (req, res) => {
         });
       }
 
-      await emailService.sendDigestNotification(
-        user.email,
-        `${user.firstName} ${user.lastName}`,
-        digest
-      );
+      // await emailService.sendDigestNotification(
+      //   user.email,
+      //   `${user.firstName} ${user.lastName}`,
+      //   digest
+      // );
 
       res.status(200).json({
-        success: true,
-        message: `Digest sent successfully to ${user.firstName} ${user.lastName}`,
+        success: false,
+        message: `Email service is disabled. Digest data generated but not sent.`,
         data: digest
       });
     } else {

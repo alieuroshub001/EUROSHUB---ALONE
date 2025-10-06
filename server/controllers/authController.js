@@ -2,8 +2,9 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const emailService = require('../utils/emailServiceFrontend');
+const emailService = require('../utils/emailService');
 const { getSocketUtils } = require('../utils/socketUtils');
+const slackService = require('../utils/slackService');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key', {
@@ -105,6 +106,23 @@ exports.login = async (req, res) => {
     await user.resetLoginAttempts();
     user.lastLogin = new Date();
     await user.save();
+
+    // Send Slack notification for login
+    try {
+      const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+
+      await slackService.notifyUserLogin({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        ipAddress: ipAddress,
+        userAgent: userAgent
+      });
+    } catch (slackError) {
+      console.error('Slack login notification failed:', slackError);
+    }
 
     sendTokenResponse(user, 200, res);
   } catch (error) {
@@ -424,19 +442,49 @@ exports.resendVerificationEmail = async (req, res) => {
   }
 };
 
-exports.logout = (req, res) => {
-  // Clear the token cookie
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/'
-  });
+exports.logout = async (req, res) => {
+  try {
+    // Send Slack notification for logout
+    if (req.user) {
+      try {
+        await slackService.notifyUserLogout({
+          firstName: req.user.firstName,
+          lastName: req.user.lastName,
+          email: req.user.email,
+          role: req.user.role
+        });
+      } catch (slackError) {
+        console.error('Slack logout notification failed:', slackError);
+      }
+    }
 
-  res.status(200).json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+    // Clear the token cookie
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Still clear cookie and logout even if Slack fails
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  }
 };
 
 exports.getMe = async (req, res) => {

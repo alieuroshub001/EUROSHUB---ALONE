@@ -101,7 +101,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/admin/project-management',
       description: 'Manage company projects and tasks',
       subItems: [
-        { title: 'Projects', path: '/admin/project-management', icon: FolderOpen },
         { title: 'Boards', path: '/admin/boards', icon: Kanban }
       ]
     },
@@ -126,7 +125,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/client/project-management',
       description: 'View and track your projects',
       subItems: [
-        { title: 'Projects', path: '/client/project-management', icon: FolderOpen },
         { title: 'Boards', path: '/client/boards', icon: Kanban }
       ]
     },
@@ -160,7 +158,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/hr/project-management',
       description: 'Oversee team projects and resource allocation',
       subItems: [
-        { title: 'Projects', path: '/hr/project-management', icon: FolderOpen },
         { title: 'Boards', path: '/hr/boards', icon: Kanban }
       ]
     },
@@ -185,7 +182,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       path: '/employee/project-management',
       description: 'Manage assigned tasks and projects',
       subItems: [
-        { title: 'Projects', path: '/employee/project-management', icon: FolderOpen },
         { title: 'Boards', path: '/employee/boards', icon: Kanban }
       ]
     },

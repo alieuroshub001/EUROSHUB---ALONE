@@ -85,6 +85,37 @@ export default function DashboardLayout({
     };
 
     checkAuth();
+
+    // Handle browser back button - verify session on navigation
+    const handlePopState = async () => {
+      console.log('🔄 DashboardLayout: Browser navigation detected, re-checking auth...');
+      const userData = await authAPI.getMe();
+      if (!userData) {
+        console.log('❌ DashboardLayout: No valid session on back navigation, redirecting to login');
+        router.replace('/');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Handle page visibility - re-check auth when user returns to tab
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ DashboardLayout: Tab became visible, re-checking auth...');
+        const userData = await authAPI.getMe();
+        if (!userData) {
+          console.log('❌ DashboardLayout: Session expired, redirecting to login');
+          router.replace('/');
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [role, router]);
 
   const handleSidebarToggle = useCallback(() => {

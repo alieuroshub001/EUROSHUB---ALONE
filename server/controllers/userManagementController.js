@@ -2,6 +2,7 @@ const User = require('../models/User');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const emailService = require('../utils/emailService');
+const slackService = require('../utils/slackService');
 const { getSocketUtils } = require('../utils/socketUtils');
 
 /**
@@ -199,6 +200,40 @@ exports.createUser = async (req, res) => {
       await socketUtils.notifyUserCreated(newUser, currentUser);
     } catch (socketError) {
       console.error('Socket notification failed:', socketError);
+    }
+
+    // Send Slack channel notification
+    try {
+      await slackService.notifyNewUserSignup({
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        createdBy: `${currentUser.firstName} ${currentUser.lastName}`
+      });
+    } catch (slackError) {
+      console.error('Slack channel notification failed:', slackError);
+    }
+
+    // Try to send Slack DM if user exists in workspace
+    try {
+      const dmResult = await slackService.sendWelcomeDM({
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        tempPassword: tempPassword,
+        role: newUser.role,
+        createdBy: `${currentUser.firstName} ${currentUser.lastName}`,
+        loginUrl: process.env.CLIENT_URL || 'http://localhost:3000'
+      });
+
+      if (dmResult && dmResult.success) {
+        console.log(`✅ Slack DM with credentials sent to ${newUser.email}`);
+      } else {
+        console.log(`ℹ️ User ${newUser.email} not found in Slack workspace - DM not sent`);
+      }
+    } catch (dmError) {
+      console.log(`ℹ️ Could not send Slack DM to ${newUser.email}:`, dmError.message);
     }
 
     const responseData = {
@@ -450,6 +485,12 @@ exports.deleteUser = async (req, res) => {
       }
     }
 
+    // Remove user from board members arrays
+    await Board.updateMany(
+      { 'members.userId': id },
+      { $pull: { members: { userId: id } } }
+    );
+
     // Update boards where user is the creator
     await Board.updateMany(
       { createdBy: id },
@@ -529,7 +570,7 @@ exports.deleteUser = async (req, res) => {
         });
       }
 
-      await card.save();
+      await card.save({ validateBeforeSave: false });
     }
 
     // Clean up activities related to this user
@@ -550,6 +591,19 @@ exports.deleteUser = async (req, res) => {
       await socketUtils.notifyUserDeleted(targetUser, currentUser);
     } catch (socketError) {
       console.error('Socket notification failed:', socketError);
+    }
+
+    // Send Slack notification
+    try {
+      await slackService.notifyUserDeleted({
+        firstName: targetUser.firstName,
+        lastName: targetUser.lastName,
+        email: targetUser.email,
+        role: targetUser.role,
+        deletedBy: `${currentUser.firstName} ${currentUser.lastName}`
+      });
+    } catch (slackError) {
+      console.error('Slack notification failed:', slackError);
     }
 
     res.status(200).json({

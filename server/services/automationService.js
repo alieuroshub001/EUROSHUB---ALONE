@@ -1,4 +1,4 @@
-const emailService = require('../utils/emailServiceFrontend');
+// const emailService = require('../utils/emailServiceFrontend');
 const User = require('../models/User');
 const Card = require('../models/Card');
 const List = require('../models/List');
@@ -44,16 +44,16 @@ class AutomationService {
         return;
       }
 
-      await emailService.sendProjectMemberAddedNotification(
-        member.email,
-        `${member.firstName} ${member.lastName}`,
-        project.title,
-        project.description,
-        `${addedBy.firstName} ${addedBy.lastName}`,
-        role
-      );
+      // await emailService.sendProjectMemberAddedNotification(
+      //   member.email,
+      //   `${member.firstName} ${member.lastName}`,
+      //   project.title,
+      //   project.description,
+      //   `${addedBy.firstName} ${addedBy.lastName}`,
+      //   role
+      // );
 
-      console.log(`Member addition notification sent to ${member.email}`);
+      console.log(`Member addition notification sent to ${member.email} (email service disabled)`);
     } catch (error) {
       console.error('Error sending member addition notification:', error);
     }
@@ -76,17 +76,17 @@ class AutomationService {
       // Send notification to each newly assigned user
       for (const assignee of card.assignedTo) {
         if (assigneeIds.includes(assignee._id.toString())) {
-          await emailService.sendTaskAssignmentNotification(
-            assignee.email,
-            `${assignee.firstName} ${assignee.lastName}`,
-            card.title,
-            card.description,
-            card.project.title,
-            `${assignedBy.firstName} ${assignedBy.lastName}`,
-            card.dueDate
-          );
+          // await emailService.sendTaskAssignmentNotification(
+          //   assignee.email,
+          //   `${assignee.firstName} ${assignee.lastName}`,
+          //   card.title,
+          //   card.description,
+          //   card.project.title,
+          //   `${assignedBy.firstName} ${assignedBy.lastName}`,
+          //   card.dueDate
+          // );
 
-          console.log(`Task assignment notification sent to ${assignee.email}`);
+          console.log(`Task assignment notification sent to ${assignee.email} (email service disabled)`);
         }
       }
     } catch (error) {
@@ -119,19 +119,19 @@ class AutomationService {
         user => user._id.toString() !== changedById.toString()
       );
 
-      for (const user of filteredUsers) {
-        await emailService.sendTaskStatusChangeNotification(
-          user.email,
-          `${user.firstName} ${user.lastName}`,
-          card.title,
-          card.project.title,
-          oldStatus,
-          newStatus,
-          `${changedBy.firstName} ${changedBy.lastName}`
-        );
-      }
+      // for (const user of filteredUsers) {
+      //   await emailService.sendTaskStatusChangeNotification(
+      //     user.email,
+      //     `${user.firstName} ${user.lastName}`,
+      //     card.title,
+      //     card.project.title,
+      //     oldStatus,
+      //     newStatus,
+      //     `${changedBy.firstName} ${changedBy.lastName}`
+      //   );
+      // }
 
-      console.log(`Status change notifications sent for card ${card.title}`);
+      console.log(`Status change notifications sent for card ${card.title} (email service disabled)`);
     } catch (error) {
       console.error('Error sending status change notification:', error);
     }
@@ -162,19 +162,19 @@ class AutomationService {
         user => user._id.toString() !== commentorId.toString()
       );
 
-      for (const user of filteredUsers) {
-        await emailService.sendTaskCommentNotification(
-          user.email,
-          `${user.firstName} ${user.lastName}`,
-          `${commentor.firstName} ${commentor.lastName}`,
-          card.title,
-          card.project.title,
-          commentText,
-          cardId
-        );
-      }
+      // for (const user of filteredUsers) {
+      //   await emailService.sendTaskCommentNotification(
+      //     user.email,
+      //     `${user.firstName} ${user.lastName}`,
+      //     `${commentor.firstName} ${commentor.lastName}`,
+      //     card.title,
+      //     card.project.title,
+      //     commentText,
+      //     cardId
+      //   );
+      // }
 
-      console.log(`Comment notifications sent for card ${card.title}`);
+      console.log(`Comment notifications sent for card ${card.title} (email service disabled)`);
     } catch (error) {
       console.error('Error sending comment notification:', error);
     }
@@ -217,14 +217,14 @@ class AutomationService {
         if (daysUntilDue <= 0 || daysUntilDue === 1 || daysUntilDue === 3) {
           for (const assignee of task.assignedTo) {
             if (assignee && assignee.email && assignee.firstName && assignee.lastName) {
-              await emailService.sendDueDateReminderNotification(
-                assignee.email,
-                `${assignee.firstName} ${assignee.lastName}`,
-                task.title,
-                task.project.title,
-                task.dueDate,
-                daysUntilDue
-              );
+              // await emailService.sendDueDateReminderNotification(
+              //   assignee.email,
+              //   `${assignee.firstName} ${assignee.lastName}`,
+              //   task.title,
+              //   task.project.title,
+              //   task.dueDate,
+              //   daysUntilDue
+              // );
             }
           }
         }
@@ -253,13 +253,13 @@ class AutomationService {
       for (const user of users) {
         const digest = await this.generateUserDigest(user._id, yesterday, today);
 
-        if (digest.hasContent) {
-          await emailService.sendDigestNotification(
-            user.email,
-            `${user.firstName} ${user.lastName}`,
-            digest
-          );
-        }
+        // if (digest.hasContent) {
+        //   await emailService.sendDigestNotification(
+        //     user.email,
+        //     `${user.firstName} ${user.lastName}`,
+        //     digest
+        //   );
+        // }
       }
 
       console.log('Daily digest sent to all users');
@@ -501,10 +501,10 @@ class AutomationService {
         <p>Period: ${summary.weekRange}</p>
       `;
 
-      const actionUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/projects`;
-      const htmlContent = emailService.generateEmailTemplate(subject, content, actionUrl, 'View Projects');
+      // const actionUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/projects`;
+      // const htmlContent = emailService.generateEmailTemplate(subject, content, actionUrl, 'View Projects');
 
-      await emailService.sendEmail(email, subject, htmlContent);
+      // await emailService.sendEmail(email, subject, htmlContent);
     } catch (error) {
       console.error('Error sending project summary email:', error);
     }
@@ -670,18 +670,18 @@ class AutomationService {
         user => user._id.toString() !== addedById.toString()
       );
 
-      for (const user of filteredUsers) {
-        await emailService.sendSubtasksAddedNotification(
-          user.email,
-          `${user.firstName} ${user.lastName}`,
-          card.title,
-          card.project.title,
-          subtasks,
-          `${addedBy.firstName} ${addedBy.lastName}`
-        );
-      }
+      // for (const user of filteredUsers) {
+      //   await emailService.sendSubtasksAddedNotification(
+      //     user.email,
+      //     `${user.firstName} ${user.lastName}`,
+      //     card.title,
+      //     card.project.title,
+      //     subtasks,
+      //     `${addedBy.firstName} ${addedBy.lastName}`
+      //   );
+      // }
 
-      console.log(`Subtasks added notifications sent for card ${card.title}`);
+      console.log(`Subtasks added notifications sent for card ${card.title} (email service disabled)`);
     } catch (error) {
       console.error('Error sending subtasks added notification:', error);
     }
@@ -712,19 +712,19 @@ class AutomationService {
         user => user._id.toString() !== uploadedById.toString()
       );
 
-      for (const user of filteredUsers) {
-        await emailService.sendAttachmentAddedNotification(
-          user.email,
-          `${user.firstName} ${user.lastName}`,
-          card.title,
-          card.project.title,
-          attachmentName,
-          `${uploadedBy.firstName} ${uploadedBy.lastName}`,
-          attachmentType
-        );
-      }
+      // for (const user of filteredUsers) {
+      //   await emailService.sendAttachmentAddedNotification(
+      //     user.email,
+      //     `${user.firstName} ${user.lastName}`,
+      //     card.title,
+      //     card.project.title,
+      //     attachmentName,
+      //     `${uploadedBy.firstName} ${uploadedBy.lastName}`,
+      //     attachmentType
+      //   );
+      // }
 
-      console.log(`Attachment added notifications sent for card ${card.title}`);
+      console.log(`Attachment added notifications sent for card ${card.title} (email service disabled)`);
     } catch (error) {
       console.error('Error sending attachment added notification:', error);
     }
@@ -815,15 +815,15 @@ class AutomationService {
           };
 
           // Only send digest if there's meaningful content
-          if (assignedTasks.length > 0 || dueTasks.length > 0 || completedTasks.length > 0 || newComments.length > 0) {
-            await emailService.sendDigestNotification(
-              user.email,
-              `${user.firstName} ${user.lastName}`,
-              digestData
-            );
+          // if (assignedTasks.length > 0 || dueTasks.length > 0 || completedTasks.length > 0 || newComments.length > 0) {
+          //   await emailService.sendDigestNotification(
+          //     user.email,
+          //     `${user.firstName} ${user.lastName}`,
+          //     digestData
+          //   );
 
-            console.log(`Daily digest sent to ${user.email}`);
-          }
+          //   console.log(`Daily digest sent to ${user.email}`);
+          // }
         } catch (userError) {
           console.error(`Error sending digest to ${user.email}:`, userError);
           // Continue with other users

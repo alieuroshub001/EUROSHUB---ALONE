@@ -110,8 +110,22 @@ export const authAPI = {
       Cookies.remove('token', { path: '/' });
       localStorage.removeItem('token');
 
-      // Force redirect to login page
-      window.location.href = '/';
+      // Clear session storage
+      sessionStorage.clear();
+
+      // Replace current history state to prevent back navigation
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', '/');
+        window.history.replaceState(null, '', '/');
+
+        // Prevent back button from working after logout
+        window.addEventListener('popstate', () => {
+          window.history.pushState(null, '', '/');
+        });
+      }
+
+      // Force redirect to login page with cache bypass
+      window.location.replace('/');
     }
   },
 

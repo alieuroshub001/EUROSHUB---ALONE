@@ -5,7 +5,7 @@ const User = require('../models/User');
 const Card = require('../models/Card');
 const Project = require('../models/Project');
 const { protect } = require('../middleware/auth');
-const emailService = require('../utils/emailService');
+// const emailService = require('../utils/emailService');
 
 /**
  * @route   POST /api/notifications/task-assignment
@@ -79,11 +79,11 @@ router.post('/task-assignment', protect, async (req, res) => {
         }
       };
 
-      await emailService.sendEmail(emailData);
+      // await emailService.sendEmail(emailData);
 
       res.status(200).json({
         success: true,
-        message: 'Task assignment notification sent successfully'
+        message: 'Task assignment notification sent successfully (email service disabled)'
       });
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
@@ -171,11 +171,12 @@ router.post('/email', protect, async (req, res) => {
           }
         };
 
-        await emailService.sendEmail(emailData);
+        // await emailService.sendEmail(emailData);
 
         results.push({
           recipient: recipientEmail,
-          success: true
+          success: false,
+          error: 'Email service disabled'
         });
       } catch (emailError) {
         console.error(`Email sending failed for recipient ${recipient}:`, emailError);
@@ -283,11 +284,12 @@ router.post('/task-comment', protect, async (req, res) => {
           }
         };
 
-        await emailService.sendEmail(emailData);
+        // await emailService.sendEmail(emailData);
 
         results.push({
           recipient: watcher.email,
-          success: true
+          success: false,
+          error: 'Email service disabled'
         });
       } catch (emailError) {
         console.error(`Comment notification failed for watcher ${watcherId}:`, emailError);
@@ -395,11 +397,12 @@ router.post('/task-due', protect, async (req, res) => {
           }
         };
 
-        await emailService.sendEmail(emailData);
+        // await emailService.sendEmail(emailData);
 
         results.push({
           recipient: assignee.email,
-          success: true
+          success: false,
+          error: 'Email service disabled'
         });
       } catch (emailError) {
         console.error(`Due date notification failed for assignee ${assigneeId}:`, emailError);
