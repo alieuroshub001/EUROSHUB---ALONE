@@ -638,6 +638,84 @@ const notifyUserLogout = async ({ firstName, lastName, email, role }) => {
   }
 };
 
+/**
+ * Send email verification link via Slack DM
+ */
+const sendVerificationDM = async ({ email, firstName, lastName, verificationToken }) => {
+  try {
+    if (!slackClient) {
+      console.log('⚠️ Slack Bot not configured, cannot send DM');
+      return null;
+    }
+
+    const verificationUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+
+    const message = {
+      text: `Verify your email address for EUROSHUB`, // Fallback text
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '✉️ Email Verification Required',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `Hi *${firstName} ${lastName}*! 👋\n\nPlease verify your email address to activate your EUROSHUB account.`
+          }
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🔗 *<${verificationUrl}|Click here to verify your email>*`
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `Or copy and paste this link in your browser:\n\`${verificationUrl}\``
+          }
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: '📧 A verification link has also been sent to your email address.'
+            }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: "If you didn't request this verification, please ignore this message."
+            }
+          ]
+        }
+      ]
+    };
+
+    return await sendDirectMessage(email, message);
+  } catch (error) {
+    console.error('❌ Error sending verification DM:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   notifyNewUserSignup,
   notifyUserDeleted,
@@ -648,5 +726,6 @@ module.exports = {
   sendDirectMessage,
   sendWelcomeDM,
   notifyUserLogin,
-  notifyUserLogout
+  notifyUserLogout,
+  sendVerificationDM
 };

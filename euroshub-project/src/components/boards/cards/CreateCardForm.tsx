@@ -1,12 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2, ArrowRight, Users } from 'lucide-react';
 
 interface CreateCardFormProps {
   listId: string;
+  boardMembers?: BoardMember[];
   onCreateCard: (listId: string, cardData: CreateCardData) => Promise<void>;
   onCancel: () => void;
+}
+
+interface BoardMember {
+  _id: string;
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    avatar?: string;
+  };
+  role: string;
+}
+
+interface WorkflowStage {
+  order: number;
+  name: string;
+  assignedTo: string; // User ID
+  tasks: { title: string; description?: string }[];
 }
 
 export interface CreateCardData {
@@ -18,10 +38,15 @@ export interface CreateCardData {
   dueDate?: Date;
   assignedMembers?: string[];
   priority?: 'low' | 'medium' | 'high' | 'urgent';
+  // NEW: Workflow fields
+  workflowEnabled?: boolean;
+  workflowStages?: WorkflowStage[];
+  autoProgressEnabled?: boolean;
 }
 
 const CreateCardForm: React.FC<CreateCardFormProps> = ({
   listId,
+  boardMembers = [],
   onCreateCard,
   onCancel,
 }) => {
@@ -30,10 +55,14 @@ const CreateCardForm: React.FC<CreateCardFormProps> = ({
     description: '',
     labels: [],
     assignedMembers: [],
-    priority: 'medium'
+    priority: 'medium',
+    workflowEnabled: false,
+    workflowStages: [],
+    autoProgressEnabled: true
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showWorkflow, setShowWorkflow] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,8 +130,95 @@ const CreateCardForm: React.FC<CreateCardFormProps> = ({
 
   const predefinedLabels = ['Frontend', 'Backend', 'Design', 'Bug', 'Feature', 'Urgent', 'Testing'];
 
+  // Workflow functions
+  const addWorkflowStage = () => {
+    const newStage: WorkflowStage = {
+      order: cardData.workflowStages?.length || 0,
+      name: `Stage ${(cardData.workflowStages?.length || 0) + 1}`,
+      assignedTo: '',
+      tasks: []
+    };
+
+    setCardData(prev => ({
+      ...prev,
+      workflowEnabled: true,
+      workflowStages: [...(prev.workflowStages || []), newStage]
+    }));
+  };
+
+  const removeWorkflowStage = (index: number) => {
+    setCardData(prev => ({
+      ...prev,
+      workflowStages: prev.workflowStages?.filter((_, i) => i !== index).map((stage, i) => ({
+        ...stage,
+        order: i
+      }))
+    }));
+  };
+
+  const updateWorkflowStage = (index: number, field: keyof WorkflowStage, value: string) => {
+    setCardData(prev => ({
+      ...prev,
+      workflowStages: prev.workflowStages?.map((stage, i) =>
+        i === index ? { ...stage, [field]: value } : stage
+      )
+    }));
+  };
+
+  const addTaskToStage = (stageIndex: number) => {
+    setCardData(prev => ({
+      ...prev,
+      workflowStages: prev.workflowStages?.map((stage, i) =>
+        i === stageIndex
+          ? { ...stage, tasks: [...stage.tasks, { title: '' }] }
+          : stage
+      )
+    }));
+  };
+
+  const removeTaskFromStage = (stageIndex: number, taskIndex: number) => {
+    setCardData(prev => ({
+      ...prev,
+      workflowStages: prev.workflowStages?.map((stage, i) =>
+        i === stageIndex
+          ? { ...stage, tasks: stage.tasks.filter((_, ti) => ti !== taskIndex) }
+          : stage
+      )
+    }));
+  };
+
+  const updateStageTask = (stageIndex: number, taskIndex: number, field: 'title' | 'description', value: string) => {
+    setCardData(prev => ({
+      ...prev,
+      workflowStages: prev.workflowStages?.map((stage, i) =>
+        i === stageIndex
+          ? {
+              ...stage,
+              tasks: stage.tasks.map((task, ti) =>
+                ti === taskIndex ? { ...task, [field]: value } : task
+              )
+            }
+          : stage
+      )
+    }));
+  };
+
+  const toggleWorkflowMode = () => {
+    setCardData(prev => ({
+      ...prev,
+      workflowEnabled: !prev.workflowEnabled,
+      workflowStages: prev.workflowEnabled ? [] : prev.workflowStages
+    }));
+    setShowWorkflow(!showWorkflow);
+  };
+
+  const getMemberName = (userId: string) => {
+    const member = boardMembers.find(m => m.userId._id === userId);
+    return member ? `${member.userId.firstName} ${member.userId.lastName}` : 'Unknown';
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 w-80">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 w-96 max-h-[90vh] overflow-y-auto">
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title */}
         <div>
@@ -272,6 +388,154 @@ const CreateCardForm: React.FC<CreateCardFormProps> = ({
             </div>
           </div>
         )}
+
+        {/* Workflow Section */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={cardData.workflowEnabled}
+                onChange={toggleWorkflowMode}
+                className="mr-2 rounded border-gray-300 dark:border-gray-600"
+                disabled={isLoading}
+              />
+              Enable Sequential Workflow
+            </label>
+          </div>
+
+          {cardData.workflowEnabled && (
+            <div className="mt-3 space-y-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Assign tasks to different members in sequence. When one person completes their tasks, the card automatically moves to the next person.
+              </p>
+
+              {/* Auto-progress setting */}
+              <label className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={cardData.autoProgressEnabled}
+                  onChange={(e) => setCardData(prev => ({ ...prev, autoProgressEnabled: e.target.checked }))}
+                  className="mr-2 rounded border-gray-300 dark:border-gray-600"
+                  disabled={isLoading}
+                />
+                Auto-progress to next stage when all tasks completed
+              </label>
+
+              {/* Workflow Stages */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {cardData.workflowStages?.map((stage, stageIndex) => (
+                  <div
+                    key={stageIndex}
+                    className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          #{stageIndex + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={stage.name}
+                          onChange={(e) => updateWorkflowStage(stageIndex, 'name', e.target.value)}
+                          placeholder="Stage name (e.g., Design, Development)"
+                          className="flex-1 text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      {cardData.workflowStages && cardData.workflowStages.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeWorkflowStage(stageIndex)}
+                          className="text-red-500 hover:text-red-700 ml-2"
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Assign to user */}
+                    <div className="mb-2">
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Assign to:
+                      </label>
+                      <select
+                        value={stage.assignedTo}
+                        onChange={(e) => updateWorkflowStage(stageIndex, 'assignedTo', e.target.value)}
+                        className="w-full text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        disabled={isLoading}
+                      >
+                        <option value="">Select member...</option>
+                        {boardMembers.map((member) => (
+                          <option key={member.userId._id} value={member.userId._id}>
+                            {member.userId.firstName} {member.userId.lastName} ({member.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Tasks for this stage */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Tasks for this stage:
+                      </label>
+
+                      {stage.tasks.map((task, taskIndex) => (
+                        <div key={taskIndex} className="flex items-start gap-2">
+                          <input
+                            type="text"
+                            value={task.title}
+                            onChange={(e) => updateStageTask(stageIndex, taskIndex, 'title', e.target.value)}
+                            placeholder="Task title"
+                            className="flex-1 text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
+                            className="text-red-500 hover:text-red-700"
+                            disabled={isLoading}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => addTaskToStage(stageIndex)}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
+                        disabled={isLoading}
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Task
+                      </button>
+                    </div>
+
+                    {/* Arrow to next stage */}
+                    {stageIndex < (cardData.workflowStages?.length || 0) - 1 && (
+                      <div className="flex justify-center mt-2">
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add stage button */}
+              <button
+                type="button"
+                onClick={addWorkflowStage}
+                className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center justify-center gap-2"
+                disabled={isLoading}
+              >
+                <Plus className="w-4 h-4" />
+                Add Workflow Stage
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-2">

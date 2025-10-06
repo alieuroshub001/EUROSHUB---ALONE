@@ -196,8 +196,77 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  // NEW: Workflow stage index - which stage this task belongs to
+  workflowStageIndex: {
+    type: Number,
+    default: null
+  },
+  // NEW: Task Dependency System
+  dependsOn: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+    ref: 'Task' // References another task in the same card
+  },
+  isLocked: {
+    type: Boolean,
+    default: false
+  },
+  unlockedAt: {
+    type: Date,
+    default: null
+  },
+  lockedReason: {
+    type: String,
+    default: ''
   }
 }, {
+  timestamps: true
+});
+
+// NEW: Workflow stage schema for sequential task assignment
+const workflowStageSchema = new mongoose.Schema({
+  order: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  name: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Stage name cannot be more than 100 characters'],
+    default: ''
+  },
+  assignedToType: {
+    type: String,
+    enum: ['user', 'team'],
+    required: true,
+    default: 'user'
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    refPath: 'workflowStages.assignedToType'  // Dynamic reference
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'completed'],
+    default: 'pending'
+  },
+  startedAt: {
+    type: Date,
+    default: null
+  },
+  completedAt: {
+    type: Date,
+    default: null
+  },
+  // Task IDs that belong to this stage
+  taskIds: [{
+    type: mongoose.Schema.Types.ObjectId
+  }]
+}, {
+  _id: true,
   timestamps: true
 });
 
@@ -308,6 +377,32 @@ const cardSchema = new mongoose.Schema({
       enum: ['text', 'number', 'date', 'boolean', 'select']
     }
   }],
+  // NEW: Sequential Workflow System
+  workflowEnabled: {
+    type: Boolean,
+    default: false
+  },
+  workflowStages: [workflowStageSchema],
+  currentStageIndex: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // Automation settings
+  autoProgressEnabled: {
+    type: Boolean,
+    default: true
+  },
+  moveListOnProgress: {
+    type: Boolean,
+    default: false
+  },
+  // Stage to list mapping for auto-moving cards
+  stageListMapping: {
+    type: Map,
+    of: mongoose.Schema.Types.ObjectId,
+    default: new Map()
+  },
   // Visual customization for Trello-like cards
   color: {
     type: String,
@@ -574,10 +669,29 @@ cardSchema.methods.removeMember = async function(userId) {
 cardSchema.methods.addTask = function(taskData, createdBy) {
   // Set position for new task
   const maxPosition = Math.max(...this.tasks.map(t => t.position), 0);
+
+  // Check if task has a dependency
+  let isLocked = false;
+  let lockedReason = '';
+
+  if (taskData.dependsOn) {
+    const dependencyTask = this.tasks.id(taskData.dependsOn);
+    if (dependencyTask) {
+      // Task is locked if dependency is not completed
+      isLocked = !dependencyTask.completed;
+      if (isLocked) {
+        lockedReason = `Waiting for: ${dependencyTask.title}`;
+      }
+    }
+  }
+
   const task = {
     ...taskData,
     position: maxPosition + 1,
-    createdBy: createdBy
+    createdBy: createdBy,
+    isLocked: isLocked,
+    lockedReason: lockedReason,
+    unlockedAt: isLocked ? null : new Date()
   };
 
   this.tasks.push(task);
@@ -585,7 +699,7 @@ cardSchema.methods.addTask = function(taskData, createdBy) {
 };
 
 // Instance method to update task
-cardSchema.methods.updateTask = function(taskId, updateData) {
+cardSchema.methods.updateTask = async function(taskId, updateData) {
   const task = this.tasks.id(taskId);
   if (!task) {
     throw new Error('Task not found');
@@ -594,13 +708,42 @@ cardSchema.methods.updateTask = function(taskId, updateData) {
   Object.assign(task, updateData);
 
   // Handle completion
+  let shouldCheckWorkflowProgress = false;
+  let shouldUnlockDependentTasks = false;
+
   if (updateData.completed !== undefined) {
     if (updateData.completed && !task.completedAt) {
       task.completedAt = new Date();
       task.completedBy = updateData.completedBy || task.assignedTo || task.createdBy;
+      shouldCheckWorkflowProgress = true;
+      shouldUnlockDependentTasks = true; // NEW: Unlock dependent tasks
     } else if (!updateData.completed) {
       task.completedAt = null;
       task.completedBy = null;
+      // Re-lock dependent tasks if this task is uncompleted
+      this.relockDependentTasks(taskId);
+    }
+  }
+
+  // NEW: Auto-unlock dependent tasks when this task is completed
+  if (shouldUnlockDependentTasks) {
+    const unlockedTasks = this.unlockDependentTasks(taskId);
+    // Store unlocked tasks info for notifications
+    this._unlockedTasks = unlockedTasks;
+  }
+
+  // Check if workflow should auto-progress
+  if (shouldCheckWorkflowProgress && this.workflowEnabled && this.autoProgressEnabled) {
+    // Check if all tasks in current stage are now completed
+    if (this.isStageCompleted(this.currentStageIndex)) {
+      try {
+        const progressResult = await this.progressToNextStage();
+        // Save the workflow progression flag so the controller can send notifications
+        this._workflowProgressed = progressResult;
+      } catch (error) {
+        console.error('Error auto-progressing workflow:', error);
+        // Don't throw - we don't want to fail task completion if auto-progress fails
+      }
     }
   }
 
@@ -627,6 +770,230 @@ cardSchema.methods.reorderTask = function(taskId, newPosition) {
 
   task.position = newPosition;
   return this;
+};
+
+// NEW: Instance method to check if all tasks in a stage are completed
+cardSchema.methods.isStageCompleted = function(stageIndex) {
+  if (!this.workflowEnabled || !this.workflowStages[stageIndex]) {
+    return false;
+  }
+
+  const stage = this.workflowStages[stageIndex];
+
+  // Get all tasks for this stage
+  const stageTasks = this.tasks.filter(task =>
+    stage.taskIds.some(id => id.toString() === task._id.toString())
+  );
+
+  // If no tasks in stage, consider it not completed
+  if (stageTasks.length === 0) {
+    return false;
+  }
+
+  // Check if all tasks are completed
+  return stageTasks.every(task => task.completed);
+};
+
+// NEW: Instance method to progress to next workflow stage
+cardSchema.methods.progressToNextStage = async function() {
+  if (!this.workflowEnabled) {
+    throw new Error('Workflow is not enabled for this card');
+  }
+
+  const currentStage = this.workflowStages[this.currentStageIndex];
+
+  if (!currentStage) {
+    throw new Error('Current stage not found');
+  }
+
+  // Check if current stage is completed
+  if (!this.isStageCompleted(this.currentStageIndex)) {
+    throw new Error('Current stage tasks are not all completed');
+  }
+
+  // Mark current stage as completed
+  currentStage.status = 'completed';
+  currentStage.completedAt = new Date();
+
+  // Check if there's a next stage
+  const nextStageIndex = this.currentStageIndex + 1;
+
+  if (nextStageIndex < this.workflowStages.length) {
+    // Activate next stage
+    this.currentStageIndex = nextStageIndex;
+    const nextStage = this.workflowStages[nextStageIndex];
+    nextStage.status = 'active';
+    nextStage.startedAt = new Date();
+
+    // Move card to different list if configured
+    if (this.moveListOnProgress && this.stageListMapping.has(nextStageIndex.toString())) {
+      const targetListId = this.stageListMapping.get(nextStageIndex.toString());
+      await this.moveToList(targetListId);
+    }
+
+    return {
+      progressed: true,
+      completed: false,
+      nextStage: nextStage,
+      currentStageIndex: this.currentStageIndex
+    };
+  } else {
+    // All stages completed - mark card as completed
+    this.status = 'completed';
+    this.completedAt = new Date();
+
+    // Move to "Done" list if exists
+    const List = mongoose.model('List');
+    const doneList = await List.findOne({
+      boardId: this.boardId,
+      name: { $regex: /^done$/i }
+    });
+
+    if (doneList) {
+      await this.moveToList(doneList._id);
+    }
+
+    return {
+      progressed: true,
+      completed: true,
+      nextStage: null,
+      currentStageIndex: this.currentStageIndex
+    };
+  }
+};
+
+// NEW: Instance method to get current stage details
+cardSchema.methods.getCurrentStage = function() {
+  if (!this.workflowEnabled || this.workflowStages.length === 0) {
+    return null;
+  }
+
+  const stage = this.workflowStages[this.currentStageIndex];
+  if (!stage) return null;
+
+  // Get tasks for this stage
+  const stageTasks = this.tasks.filter(task =>
+    stage.taskIds.some(id => id.toString() === task._id.toString())
+  );
+
+  return {
+    ...stage.toObject(),
+    tasks: stageTasks,
+    completedTasksCount: stageTasks.filter(t => t.completed).length,
+    totalTasksCount: stageTasks.length,
+    isCompleted: this.isStageCompleted(this.currentStageIndex)
+  };
+};
+
+// NEW: Instance method to get workflow progress
+cardSchema.methods.getWorkflowProgress = function() {
+  if (!this.workflowEnabled) {
+    return null;
+  }
+
+  const totalStages = this.workflowStages.length;
+  const completedStages = this.workflowStages.filter(s => s.status === 'completed').length;
+  const progressPercentage = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
+
+  return {
+    totalStages,
+    completedStages,
+    currentStageIndex: this.currentStageIndex,
+    progressPercentage,
+    stages: this.workflowStages.map((stage, index) => {
+      const stageTasks = this.tasks.filter(task =>
+        stage.taskIds.some(id => id.toString() === task._id.toString())
+      );
+
+      return {
+        order: stage.order,
+        name: stage.name || `Stage ${index + 1}`,
+        assignedToType: stage.assignedToType,
+        assignedTo: stage.assignedTo,
+        status: stage.status,
+        totalTasks: stageTasks.length,
+        completedTasks: stageTasks.filter(t => t.completed).length,
+        startedAt: stage.startedAt,
+        completedAt: stage.completedAt
+      };
+    })
+  };
+};
+
+// NEW: Instance method to unlock dependent tasks
+cardSchema.methods.unlockDependentTasks = function(completedTaskId) {
+  const unlockedTasks = [];
+
+  // Find all tasks that depend on this task
+  this.tasks.forEach(task => {
+    if (task.dependsOn && task.dependsOn.toString() === completedTaskId.toString() && task.isLocked) {
+      task.isLocked = false;
+      task.unlockedAt = new Date();
+      task.lockedReason = '';
+
+      unlockedTasks.push({
+        taskId: task._id,
+        title: task.title,
+        assignedTo: task.assignedTo
+      });
+    }
+  });
+
+  return unlockedTasks;
+};
+
+// NEW: Instance method to re-lock dependent tasks
+cardSchema.methods.relockDependentTasks = function(taskId) {
+  const dependencyTask = this.tasks.id(taskId);
+  if (!dependencyTask) return;
+
+  // Find all tasks that depend on this task
+  this.tasks.forEach(task => {
+    if (task.dependsOn && task.dependsOn.toString() === taskId.toString()) {
+      task.isLocked = true;
+      task.unlockedAt = null;
+      task.lockedReason = `Waiting for: ${dependencyTask.title}`;
+    }
+  });
+};
+
+// NEW: Instance method to get task dependencies chain
+cardSchema.methods.getTaskDependencies = function(taskId) {
+  const task = this.tasks.id(taskId);
+  if (!task) return null;
+
+  const dependencies = [];
+  let currentTask = task;
+
+  // Traverse up the dependency chain
+  while (currentTask && currentTask.dependsOn) {
+    const dependencyTask = this.tasks.id(currentTask.dependsOn);
+    if (!dependencyTask) break;
+
+    dependencies.push({
+      taskId: dependencyTask._id,
+      title: dependencyTask.title,
+      completed: dependencyTask.completed,
+      assignedTo: dependencyTask.assignedTo
+    });
+
+    currentTask = dependencyTask;
+  }
+
+  return dependencies.reverse(); // Return in order from first to last
+};
+
+// NEW: Instance method to check if task can be started
+cardSchema.methods.canStartTask = function(taskId) {
+  const task = this.tasks.id(taskId);
+  if (!task) return false;
+
+  // If task has no dependency, it can always be started
+  if (!task.dependsOn) return true;
+
+  // Check if dependency is completed
+  const dependencyTask = this.tasks.id(task.dependsOn);
+  return dependencyTask && dependencyTask.completed;
 };
 
 // Pre-save middleware to set position and update metadata

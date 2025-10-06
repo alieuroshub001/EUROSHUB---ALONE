@@ -77,6 +77,11 @@ interface Task {
   priority: 'low' | 'medium' | 'high';
   description?: string;
   createdAt: Date;
+  // NEW: Dependency fields
+  dependsOn?: string;
+  isLocked?: boolean;
+  lockedReason?: string;
+  unlockedAt?: Date;
 }
 
 interface Comment {
@@ -159,6 +164,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
+  // NEW: Dependency selection state
+  const [taskDependency, setTaskDependency] = useState<string>('');
+  const [showDependencyOption, setShowDependencyOption] = useState(false);
 
   // Extended project data
   const [projectData, setProjectData] = useState({

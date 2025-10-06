@@ -1932,4 +1932,149 @@ router.delete('/:cardId/checklist/:itemId', protect, checkCardAccess, async (req
   }
 });
 
+/**
+ * @route   GET /api/cards/:cardId/workflow
+ * @desc    Get workflow progress for a card
+ * @access  Private
+ */
+router.get('/:cardId/workflow', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+
+    if (!card.workflowEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Workflow is not enabled for this card'
+      });
+    }
+
+    const workflowProgress = card.getWorkflowProgress();
+    const currentStage = card.getCurrentStage();
+
+    // Populate assignedTo for each stage
+    await card.populate('workflowStages.assignedTo', 'firstName lastName avatar email');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        progress: workflowProgress,
+        currentStage: currentStage
+      }
+    });
+  } catch (error) {
+    console.error('Get workflow progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching workflow progress'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cards/:cardId/workflow/progress
+ * @desc    Manually progress card to next workflow stage
+ * @access  Private
+ */
+router.post('/:cardId/workflow/progress', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+
+    if (!card.workflowEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Workflow is not enabled for this card'
+      });
+    }
+
+    // Check if current stage is completed
+    if (!card.isStageCompleted(card.currentStageIndex)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot progress: not all tasks in current stage are completed'
+      });
+    }
+
+    const progressResult = await card.progressToNextStage();
+    await card.save();
+
+    // Log activity
+    await logCardActivity(card, 'card_workflow_progressed', req.user._id, {
+      fromStage: progressResult.currentStageIndex - 1,
+      toStage: progressResult.currentStageIndex,
+      completed: progressResult.completed
+    });
+
+    // Emit socket event
+    const list = await List.findById(card.listId).select('boardId');
+    if (list && req.io) {
+      req.io.to(list.boardId.toString()).emit('card:workflow:progress', {
+        cardId: card._id,
+        fromStage: progressResult.currentStageIndex - 1,
+        toStage: progressResult.currentStageIndex,
+        completed: progressResult.completed
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: progressResult.completed
+        ? 'Card workflow completed!'
+        : 'Card progressed to next stage',
+      data: {
+        progressResult,
+        card
+      }
+    });
+  } catch (error) {
+    console.error('Progress workflow error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error progressing workflow'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/cards/:cardId/workflow
+ * @desc    Update workflow settings
+ * @access  Private
+ */
+router.put('/:cardId/workflow', protect, checkCardAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { autoProgressEnabled, moveListOnProgress, stageListMapping } = req.body;
+
+    if (autoProgressEnabled !== undefined) {
+      card.autoProgressEnabled = autoProgressEnabled;
+    }
+
+    if (moveListOnProgress !== undefined) {
+      card.moveListOnProgress = moveListOnProgress;
+    }
+
+    if (stageListMapping) {
+      card.stageListMapping = new Map(Object.entries(stageListMapping));
+    }
+
+    await card.save();
+
+    await logCardActivity(card, 'card_workflow_updated', req.user._id, {
+      autoProgress: card.autoProgressEnabled,
+      moveList: card.moveListOnProgress
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Workflow settings updated',
+      data: card
+    });
+  } catch (error) {
+    console.error('Update workflow settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating workflow settings'
+    });
+  }
+});
+
 module.exports = router;

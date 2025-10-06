@@ -1,5 +1,6 @@
 const { Resend } = require('resend');
 const nodemailer = require('nodemailer');
+const { sendVerificationDM } = require('./slackService');
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -128,11 +129,19 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
       </html>
     `;
 
-    return await sendEmailWithFallback({
+    // Send to both Gmail and Slack
+    const emailResult = await sendEmailWithFallback({
       to: email,
       subject: `Welcome to ${process.env.APP_NAME || 'EUROSHUB'}`,
       html
     });
+
+    // Also send verification link via Slack DM (non-blocking)
+    sendVerificationDM({ email, firstName, lastName, verificationToken }).catch(err => {
+      console.warn('⚠️ Failed to send verification via Slack, but email was sent:', err.message);
+    });
+
+    return emailResult;
   } catch (error) {
     console.error('Error sending welcome email:', error);
     throw error;
@@ -188,11 +197,19 @@ const sendVerificationEmail = async ({ email, firstName, lastName, verificationT
       </html>
     `;
 
-    return await sendEmailWithFallback({
+    // Send to both Gmail and Slack
+    const emailResult = await sendEmailWithFallback({
       to: email,
       subject: `Verify Your Email - ${process.env.APP_NAME || 'EUROSHUB'}`,
       html
     });
+
+    // Also send verification link via Slack DM (non-blocking)
+    sendVerificationDM({ email, firstName, lastName, verificationToken }).catch(err => {
+      console.warn('⚠️ Failed to send verification via Slack, but email was sent:', err.message);
+    });
+
+    return emailResult;
   } catch (error) {
     console.error('Error sending verification email:', error);
     throw error;

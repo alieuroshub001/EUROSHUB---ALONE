@@ -954,15 +954,22 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     const updateData = {};
     if (title !== undefined && title.trim()) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description;
-    if (completed !== undefined) updateData.completed = completed;
+    if (completed !== undefined) {
+      updateData.completed = completed;
+      updateData.completedBy = req.user.id;
+    }
     if (assignedTo !== undefined) {
       // Convert to array if not already
       updateData.assignedTo = Array.isArray(assignedTo) ? assignedTo : (assignedTo ? [assignedTo] : []);
     }
     if (priority !== undefined) updateData.priority = priority;
 
-    card.updateTask(taskId, updateData);
+    await card.updateTask(taskId, updateData);
     await card.save();
+
+    // Check if workflow progressed (set by card.updateTask method)
+    const workflowProgressed = card._workflowProgressed;
+    const unlockedTasks = card._unlockedTasks || [];
 
     // Populate assignedTo before returning
     await card.populate({
@@ -974,8 +981,8 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     const updatedTask = card.tasks.id(taskId);
 
     // Log activity for task completion
+    const list = await List.findById(card.listId).select('boardId');
     if (completed !== undefined && completed !== task.completed) {
-      const list = await List.findById(card.listId).select('boardId');
       await Activity.logActivity({
         type: completed ? 'card_task_completed' : 'card_updated',
         user: req.user.id,
@@ -992,10 +999,87 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
       });
     }
 
+    // NEW: Log and notify for unlocked tasks
+    if (unlockedTasks.length > 0) {
+      for (const unlockedTask of unlockedTasks) {
+        await Activity.logActivity({
+          type: 'card_task_unlocked',
+          user: req.user.id,
+          project: card.project || null,
+          board: list ? list.boardId : null,
+          list: card.listId,
+          card: card._id,
+          metadata: {
+            entityName: card.title,
+            entityId: card._id,
+            taskTitle: unlockedTask.title,
+            taskId: unlockedTask.taskId,
+            unlockedBy: task.title
+          }
+        });
+      }
+
+      // Emit socket event for unlocked tasks
+      if (req.io) {
+        req.io.to(list.boardId.toString()).emit('card:tasks:unlocked', {
+          cardId: card._id,
+          unlockedTasks: unlockedTasks,
+          completedTask: {
+            id: task._id,
+            title: task.title
+          }
+        });
+      }
+    }
+
+    // Log workflow progression if it happened
+    if (workflowProgressed) {
+      await Activity.logActivity({
+        type: 'card_workflow_progressed',
+        user: req.user.id,
+        project: card.project || null,
+        board: list ? list.boardId : null,
+        list: card.listId,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id,
+          fromStage: workflowProgressed.currentStageIndex - 1,
+          toStage: workflowProgressed.currentStageIndex,
+          completed: workflowProgressed.completed
+        }
+      });
+
+      // Emit socket event for workflow progression
+      if (req.io) {
+        req.io.to(list.boardId.toString()).emit('card:workflow:progress', {
+          cardId: card._id,
+          fromStage: workflowProgressed.currentStageIndex - 1,
+          toStage: workflowProgressed.currentStageIndex,
+          completed: workflowProgressed.completed,
+          card: card
+        });
+      }
+    }
+
+    // Build success message
+    let successMessage = 'Task updated successfully';
+    if (completed && unlockedTasks.length > 0) {
+      successMessage = `Task completed! ${unlockedTasks.length} dependent task${unlockedTasks.length > 1 ? 's' : ''} unlocked.`;
+    } else if (workflowProgressed) {
+      successMessage = workflowProgressed.completed
+        ? 'Task completed! Card workflow completed and moved to Done.'
+        : 'Task completed! Card auto-progressed to next stage.';
+    } else if (completed) {
+      successMessage = 'Task completed successfully!';
+    }
+
     res.status(200).json({
       success: true,
       data: updatedTask,
-      message: 'Task updated successfully'
+      message: successMessage,
+      unlockedTasks: unlockedTasks,
+      workflowProgressed: workflowProgressed || null
     });
   } catch (error) {
     console.error('Update task error:', error);
