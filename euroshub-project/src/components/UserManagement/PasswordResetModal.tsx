@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { PasswordResetRequest } from '@/lib/passwordResetService';
+import { User, Mail, Calendar, Clock, Shield, AlertCircle, CheckCircle2, Lock, FileText, XCircle } from 'lucide-react';
 
 interface PasswordResetModalProps {
   request: PasswordResetRequest;
@@ -13,14 +14,19 @@ export default function PasswordResetModal({ request, onClose, onProcess }: Pass
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
+    if (action === 'reject' && !notes.trim()) {
+      return;
+    }
+
+    setLoading(true);
     try {
-      await onProcess(request.id, action, notes);
-    } catch  {
+      await onProcess(request.id, action, notes.trim() || undefined);
+    } catch {
       // Error is handled in parent component
     } finally {
       setLoading(false);
@@ -37,181 +43,390 @@ export default function PasswordResetModal({ request, onClose, onProcess }: Pass
     });
   };
 
+  const getRoleInfo = (role: string) => {
+    const roleInfo: Record<string, { color: string; bg: string; description: string }> = {
+      superadmin: {
+        color: 'text-red-700 dark:text-red-300',
+        bg: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800',
+        description: 'Full system access and control'
+      },
+      admin: {
+        color: 'text-blue-700 dark:text-blue-300',
+        bg: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800',
+        description: 'Administrative privileges'
+      },
+      hr: {
+        color: 'text-purple-700 dark:text-purple-300',
+        bg: 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800',
+        description: 'Human resources management'
+      },
+      employee: {
+        color: 'text-green-700 dark:text-green-300',
+        bg: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800',
+        description: 'Standard employee access'
+      },
+      client: {
+        color: 'text-orange-700 dark:text-orange-300',
+        bg: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800',
+        description: 'Client portal access'
+      }
+    };
+    return roleInfo[role] || roleInfo.employee;
+  };
+
+  const roleInfo = getRoleInfo(request.user.role);
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-screen overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-700 px-8 py-6 flex-shrink-0 rounded-t-2xl">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Process Password Reset Request</h2>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Process Password Reset Request</h2>
+                <p className="text-blue-100 text-sm mt-0.5">Review and approve or reject the reset request</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <XCircle className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-4">
-          {/* Request Details */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900 mb-3">Request Details</h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium text-gray-600">User:</span>{' '}
-                <span className="text-gray-900">{request.user.firstName} {request.user.lastName}</span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Email:</span>{' '}
-                <span className="text-gray-900">{request.user.email}</span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Role:</span>{' '}
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  {
-                    superadmin: 'bg-purple-100 text-purple-800',
-                    admin: 'bg-blue-100 text-blue-800',
-                    hr: 'bg-green-100 text-green-800',
-                    employee: 'bg-gray-100 text-gray-800',
-                    client: 'bg-orange-100 text-orange-800'
-                  }[request.user.role] || 'bg-gray-100 text-gray-800'
-                }`}>
-                  {request.user.role}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Requested:</span>{' '}
-                <span className="text-gray-900">{formatDate(request.requestedAt)}</span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Request Age:</span>{' '}
-                <span className="text-gray-900">
-                  {request.requestAge === 0 ? 'Today' :
-                   request.requestAge === 1 ? '1 day ago' :
-                   `${request.requestAge} days ago`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Action Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Action
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="action"
-                    value="approve"
-                    checked={action === 'approve'}
-                    onChange={(e) => setAction(e.target.value as 'approve')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <span className="ml-2 text-sm text-gray-900">
-                    <span className="font-medium text-green-600">Approve</span> - Generate new password and send to user
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="action"
-                    value="reject"
-                    checked={action === 'reject'}
-                    onChange={(e) => setAction(e.target.value as 'reject')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <span className="ml-2 text-sm text-gray-900">
-                    <span className="font-medium text-red-600">Reject</span> - Deny the password reset request
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes {action === 'reject' && <span className="text-red-500">(required for rejection)</span>}
-              </label>
-              <textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder={
-                  action === 'approve'
-                    ? 'Optional notes about the approval...'
-                    : 'Please provide a reason for rejection...'
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                maxLength={500}
-                required={action === 'reject'}
-              />
-              <p className="text-xs text-gray-500 mt-1">{notes.length}/500 characters</p>
-            </div>
-
-            {/* Warning for action */}
-            <div className={`p-3 rounded-md ${
-              action === 'approve' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  {action === 'approve' ? (
-                    <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <div className="ml-3">
-                  <p className={`text-sm ${
-                    action === 'approve' ? 'text-green-800' : 'text-red-800'
-                  }`}>
-                    {action === 'approve'
-                      ? 'A new secure password will be generated and sent to the user via email. The user will need to change it on first login.'
-                      : 'The user will be notified that their password reset request has been rejected. They can submit a new request if needed.'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading || (action === 'reject' && !notes.trim())}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
-                  action === 'approve'
-                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                    : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                }`}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
+        {/* Form Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <div className="flex-1 p-8 space-y-6">
+              {/* User Information Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <User className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                   </div>
-                ) : (
-                  action === 'approve' ? 'Approve Request' : 'Reject Request'
-                )}
-              </button>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Information</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Details of the user requesting password reset</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Full Name
+                    </label>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg">
+                      <User className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {request.user.firstName} {request.user.lastName}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Email Address
+                    </label>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg">
+                      <Mail className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {request.user.email}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      User Role
+                    </label>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg">
+                      <Shield className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-md border ${roleInfo.bg} ${roleInfo.color}`}>
+                        {request.user.role.charAt(0).toUpperCase() + request.user.role.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Request Age
+                    </label>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg">
+                      <Clock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {request.requestAge === 0 ? 'Today' :
+                         request.requestAge === 1 ? '1 day ago' :
+                         `${request.requestAge} days ago`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Requested Date & Time
+                    </label>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg">
+                      <Calendar className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {formatDate(request.requestedAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Selection Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select Action</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Choose whether to approve or reject this request</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Approve Option */}
+                  <div
+                    className={`relative rounded-lg p-5 cursor-pointer transition-all border-2 ${
+                      action === 'approve'
+                        ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                    }`}
+                    onClick={() => setAction('approve')}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        action === 'approve'
+                          ? 'border-green-500 dark:border-green-400 bg-green-500 dark:bg-green-400'
+                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+                      }`}>
+                        {action === 'approve' && (
+                          <div className="w-2 h-2 rounded-full bg-white dark:bg-gray-900" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <span className="text-base font-semibold text-gray-900 dark:text-white">
+                            Approve Request
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                          Generate a new secure password and send it to the user via email. User must change it on first login.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reject Option */}
+                  <div
+                    className={`relative rounded-lg p-5 cursor-pointer transition-all border-2 ${
+                      action === 'reject'
+                        ? 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                    }`}
+                    onClick={() => setAction('reject')}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        action === 'reject'
+                          ? 'border-red-500 dark:border-red-400 bg-red-500 dark:bg-red-400'
+                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+                      }`}>
+                        {action === 'reject' && (
+                          <div className="w-2 h-2 rounded-full bg-white dark:bg-gray-900" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                          <span className="text-base font-semibold text-gray-900 dark:text-white">
+                            Reject Request
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                          Deny the password reset request. User will be notified and can submit a new request if needed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing Notes</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {action === 'reject' ? 'Provide a reason for rejection (required)' : 'Add optional notes about this approval'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Notes {action === 'reject' && <span className="text-red-500 dark:text-red-400">*</span>}
+                  </label>
+                  <textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    onFocus={() => setFocusedField('notes')}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder={
+                      action === 'approve'
+                        ? 'Optional notes about the approval (e.g., verified identity via phone call)...'
+                        : 'Please provide a clear reason for rejection (e.g., unable to verify identity, suspicious activity)...'
+                    }
+                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all resize-none ${
+                      focusedField === 'notes'
+                        ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    rows={4}
+                    maxLength={500}
+                    required={action === 'reject'}
+                  />
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{notes.length}/500 characters</p>
+                    {action === 'reject' && !notes.trim() && (
+                      <p className="text-xs text-red-600 dark:text-red-400 flex items-center">
+                        <AlertCircle className="w-3.5 h-3.5 mr-1" />
+                        Rejection reason is required
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning Notice */}
+              <div className={`border-2 rounded-lg p-5 ${
+                action === 'approve'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+              }`}>
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    {action === 'approve' ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`text-sm font-semibold mb-2 ${
+                      action === 'approve'
+                        ? 'text-green-900 dark:text-green-300'
+                        : 'text-red-900 dark:text-red-300'
+                    }`}>
+                      {action === 'approve' ? 'Approval Process' : 'Rejection Process'}
+                    </h4>
+                    <ul className={`space-y-1.5 text-sm ${
+                      action === 'approve'
+                        ? 'text-green-800 dark:text-green-300'
+                        : 'text-red-800 dark:text-red-300'
+                    }`}>
+                      {action === 'approve' ? (
+                        <>
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>A secure temporary password will be generated automatically</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>Credentials will be sent to the user&apos;s email address</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>User must change the password on first login for security</span>
+                          </li>
+                        </>
+                      ) : (
+                        <>
+                          <li className="flex items-start">
+                            <XCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>User will be notified via email about the rejection</span>
+                          </li>
+                          <li className="flex items-start">
+                            <XCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>Your rejection reason will be included in the notification</span>
+                          </li>
+                          <li className="flex items-start">
+                            <XCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>User can submit a new request if they still need access</span>
+                          </li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Fixed at bottom */}
+            <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0 rounded-b-2xl">
+              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                <AlertCircle className="w-4 h-4" />
+                <span>This action will be recorded in the system</span>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading || (action === 'reject' && !notes.trim())}
+                  className={`px-8 py-2.5 font-medium rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 disabled:cursor-not-allowed transform hover:scale-105 disabled:scale-100 ${
+                    action === 'approve'
+                      ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400 dark:bg-green-600 dark:hover:bg-green-700 dark:disabled:bg-green-800 text-white'
+                      : 'bg-red-600 hover:bg-red-700 disabled:bg-red-400 dark:bg-red-600 dark:hover:bg-red-700 dark:disabled:bg-red-800 text-white'
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      {action === 'approve' ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Approve Request</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          <span>Reject Request</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>

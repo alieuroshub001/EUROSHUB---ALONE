@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import {
@@ -23,9 +23,7 @@ import {
   TrendingUp,
   Filter,
   X,
-  ChevronDown,
-  Sparkles
-} from 'lucide-react';
+  ChevronDown} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { boardsApi } from '@/services/trelloBoardsApi';
 
@@ -94,7 +92,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
     background: '#6366f1'
   });
   const [backgroundType, setBackgroundType] = useState<'color' | 'image'>('color');
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);

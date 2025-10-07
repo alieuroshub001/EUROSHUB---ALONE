@@ -10,7 +10,6 @@ import {
   User,
   FolderKanban,
   Kanban,
-  FolderOpen,
   LucideIcon
 } from 'lucide-react';
 
