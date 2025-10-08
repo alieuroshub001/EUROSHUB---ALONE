@@ -116,7 +116,9 @@ export const fileApi = {
   },
 };
 
-export default {
+const filesApi = {
   folderApi,
   fileApi,
 };
+
+export default filesApi;

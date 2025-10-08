@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/a
 // Types
 export interface User {
   _id: string;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -18,6 +19,7 @@ export interface Board {
   members?: Array<{
     userId?: {
       _id: string;
+      id: string;
       firstName: string;
       lastName: string;
       avatar?: string;
@@ -27,6 +29,7 @@ export interface Board {
   }>;
   createdBy?: {
     _id: string;
+    id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
@@ -74,6 +77,7 @@ export interface Card {
   members: Array<{
     userId: {
       _id: string;
+      id: string;
       firstName: string;
       lastName: string;
       avatar?: string;

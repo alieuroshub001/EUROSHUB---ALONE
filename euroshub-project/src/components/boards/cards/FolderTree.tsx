@@ -7,7 +7,6 @@ import {
   File,
   ChevronRight,
   ChevronDown,
-  MoreVertical,
   Edit2,
   Trash2,
   Download,
@@ -51,25 +50,19 @@ interface FileItem {
 
 interface FolderTreeProps {
   folders: FolderNode[];
-  files: FileItem[];
   currentFolderId: string | null;
   onFolderClick: (folderId: string | null) => void;
   onFolderRename: (folderId: string, newName: string) => Promise<void>;
   onFolderDelete: (folderId: string) => Promise<void>;
-  onFileDownload: (fileId: string) => Promise<void>;
-  onFileDelete: (fileId: string) => Promise<void>;
   canEdit: boolean;
 }
 
 const FolderTree: React.FC<FolderTreeProps> = ({
   folders,
-  files,
   currentFolderId,
   onFolderClick,
   onFolderRename,
   onFolderDelete,
-  onFileDownload,
-  onFileDelete,
   canEdit
 }) => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -121,25 +114,6 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     closeContextMenu();
   };
 
-  const getFileIcon = (mimetype: string) => {
-    if (mimetype.startsWith('image/')) {
-      return <ImageIcon className="w-4 h-4 text-blue-500" />;
-    } else if (mimetype === 'application/pdf') {
-      return <FileText className="w-4 h-4 text-red-500" />;
-    } else if (mimetype.includes('zip') || mimetype.includes('rar') || mimetype.includes('7z')) {
-      return <FileArchive className="w-4 h-4 text-purple-500" />;
-    } else {
-      return <File className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
 
   const renderFolder = (folder: FolderNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(folder._id);
@@ -216,33 +190,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     );
   };
 
-  const renderFile = (file: FileItem) => {
-    return (
-      <div
-        key={file._id}
-        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
-        onClick={() => onFileDownload(file._id)}
-        onContextMenu={(e) => handleContextMenu(e, 'file', file._id)}
-      >
-        {getFileIcon(file.mimetype)}
-        <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-          {file.originalName}
-        </span>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {formatFileSize(file.size)}
-        </span>
-      </div>
-    );
-  };
 
-  // Get files for current folder
-  const currentFolderFiles = files.filter(f =>
-    !f.isDeleted && (
-      currentFolderId === null
-        ? !f.folderId
-        : f.folderId === currentFolderId
-    )
-  );
 
   return (
     <div className="relative">

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import {
   X,
   Calendar,
   User,
-  Image,
   Clock,
   MessageSquare,
   Archive,
@@ -130,6 +130,20 @@ interface ProjectFile {
   isDeleted: boolean;
 }
 
+interface FolderNode {
+  _id: string;
+  name: string;
+  parentFolder: string | null;
+  cardId: string;
+  createdBy: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: Date;
+  children?: FolderNode[];
+}
+
 const ProjectModal: React.FC<ProjectModalProps> = ({
   card,
   isOpen,
@@ -152,7 +166,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
-  const [folders, setFolders] = useState<any[]>([]);
+  const [folders, setFolders] = useState<FolderNode[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -164,9 +178,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  // NEW: Dependency selection state
-  const [taskDependency, setTaskDependency] = useState<string>('');
-  const [showDependencyOption, setShowDependencyOption] = useState(false);
 
   // Extended project data
   const [projectData, setProjectData] = useState({
@@ -214,7 +225,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setTasks([]); // Clear existing tasks to prevent stale data
       loadCardData();
     }
-  }, [isOpen, card._id]);
+  }, [isOpen, card._id, loadCardData]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -252,22 +263,43 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     };
   }, [socket, isConnected, isOpen, card._id, joinCard, leaveCard]);
 
-  const loadCardData = async () => {
+  const loadCardData = useCallback(async () => {
     setIsLoading(true);
     try {
       // Get detailed card data with tasks and comments from backend
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cardData = await cardsApi.getCard(card._id) as any;
+      const cardData = await cardsApi.getCard(card._id) as {
+        tasks?: Array<{
+          _id: string;
+          title: string;
+          description?: string;
+          completed: boolean;
+          assignedTo?: unknown;
+          dueDate?: Date;
+          priority?: string;
+          createdAt?: Date;
+        }>;
+        attachments?: Array<{
+          _id: string;
+          filename: string;
+          originalName?: string;
+          url: string;
+          size: number;
+          mimetype: string;
+          cloudflareKey?: string;
+          folderId?: string | null;
+          uploadedBy: unknown;
+          uploadedAt?: Date;
+          createdAt?: Date;
+          isDeleted?: boolean;
+        }>;
+      };
 
       // Set tasks from backend with deduplication and proper population
       if (cardData.tasks && Array.isArray(cardData.tasks)) {
         // Remove duplicates based on _id and ensure proper structure
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const uniqueTasks = cardData.tasks.filter((task: any, index: number, array: any[]) =>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          array.findIndex((t: any) => t._id === task._id) === index
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ).map((task: any) => ({
+        const uniqueTasks = cardData.tasks.filter((task, index, array) =>
+          array.findIndex((t) => t._id === task._id) === index
+        ).map((task) => ({
           _id: task._id,
           title: task.title,
           description: task.description || '',
@@ -302,8 +334,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       // Set files from backend
       if (cardData.attachments && Array.isArray(cardData.attachments)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const formattedFiles = cardData.attachments.map((attachment: any) => ({
+        const formattedFiles = cardData.attachments.map((attachment) => ({
           _id: attachment._id,
           filename: attachment.filename,
           originalName: attachment.originalName || attachment.filename,
@@ -313,12 +344,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           type: attachment.mimetype,
           cloudflareKey: attachment.cloudflareKey,
           folderId: attachment.folderId || null,
-          uploadedBy: attachment.uploadedBy,
-          uploadedAt: attachment.uploadedAt || attachment.createdAt,
+          uploadedBy: attachment.uploadedBy as { _id: string; firstName: string; lastName: string; },
+          uploadedAt: attachment.uploadedAt || attachment.createdAt || new Date(),
           createdAt: attachment.createdAt || new Date(),
           isDeleted: attachment.isDeleted || false
         }));
-        setFiles(formattedFiles.filter((f: any) => !f.isDeleted));
+        setFiles(formattedFiles.filter((f) => !f.isDeleted));
       } else {
         setFiles([]);
       }
@@ -353,7 +384,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [card._id]);
 
   if (!isOpen) return null;
 
@@ -1158,9 +1189,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                               title={`${assigned.firstName} ${assigned.lastName}`}
                             >
                               {assigned.avatar ? (
-                                <img
+                                <Image
                                   src={assigned.avatar}
                                   alt={`${assigned.firstName} ${assigned.lastName}`}
+                                  width={20}
+                                  height={20}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -2197,7 +2230,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
-        onUpdateTask={handleUpdateTask as (taskId: string, updates: any) => void}
+        onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<Task>) => void}
         onDeleteTask={handleDeleteTask as (taskId: string) => void}
         projectMembers={boardMembers.map(member => ({
           userId: {

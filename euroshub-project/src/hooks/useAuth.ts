@@ -5,6 +5,7 @@ import { SocketContext } from '@/contexts/SocketContext';
 
 interface User {
   id: string;
+  _id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -104,9 +105,14 @@ export const useAuth = () => {
         const user = data.data?.user || data.user || data;
         
         if (user && user.id) {
+          // Ensure both id and _id are set for compatibility
+          const processedUser = {
+            ...user,
+            _id: user._id || user.id // Use _id if available, otherwise use id
+          };
           console.log('useAuth: User found:', user.email);
           setAuthState({
-            user: user,
+            user: processedUser,
             isAuthenticated: true,
             loading: false
           });
@@ -171,8 +177,13 @@ export const useAuth = () => {
         const user = data.data?.user || data.user || data;
         
         if (user && user.id) {
+          // Ensure both id and _id are set for compatibility
+          const processedUser = {
+            ...user,
+            _id: user._id || user.id // Use _id if available, otherwise use id
+          };
           setAuthState({
-            user: user,
+            user: processedUser,
             isAuthenticated: true,
             loading: false
           });

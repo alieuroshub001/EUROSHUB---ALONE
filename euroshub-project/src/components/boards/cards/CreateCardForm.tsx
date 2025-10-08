@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Plus, Trash2, ArrowRight, Users } from 'lucide-react';
+import { X, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 interface CreateCardFormProps {
   listId: string;
@@ -212,10 +212,6 @@ const CreateCardForm: React.FC<CreateCardFormProps> = ({
     setShowWorkflow(!showWorkflow);
   };
 
-  const getMemberName = (userId: string) => {
-    const member = boardMembers.find(m => m.userId._id === userId);
-    return member ? `${member.userId.firstName} ${member.userId.lastName}` : 'Unknown';
-  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 w-96 max-h-[90vh] overflow-y-auto">
