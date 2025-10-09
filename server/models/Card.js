@@ -219,7 +219,16 @@ const taskSchema = new mongoose.Schema({
   lockedReason: {
     type: String,
     default: ''
-  }
+  },
+  // Auto-assignment when unlocked
+  autoAssignOnUnlock: {
+    type: Boolean,
+    default: false
+  },
+  assignToOnUnlock: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });
@@ -691,7 +700,9 @@ cardSchema.methods.addTask = function(taskData, createdBy) {
     createdBy: createdBy,
     isLocked: isLocked,
     lockedReason: lockedReason,
-    unlockedAt: isLocked ? null : new Date()
+    unlockedAt: isLocked ? null : new Date(),
+    autoAssignOnUnlock: taskData.autoAssignOnUnlock || false,
+    assignToOnUnlock: taskData.assignToOnUnlock || []
   };
 
   this.tasks.push(task);
@@ -931,10 +942,17 @@ cardSchema.methods.unlockDependentTasks = function(completedTaskId) {
       task.unlockedAt = new Date();
       task.lockedReason = '';
 
+      // Auto-assign users if configured
+      if (task.autoAssignOnUnlock && task.assignToOnUnlock && task.assignToOnUnlock.length > 0) {
+        // Clear existing assignments and assign new users
+        task.assignedTo = [...task.assignToOnUnlock];
+      }
+
       unlockedTasks.push({
         taskId: task._id,
         title: task.title,
-        assignedTo: task.assignedTo
+        assignedTo: task.assignedTo,
+        autoAssigned: task.autoAssignOnUnlock
       });
     }
   });

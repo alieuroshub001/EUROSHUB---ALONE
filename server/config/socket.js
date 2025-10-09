@@ -123,6 +123,15 @@ class SocketManager {
         this.leaveProjectRoom(socket, projectId);
       });
 
+      // Handle board room joining
+      socket.on('join-board', (boardId) => {
+        this.joinBoardRoom(socket, boardId);
+      });
+
+      socket.on('leave-board', (boardId) => {
+        this.leaveBoardRoom(socket, boardId);
+      });
+
       // Handle card room joining
       socket.on('join-card', (cardId) => {
         this.joinCardRoom(socket, cardId);
@@ -378,8 +387,36 @@ class SocketManager {
     this.io.to(`card:${cardId}`).emit(event, data);
   }
 
+  notifyBoard(boardId, event, data) {
+    this.io.to(`board:${boardId}`).emit(event, data);
+  }
+
   broadcastToAll(event, data) {
     this.io.emit(event, data);
+  }
+
+  joinBoardRoom(socket, boardId) {
+    const roomName = `board:${boardId}`;
+    socket.join(roomName);
+
+    const userRooms = this.userRooms.get(socket.userId);
+    if (userRooms) {
+      userRooms.add(roomName);
+    }
+
+    console.log(`User ${socket.user.firstName} joined board room: ${roomName}`);
+  }
+
+  leaveBoardRoom(socket, boardId) {
+    const roomName = `board:${boardId}`;
+    socket.leave(roomName);
+
+    const userRooms = this.userRooms.get(socket.userId);
+    if (userRooms) {
+      userRooms.delete(roomName);
+    }
+
+    console.log(`User ${socket.user.firstName} left board room: ${roomName}`);
   }
 
   joinCardRoom(socket, cardId) {

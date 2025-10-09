@@ -183,6 +183,19 @@ router.post('/:listId/cards', protect, getListWithAccess, async (req, res) => {
           entityId: card._id
         }
       });
+
+      // Emit socket event for card creation
+      if (req.io && list.boardId) {
+        req.io.to(`board:${list.boardId.toString()}`).emit('card:created', {
+          listId: req.params.listId,
+          card: card,
+          createdBy: {
+            id: req.user.id,
+            firstName: req.user.firstName,
+            lastName: req.user.lastName
+          }
+        });
+      }
     }
 
     res.status(201).json({
@@ -812,11 +825,19 @@ router.put('/:cardId/archive', protect, getCardWithAccess, async (req, res) => {
 router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
   try {
     const card = req.card;
-    const { title, description, assignedTo, priority = 'medium' } = req.body;
+    const {
+      title,
+      description,
+      assignedTo,
+      priority = 'medium',
+      dependsOn = null,
+      autoAssignOnUnlock = false,
+      assignToOnUnlock = []
+    } = req.body;
 
     console.log('ADD TASK DEBUG:', {
       cardId: req.params.cardId,
-      taskData: { title, description, assignedTo, priority }
+      taskData: { title, description, assignedTo, priority, dependsOn, autoAssignOnUnlock, assignToOnUnlock }
     });
 
     // Check permission
@@ -836,9 +857,20 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       });
     }
 
+    // Verify dependency task exists if provided
+    if (dependsOn) {
+      const dependencyTask = card.tasks.id(dependsOn);
+      if (!dependencyTask) {
+        return res.status(404).json({
+          success: false,
+          message: 'Dependency task not found'
+        });
+      }
+    }
+
     // Verify assigned user exists if provided
+    const User = require('../models/User');
     if (assignedTo) {
-      const User = require('../models/User');
       const user = await User.findById(assignedTo);
       if (!user) {
         return res.status(404).json({
@@ -848,11 +880,27 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       }
     }
 
+    // Verify users to auto-assign exist if provided
+    if (assignToOnUnlock && assignToOnUnlock.length > 0) {
+      for (const userId of assignToOnUnlock) {
+        const user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: `User ${userId} in assignToOnUnlock not found`
+          });
+        }
+      }
+    }
+
     const taskData = {
       title: title.trim(),
       description: description || '',
       assignedTo: assignedTo || null,
-      priority: priority
+      priority: priority,
+      dependsOn: dependsOn,
+      autoAssignOnUnlock: autoAssignOnUnlock,
+      assignToOnUnlock: assignToOnUnlock
     };
 
     card.addTask(taskData, req.user.id);
@@ -884,10 +932,25 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       }
     });
 
+    // Emit socket event for real-time update
+    if (req.io && list && list.boardId) {
+      req.io.to(`board:${list.boardId.toString()}`).emit('task:created', {
+        cardId: card._id,
+        task: addedTask,
+        createdBy: {
+          id: req.user.id,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName
+        }
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: addedTask,
-      message: 'Task added successfully'
+      message: addedTask.isLocked
+        ? `Task added successfully (locked - waiting for dependency)`
+        : 'Task added successfully'
     });
   } catch (error) {
     console.error('Add task error:', error);
@@ -1062,6 +1125,22 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
       }
     }
 
+    // Emit socket event for task update
+    if (req.io && list && list.boardId) {
+      req.io.to(`board:${list.boardId.toString()}`).emit('task:updated', {
+        cardId: card._id,
+        taskId: taskId,
+        task: updatedTask,
+        updatedBy: {
+          id: req.user.id,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName
+        },
+        unlockedTasks: unlockedTasks,
+        workflowProgressed: workflowProgressed || null
+      });
+    }
+
     // Build success message
     let successMessage = 'Task updated successfully';
     if (completed && unlockedTasks.length > 0) {
@@ -1137,6 +1216,19 @@ router.delete('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, 
         taskTitle: taskTitle
       }
     });
+
+    // Emit socket event for task deletion
+    if (req.io && list && list.boardId) {
+      req.io.to(`board:${list.boardId.toString()}`).emit('task:deleted', {
+        cardId: card._id,
+        taskId: taskId,
+        deletedBy: {
+          id: req.user.id,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
