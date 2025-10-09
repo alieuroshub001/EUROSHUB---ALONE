@@ -12,6 +12,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSocketContext } from '@/contexts/SocketContext';
 import { ListData, Card } from './lists/ListContainer';
 import SortableListContainer from './lists/SortableListContainer';
 import CreateListForm from './lists/CreateListForm';
@@ -31,6 +32,7 @@ interface BoardViewProps {
 const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const { socket, isConnected } = useSocketContext();
   const [board, setBoard] = useState<Board | null>(null);
   const [lists, setLists] = useState<ListData[]>([]);
   const [cards, setCards] = useState<Record<string, Card[]>>({});
@@ -64,6 +66,97 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     loadBoardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
+
+  // Socket.IO real-time updates
+  useEffect(() => {
+    if (!socket || !isConnected || !boardId) return;
+
+    // Join board room
+    socket.emit('join-board', boardId);
+    console.log(`📡 Joined board room: ${boardId}`);
+
+    // Listen for card creation
+    const handleCardCreated = (data: { listId: string; card: Card }) => {
+      console.log('📬 Card created:', data);
+      setCards(prev => ({
+        ...prev,
+        [data.listId]: [...(prev[data.listId] || []), data.card]
+      }));
+    };
+
+    // Listen for task creation
+    const handleTaskCreated = (data: { cardId: string; task: any }) => {
+      console.log('✅ Task created:', data);
+      // Update the card in the cards state
+      setCards(prev => {
+        const newCards = { ...prev };
+        Object.keys(newCards).forEach(listId => {
+          newCards[listId] = newCards[listId].map(card =>
+            card._id === data.cardId
+              ? { ...card, tasks: [...(card.tasks || []), data.task] }
+              : card
+          );
+        });
+        return newCards;
+      });
+    };
+
+    // Listen for task updates
+    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: any }) => {
+      console.log('🔄 Task updated:', data);
+      setCards(prev => {
+        const newCards = { ...prev };
+        Object.keys(newCards).forEach(listId => {
+          newCards[listId] = newCards[listId].map(card => {
+            if (card._id === data.cardId && card.tasks) {
+              return {
+                ...card,
+                tasks: card.tasks.map(task =>
+                  task._id === data.taskId ? data.task : task
+                )
+              };
+            }
+            return card;
+          });
+        });
+        return newCards;
+      });
+    };
+
+    // Listen for task deletion
+    const handleTaskDeleted = (data: { cardId: string; taskId: string }) => {
+      console.log('🗑️ Task deleted:', data);
+      setCards(prev => {
+        const newCards = { ...prev };
+        Object.keys(newCards).forEach(listId => {
+          newCards[listId] = newCards[listId].map(card => {
+            if (card._id === data.cardId && card.tasks) {
+              return {
+                ...card,
+                tasks: card.tasks.filter(task => task._id !== data.taskId)
+              };
+            }
+            return card;
+          });
+        });
+        return newCards;
+      });
+    };
+
+    socket.on('card:created', handleCardCreated);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:deleted', handleTaskDeleted);
+
+    return () => {
+      socket.off('card:created', handleCardCreated);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:deleted', handleTaskDeleted);
+      socket.emit('leave-board', boardId);
+      console.log(`📡 Left board room: ${boardId}`);
+    };
+  }, [socket, isConnected, boardId]);
 
   const loadBoardData = async () => {
     try {

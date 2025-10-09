@@ -5,6 +5,7 @@ import { User } from '@/lib/userService';
 import { User as AuthUser } from '@/lib/auth';
 import { getAvailableRoles, canCreateRole } from '@/lib/permissions';
 import { UpdateUserRequest } from '@/lib/userService';
+import toast from 'react-hot-toast';
 
 interface EditUserModalProps {
   user: User;
@@ -140,8 +141,11 @@ export default function EditUserModal({ user, currentUser, onClose, onUpdateUser
           fieldErrors[apiErr.field] = apiErr.message;
         });
         setErrors(fieldErrors);
+        toast.error('Please fix the form errors');
       } else {
-        setErrors({ general: err.message || 'Failed to update user' });
+        const errorMsg = err.message || 'Failed to update user';
+        setErrors({ general: errorMsg });
+        toast.error(errorMsg);
       }
     } finally {
       setLoading(false);

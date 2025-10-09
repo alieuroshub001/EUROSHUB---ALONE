@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { PasswordResetRequest, passwordResetService } from '@/lib/passwordResetService';
 import { User as AuthUser } from '@/lib/auth';
+import toast from 'react-hot-toast';
+import { Key, Clock, CheckCircle2, XCircle, Mail, Users } from 'lucide-react';
 import PasswordResetModal from './PasswordResetModal';
 
 interface PasswordResetManagementProps {
@@ -67,11 +69,17 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
       });
 
       // Show success message
-      alert(result.message);
+      if (action === 'approve') {
+        toast.success(result.message, { duration: 5000 });
+      } else {
+        toast.success('Password reset request rejected', { duration: 4000 });
+      }
 
       // If password was generated but email failed, show it
       if (result.newPassword) {
-        alert(`Email failed to send. New password: ${result.newPassword}`);
+        toast.error(`Email failed to send. New password: ${result.newPassword}`, {
+          duration: 10000,
+        });
       }
 
       // Reload requests
@@ -80,7 +88,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
       setSelectedRequest(null);
     } catch (err: unknown) {
       const error = err as { message: string };
-      alert(`Failed to process request: ${error.message}`);
+      toast.error(`Failed to process request: ${error.message}`);
     }
   };
 
@@ -120,7 +128,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="w-12 h-12 border-2 border-gray-200 border-t-[#17b6b2] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -129,12 +137,14 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-red-800 mb-2">Error Loading Requests</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+            <Key className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Error Loading Requests</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
           <button
             onClick={loadRequests}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="bg-[#17b6b2] hover:bg-[#15a09d] text-white px-6 py-2 rounded-lg transition-colors"
           >
             Try Again
           </button>
@@ -148,13 +158,18 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Password Reset Requests</h2>
-          <p className="text-gray-600 mt-1">Review and process password reset requests</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <Key className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
+            </div>
+            Password Reset Requests
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-2 ml-[52px]">Review and process password reset requests</p>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-gray-800">
         <nav className="-mb-px flex space-x-8">
           {[
             { key: 'pending', label: 'Pending', count: requests.filter(r => r.status === 'pending').length },
@@ -166,16 +181,16 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
               key={tab.key}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setFilter(tab.key as any)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 filter === tab.key
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-[#17b6b2] text-[#17b6b2]'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               {tab.label}
               {tab.count > 0 && (
                 <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                  filter === tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  filter === tab.key ? 'bg-[#17b6b2]/10 text-[#17b6b2] border border-[#17b6b2]/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                 }`}>
                   {tab.count}
                 </span>
@@ -187,70 +202,64 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-sm ">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <Clock className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pending Requests</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredRequests.filter(r => r.status === 'pending').length}</p>
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'pending').length}</p>
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Requests</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm ">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <CheckCircle2 className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Approved</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredRequests.filter(r => r.status === 'approved').length}</p>
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'approved').length}</p>
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Approved</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm ">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <XCircle className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Rejected</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredRequests.filter(r => r.status === 'rejected').length}</p>
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'rejected').length}</p>
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Rejected</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm ">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-              </svg>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <Users className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Requests</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredRequests.length}</p>
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.length}</p>
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Requests</p>
         </div>
       </div>
 
       {/* Requests Table */}
-      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
         {filteredRequests.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-6xl mb-4">📧</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No requests found</h3>
-            <p className="text-gray-600">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <Mail className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No requests found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
               {filter === 'pending'
                 ? 'No pending password reset requests at the moment.'
                 : `No ${filter} password reset requests found.`
@@ -259,73 +268,73 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     Requested
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     Age
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
                 {filteredRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {request.user.firstName} {request.user.lastName}
                         </div>
-                        <div className="text-sm text-gray-500">{request.user.email}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{request.user.email}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         ROLE_COLORS[request.user.role as keyof typeof ROLE_COLORS] || 'bg-gray-100 text-gray-800'
                       }`}>
                         {request.user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         STATUS_COLORS[request.status]
                       }`}>
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {formatDate(request.requestedAt)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {getRequestAge(request.requestAge)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium">
                       {canProcessRequest(request) ? (
                         <button
                           onClick={() => {
                             setSelectedRequest(request);
                             setShowModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          className="text-[#17b6b2] hover:text-[#15a09d] transition-colors"
                         >
                           Process
                         </button>
                       ) : (
-                        <span className="text-gray-400">
+                        <span className="text-gray-400 dark:text-gray-500">
                           {request.status !== 'pending' ? 'Processed' : 'No Access'}
                         </span>
                       )}

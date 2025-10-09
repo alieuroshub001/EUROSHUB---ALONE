@@ -71,8 +71,23 @@ const Sidebar = memo<SidebarProps>(({
     setIsMobileOpen(false);
   }, [router, authLogout]);
 
-  const isActive = useCallback((path: string): boolean => {
-    return pathname === path || pathname.startsWith(path + '/');
+  const isActive = useCallback((path: string, hasSubItems: boolean = false): boolean => {
+    // Exact match
+    if (pathname === path) return true;
+
+    // For items with sub-items, don't highlight parent when child is active
+    if (hasSubItems) return false;
+
+    // Special case: Don't highlight role-based root paths (like /superadmin, /admin, etc.)
+    // when viewing their sub-pages unless exact match
+    const roleRootPaths = ['/superadmin', '/admin', '/client', '/hr', '/employee'];
+    if (roleRootPaths.includes(path)) {
+      return false; // Already handled by exact match above
+    }
+
+    // For items without sub-items, check if current path starts with this path
+    // But only if it's followed by a slash to avoid partial matches
+    return pathname.startsWith(path + '/');
   }, [pathname]);
 
   const SidebarContent = () => (
@@ -140,17 +155,17 @@ const Sidebar = memo<SidebarProps>(({
                   }
                 }}
                 className={`w-full flex items-center ${item.subItems && !isCollapsed ? 'justify-between' : 'justify-start'} px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                  isActive(item.path)
+                  isActive(item.path, !!item.subItems)
                     ? 'bg-[#0fb8af]/20 text-[#0fb8af]'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <div className="flex items-center space-x-3 min-w-0">
-                  <item.icon 
-                    size={18} 
+                  <item.icon
+                    size={18}
                     className={`flex-shrink-0 ${
-                      isActive(item.path) ? 'text-[#0fb8af]' : ''
-                    }`} 
+                      isActive(item.path, !!item.subItems) ? 'text-[#0fb8af]' : ''
+                    }`}
                   />
                   {!isCollapsed && (
                     <div className="min-w-0 text-left">
@@ -184,7 +199,7 @@ const Sidebar = memo<SidebarProps>(({
                       key={subItem.title}
                       onClick={() => handleNavigation(subItem.path)}
                       className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive(subItem.path)
+                        isActive(subItem.path, false)
                           ? 'bg-[#0fb8af]/20 text-[#0fb8af]'
                           : 'text-white/60 hover:text-white hover:bg-white/10'
                       }`}
@@ -210,7 +225,7 @@ const Sidebar = memo<SidebarProps>(({
               className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
                 item.isLogout
                   ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                  : isActive(item.path)
+                  : isActive(item.path, false)
                   ? 'bg-[#0fb8af]/20 text-[#0fb8af]'
                   : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}

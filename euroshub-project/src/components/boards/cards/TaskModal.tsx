@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { X, AlertCircle, Save, Trash2 } from 'lucide-react';
 import Portal from '../../shared/Portal';
 
@@ -226,9 +227,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     />
                     <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {member.userId.avatar ? (
-                        <img
+                        <Image
                           src={member.userId.avatar}
                           alt={`${member.userId.firstName} ${member.userId.lastName}`}
+                          width={32}
+                          height={32}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -259,9 +262,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     <div key={assigned._id} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-full">
                       <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden">
                         {assigned.avatar ? (
-                          <img
+                          <Image
                             src={assigned.avatar}
                             alt={`${assigned.firstName} ${assigned.lastName}`}
+                            width={24}
+                            height={24}
                             className="w-full h-full object-cover"
                           />
                         ) : (

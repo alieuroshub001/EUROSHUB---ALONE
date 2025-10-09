@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import {
   X,
   Calendar,
   User,
-  Image,
   Clock,
   MessageSquare,
   Archive,
@@ -29,7 +29,8 @@ import {
   History,
   MessageCircle,
   Smile,
-  SmilePlus
+  SmilePlus,
+  Lock
 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
@@ -130,6 +131,20 @@ interface ProjectFile {
   isDeleted: boolean;
 }
 
+interface FolderNode {
+  _id: string;
+  name: string;
+  parentFolder: string | null;
+  cardId: string;
+  createdBy: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: Date;
+  children?: FolderNode[];
+}
+
 const ProjectModal: React.FC<ProjectModalProps> = ({
   card,
   isOpen,
@@ -152,7 +167,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
-  const [folders, setFolders] = useState<any[]>([]);
+  const [folders, setFolders] = useState<FolderNode[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -163,10 +178,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // NEW: Task dependency state
+  const [newTaskDependsOn, setNewTaskDependsOn] = useState<string | null>(null);
+  const [newTaskAutoAssign, setNewTaskAutoAssign] = useState(false);
+  const [newTaskAssignTo, setNewTaskAssignTo] = useState<string[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  // NEW: Dependency selection state
-  const [taskDependency, setTaskDependency] = useState<string>('');
-  const [showDependencyOption, setShowDependencyOption] = useState(false);
 
   // Extended project data
   const [projectData, setProjectData] = useState({
@@ -214,6 +230,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setTasks([]); // Clear existing tasks to prevent stale data
       loadCardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, card._id]);
 
   // Close emoji picker when clicking outside
@@ -231,7 +248,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   }, [showEmojiPicker, showReactionPicker]);
 
-  // Socket.IO real-time activity updates
+  // Socket.IO real-time activity updates and task updates
   useEffect(() => {
     if (!socket || !isConnected || !isOpen || !card._id) return;
 
@@ -244,30 +261,94 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setActivities(prev => [activity, ...prev]);
     };
 
+    // Listen for task creation (only update if it's for this card)
+    const handleTaskCreated = (data: { cardId: string; task: any }) => {
+      if (data.cardId === card._id) {
+        console.log('✅ Task created in this card:', data.task);
+        setTasks(prev => {
+          // Check if task already exists
+          if (prev.some(t => t._id === data.task._id)) return prev;
+          return [...prev, {
+            ...data.task,
+            priority: data.task.priority || 'medium'
+          }];
+        });
+      }
+    };
+
+    // Listen for task updates (only update if it's for this card)
+    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: any }) => {
+      if (data.cardId === card._id) {
+        console.log('🔄 Task updated in this card:', data.task);
+        setTasks(prev => prev.map(task =>
+          task._id === data.taskId ? { ...task, ...data.task } : task
+        ));
+      }
+    };
+
+    // Listen for task deletion (only update if it's for this card)
+    const handleTaskDeleted = (data: { cardId: string; taskId: string }) => {
+      if (data.cardId === card._id) {
+        console.log('🗑️ Task deleted from this card:', data.taskId);
+        setTasks(prev => prev.filter(task => task._id !== data.taskId));
+      }
+    };
+
     socket.on('activity-created', handleActivityCreated);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:deleted', handleTaskDeleted);
 
     return () => {
       socket.off('activity-created', handleActivityCreated);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:deleted', handleTaskDeleted);
       leaveCard(card._id);
     };
   }, [socket, isConnected, isOpen, card._id, joinCard, leaveCard]);
 
-  const loadCardData = async () => {
+  const loadCardData = useCallback(async () => {
     setIsLoading(true);
     try {
       // Get detailed card data with tasks and comments from backend
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cardData = await cardsApi.getCard(card._id) as any;
+      const cardData = await cardsApi.getCard(card._id) as {
+        tasks?: Array<{
+          _id: string;
+          title: string;
+          description?: string;
+          completed: boolean;
+          assignedTo?: unknown;
+          dueDate?: Date;
+          priority?: string;
+          createdAt?: Date;
+          dependsOn?: string;
+          isLocked?: boolean;
+          lockedReason?: string;
+          unlockedAt?: Date;
+        }>;
+        attachments?: Array<{
+          _id: string;
+          filename: string;
+          originalName?: string;
+          url: string;
+          size: number;
+          mimetype: string;
+          cloudflareKey?: string;
+          folderId?: string | null;
+          uploadedBy: unknown;
+          uploadedAt?: Date;
+          createdAt?: Date;
+          isDeleted?: boolean;
+        }>;
+      };
 
       // Set tasks from backend with deduplication and proper population
       if (cardData.tasks && Array.isArray(cardData.tasks)) {
         // Remove duplicates based on _id and ensure proper structure
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const uniqueTasks = cardData.tasks.filter((task: any, index: number, array: any[]) =>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          array.findIndex((t: any) => t._id === task._id) === index
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ).map((task: any) => ({
+        const uniqueTasks = cardData.tasks.filter((task, index, array) =>
+          array.findIndex((t) => t._id === task._id) === index
+        ).map((task) => ({
           _id: task._id,
           title: task.title,
           description: task.description || '',
@@ -276,8 +357,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo])
             : [],
           dueDate: task.dueDate,
-          priority: task.priority || 'medium',
-          createdAt: task.createdAt || new Date()
+          priority: (task.priority || 'medium') as 'low' | 'medium' | 'high',
+          createdAt: task.createdAt || new Date(),
+          dependsOn: task.dependsOn,
+          isLocked: task.isLocked,
+          lockedReason: task.lockedReason,
+          unlockedAt: task.unlockedAt
         }));
 
         console.log('LOADED TASKS DEBUG:', {
@@ -302,8 +387,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       // Set files from backend
       if (cardData.attachments && Array.isArray(cardData.attachments)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const formattedFiles = cardData.attachments.map((attachment: any) => ({
+        const formattedFiles = cardData.attachments.map((attachment) => ({
           _id: attachment._id,
           filename: attachment.filename,
           originalName: attachment.originalName || attachment.filename,
@@ -313,12 +397,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           type: attachment.mimetype,
           cloudflareKey: attachment.cloudflareKey,
           folderId: attachment.folderId || null,
-          uploadedBy: attachment.uploadedBy,
-          uploadedAt: attachment.uploadedAt || attachment.createdAt,
+          uploadedBy: attachment.uploadedBy as { _id: string; firstName: string; lastName: string; },
+          uploadedAt: attachment.uploadedAt || attachment.createdAt || new Date(),
           createdAt: attachment.createdAt || new Date(),
           isDeleted: attachment.isDeleted || false
         }));
-        setFiles(formattedFiles.filter((f: any) => !f.isDeleted));
+        setFiles(formattedFiles.filter((f) => !f.isDeleted));
       } else {
         setFiles([]);
       }
@@ -353,7 +437,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [card._id]);
 
   if (!isOpen) return null;
 
@@ -464,10 +548,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
     setIsLoading(true);
     try {
-      const taskData = {
+      const taskData: any = {
         title: newTask.trim(),
         priority: 'medium' as const
       };
+
+      // Add dependency if selected
+      if (newTaskDependsOn) {
+        taskData.dependsOn = newTaskDependsOn;
+      }
+
+      // Add auto-assignment configuration if enabled
+      if (newTaskAutoAssign && newTaskAssignTo.length > 0) {
+        taskData.autoAssignOnUnlock = true;
+        taskData.assignToOnUnlock = newTaskAssignTo;
+      }
 
       const newTaskFromAPI = await cardsApi.addTask(card._id, taskData);
 
@@ -480,7 +575,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         assignedTo: newTaskFromAPI.assignedTo,
         dueDate: newTaskFromAPI.dueDate,
         priority: newTaskFromAPI.priority || 'medium',
-        createdAt: newTaskFromAPI.createdAt || new Date()
+        createdAt: newTaskFromAPI.createdAt || new Date(),
+        dependsOn: newTaskFromAPI.dependsOn,
+        isLocked: newTaskFromAPI.isLocked,
+        lockedReason: newTaskFromAPI.lockedReason,
+        unlockedAt: newTaskFromAPI.unlockedAt
       };
 
       // Add new task to the list, ensuring no duplicates
@@ -493,6 +592,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       });
 
       setNewTask('');
+      setNewTaskDependsOn(null);
+      setNewTaskAutoAssign(false);
+      setNewTaskAssignTo([]);
       setShowTaskForm(false);
       setError(null); // Clear any previous errors
     } catch (error) {
@@ -872,8 +974,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                         </div>
                       ) : (
                         <>
-                          {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                          <Image className="w-6 h-6 text-gray-400 mb-1" />
+                          <Paperclip className="w-6 h-6 text-gray-400 mb-1" />
                           <p className="text-xs text-gray-600 dark:text-gray-400">
                             Click to upload an image
                           </p>
@@ -1079,24 +1180,95 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       {/* Add Task Form */}
       {showTaskForm && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
           <input
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
             placeholder="Enter task title..."
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-3"
-            onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            onKeyPress={(e) => e.key === 'Enter' && !newTaskDependsOn && handleAddTask()}
           />
+
+          {/* Dependency Selection */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Depends on (Optional)
+            </label>
+            <select
+              value={newTaskDependsOn || ''}
+              onChange={(e) => setNewTaskDependsOn(e.target.value || null)}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="">No dependency</option>
+              {tasks.filter(t => !t.completed).map(task => (
+                <option key={task._id} value={task._id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Task will be locked until the selected task is completed
+            </p>
+          </div>
+
+          {/* Auto-assignment on unlock */}
+          {newTaskDependsOn && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={newTaskAutoAssign}
+                  onChange={(e) => setNewTaskAutoAssign(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-gray-600"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Auto-assign when unlocked
+                </span>
+              </label>
+
+              {newTaskAutoAssign && (
+                <div className="pl-6 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Assign to
+                  </label>
+                  <select
+                    multiple
+                    value={newTaskAssignTo}
+                    onChange={(e) => setNewTaskAssignTo(Array.from(e.target.selectedOptions, option => option.value))}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    size={Math.min(boardMembers?.length || 3, 5)}
+                  >
+                    {boardMembers?.map(member => (
+                      <option key={member._id} value={member._id}>
+                        {member.firstName} {member.lastName} ({member.role})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Hold Ctrl/Cmd to select multiple users
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={handleAddTask}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+              disabled={!newTask.trim()}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded text-sm"
             >
               Add Task
             </button>
             <button
-              onClick={() => setShowTaskForm(false)}
+              onClick={() => {
+                setShowTaskForm(false);
+                setNewTask('');
+                setNewTaskDependsOn(null);
+                setNewTaskAutoAssign(false);
+                setNewTaskAssignTo([]);
+              }}
               className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm"
             >
               Cancel
@@ -1110,8 +1282,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         {tasks.map((task) => (
           <div
             key={task._id}
-            className={`p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${
-              task.completed ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-white dark:bg-gray-800'
+            className={`p-4 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${
+              task.completed
+                ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
+                : task.isLocked
+                ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-300 dark:border-orange-700'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
             }`}
             onClick={() => handleTaskClick(task)}
           >
@@ -1119,25 +1295,44 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleTask(task._id);
+                  if (!task.isLocked) toggleTask(task._id);
                 }}
+                disabled={task.isLocked}
                 className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center ${
                   task.completed
                     ? 'bg-green-500 border-green-500 text-white'
+                    : task.isLocked
+                    ? 'bg-gray-200 border-gray-400 cursor-not-allowed'
                     : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
                 }`}
               >
                 {task.completed && <CheckSquare className="w-3 h-3" />}
+                {task.isLocked && <Lock className="w-3 h-3 text-gray-500" />}
               </button>
 
               <div className="flex-1">
-                <h4 className={`font-medium ${
-                  task.completed
-                    ? 'text-gray-500 dark:text-gray-400 line-through'
-                    : 'text-gray-900 dark:text-white'
-                }`}>
-                  {task.title}
-                </h4>
+                <div className="flex items-center gap-2">
+                  <h4 className={`font-medium ${
+                    task.completed
+                      ? 'text-gray-500 dark:text-gray-400 line-through'
+                      : task.isLocked
+                      ? 'text-orange-700 dark:text-orange-400'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {task.title}
+                  </h4>
+                  {task.isLocked && (
+                    <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs rounded-full">
+                      Locked
+                    </span>
+                  )}
+                </div>
+
+                {task.isLocked && task.lockedReason && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    🔒 {task.lockedReason}
+                  </p>
+                )}
 
                 {task.description && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -1157,10 +1352,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                               className="w-5 h-5 rounded-full border border-white dark:border-gray-800 overflow-hidden"
                               title={`${assigned.firstName} ${assigned.lastName}`}
                             >
-                              {assigned.avatar ? (
-                                <img
+                              {assigned.avatar && assigned.avatar.trim() ? (
+                                <Image
                                   src={assigned.avatar}
                                   alt={`${assigned.firstName} ${assigned.lastName}`}
+                                  width={20}
+                                  height={20}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -2197,7 +2394,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
-        onUpdateTask={handleUpdateTask as (taskId: string, updates: any) => void}
+        onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<Task>) => void}
         onDeleteTask={handleDeleteTask as (taskId: string) => void}
         projectMembers={boardMembers.map(member => ({
           userId: {

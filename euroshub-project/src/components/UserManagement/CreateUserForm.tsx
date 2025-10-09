@@ -5,6 +5,7 @@ import { User as AuthUser } from '@/lib/auth';
 import { getAvailableRoles } from '@/lib/permissions';
 import { CreateUserRequest } from '@/lib/userService';
 import { UserPlus, User, Mail, Phone, Briefcase, Building2, BadgeCheck, Shield, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface CreateUserFormProps {
   currentUser: AuthUser;
@@ -32,8 +33,29 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
 
   useEffect(() => {
     const calculateProgress = () => {
-      const totalFields = 8;
-      const filledFields = Object.values(formData).filter(value => value && value.trim() !== '').length;
+      // Only count fields that user has actually filled (excluding default role value)
+      const requiredFields = ['firstName', 'lastName', 'email'];
+      const optionalFields = ['employeeId', 'phone', 'department', 'position'];
+      const totalFields = requiredFields.length + optionalFields.length;
+
+      let filledFields = 0;
+
+      // Count filled required fields
+      requiredFields.forEach(field => {
+        if (formData[field as keyof CreateUserRequest] &&
+            String(formData[field as keyof CreateUserRequest]).trim() !== '') {
+          filledFields++;
+        }
+      });
+
+      // Count filled optional fields
+      optionalFields.forEach(field => {
+        if (formData[field as keyof CreateUserRequest] &&
+            String(formData[field as keyof CreateUserRequest]).trim() !== '') {
+          filledFields++;
+        }
+      });
+
       return Math.round((filledFields / totalFields) * 100);
     };
     setFormProgress(calculateProgress());
@@ -133,8 +155,11 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
           fieldErrors[apiErr.field] = apiErr.message;
         });
         setErrors(fieldErrors);
+        toast.error('Please fix the form errors');
       } else {
-        setErrors({ general: err.message || 'Failed to create user' });
+        const errorMsg = err.message || 'Failed to create user';
+        setErrors({ general: errorMsg });
+        toast.error(errorMsg);
       }
     } finally {
       setLoading(false);
@@ -161,29 +186,29 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Header Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="bg-gray-50 dark:bg-gray-900 px-8 py-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-5 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create New User</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">Add a new team member to your organization</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Add a new team member to your organization</p>
               </div>
             </div>
           </div>
-          
+
           {/* Progress Bar */}
-          <div className="mt-6">
+          <div className="mt-5">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Form Progress</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">{formProgress}%</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Form Progress</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{formProgress}%</span>
             </div>
-            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gray-900 dark:bg-gray-300 transition-all duration-500 ease-out rounded-full"
+                className="h-full bg-[#17b6b2] transition-all duration-500 ease-out rounded-full"
                 style={{ width: `${formProgress}%` }}
               />
             </div>
@@ -193,23 +218,23 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
 
       {/* Error Alert */}
       {errors.general && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <p className="ml-3 text-sm font-medium text-red-800 dark:text-red-200">{errors.general}</p>
+            <AlertCircle className="w-5 h-5 text-[#17b6b2] flex-shrink-0" strokeWidth={1.5} />
+            <p className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">{errors.general}</p>
           </div>
         </div>
       )}
 
       {/* Personal Information Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="w-10 h-10 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center">
+            <User className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Personal Information</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Basic details and contact information</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Personal Information</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Basic details and contact information</p>
           </div>
         </div>
 
@@ -225,12 +250,12 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('firstName')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
                 errors.firstName
-                  ? 'border-red-500 focus:ring-red-500'
+                  ? 'border-red-300 focus:ring-red-500'
                   : focusedField === 'firstName'
-                  ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                  : 'border-gray-300 dark:border-gray-600'
+                  ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                  : 'border-gray-200 dark:border-gray-700'
               }`}
               placeholder="John"
             />
@@ -253,12 +278,12 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('lastName')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
                 errors.lastName
-                  ? 'border-red-500 focus:ring-red-500'
+                  ? 'border-red-300 focus:ring-red-500'
                   : focusedField === 'lastName'
-                  ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                  : 'border-gray-300 dark:border-gray-600'
+                  ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                  : 'border-gray-200 dark:border-gray-700'
               }`}
               placeholder="Doe"
             />
@@ -275,7 +300,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               Email Address <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" strokeWidth={1.5} />
               <input
                 type="email"
                 name="email"
@@ -283,12 +308,12 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('email')}
                 onBlur={handleBlur}
-                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
                   errors.email
-                    ? 'border-red-500 focus:ring-red-500'
+                    ? 'border-red-300 focus:ring-red-500'
                     : focusedField === 'email'
-                    ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                    : 'border-gray-300 dark:border-gray-600'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                    : 'border-gray-200 dark:border-gray-700'
                 }`}
                 placeholder="john.doe@company.com"
               />
@@ -519,7 +544,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 sm:flex-none px-6 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="flex-1 sm:flex-none px-6 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
             >
               Cancel
             </button>
@@ -527,7 +552,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 sm:flex-none px-8 py-2.5 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white dark:text-gray-900 font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 sm:flex-none px-8 py-2.5 bg-[#17b6b2] hover:bg-[#15a09d] disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {loading ? (
                 <>
@@ -539,7 +564,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="w-4 h-4" strokeWidth={1.5} />
                   <span>Create User Account</span>
                 </>
               )}
