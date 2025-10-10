@@ -113,7 +113,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
 
   return (
     <div className="group relative">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
+      <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-[#17b6b2] dark:hover:border-[#17b6b2] transition-colors duration-200">
         {/* Board Preview/Background */}
         <div
           className="h-32 relative cursor-pointer overflow-hidden"
@@ -129,9 +129,9 @@ const BoardCard: React.FC<BoardCardProps> = ({
               e.stopPropagation();
               onStar(board._id);
             }}
-            className="absolute top-3 left-3 p-2 rounded-lg bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 border border-white/20"
+            className="absolute top-3 left-3 p-2 rounded-lg bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors duration-200 border border-white/20"
           >
-            <Star className={`w-4 h-4 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+            <Star className={`w-4 h-4 ${board.isStarred ? 'fill-[#17b6b2] text-[#17b6b2]' : 'text-white'}`} strokeWidth={1.5} />
           </button>
 
           {/* Menu Button */}
@@ -141,7 +141,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
               onClick={handleMenuToggle}
               className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 opacity-0 group-hover:opacity-100 border border-white/20"
             >
-              <MoreVertical className="w-4 h-4 text-white" />
+              <MoreVertical className="w-4 h-4 text-white" strokeWidth={1.5} />
             </button>
           )}
 
@@ -168,12 +168,12 @@ const BoardCard: React.FC<BoardCardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-sm">
-                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                <div className="w-2 h-2 rounded-full bg-[#17b6b2]"></div>
                 <span className="text-gray-600 dark:text-gray-400">{board.listsCount || 0}</span>
                 <span className="text-gray-400 dark:text-gray-600 text-xs">lists</span>
               </div>
               <div className="flex items-center gap-1.5 text-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <div className="w-2 h-2 rounded-full bg-[#17b6b2] opacity-60"></div>
                 <span className="text-gray-600 dark:text-gray-400">{board.cardsCount || 0}</span>
                 <span className="text-gray-400 dark:text-gray-600 text-xs">cards</span>
               </div>
@@ -190,7 +190,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
               {board.members?.slice(0, 3).map((member, index) => (
                 <div
                   key={member.userId?._id || `member-${index}`}
-                  className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white dark:border-gray-900 flex items-center justify-center ring-2 ring-transparent hover:ring-indigo-400 transition-all"
+                  className="w-7 h-7 rounded-full bg-[#17b6b2] border-2 border-white dark:border-gray-900 flex items-center justify-center hover:ring-2 hover:ring-[#17b6b2]/30 transition-all"
                   title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
                 >
                   {member.userId?.avatar ? (
@@ -219,10 +219,10 @@ const BoardCard: React.FC<BoardCardProps> = ({
                 e.stopPropagation();
                 onView(board._id);
               }}
-              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1"
+              className="text-sm font-medium text-[#17b6b2] hover:text-[#15a09d] transition-colors flex items-center gap-1"
             >
               Open
-              <ChevronDown className="w-3 h-3 -rotate-90" />
+              <ChevronDown className="w-3 h-3 -rotate-90" strokeWidth={1.5} />
             </button>
           </div>
         </div>
@@ -231,7 +231,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
       {/* Portal-based Dropdown Menu */}
       {showMenu && typeof window !== 'undefined' && createPortal(
         <div
-          className="fixed bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 animate-in fade-in zoom-in-95 duration-200"
+          className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 animate-in fade-in zoom-in-95 duration-200"
           style={{
             top: menuPosition.top,
             left: menuPosition.left,
@@ -247,7 +247,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
             }}
             className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4" strokeWidth={1.5} />
             Open Board
           </button>
           {canEdit && (
@@ -259,7 +259,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
               }}
               className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
-              <Edit className="w-4 h-4" />
+              <Edit className="w-4 h-4" strokeWidth={1.5} />
               Edit Details
             </button>
           )}
@@ -272,7 +272,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
               }}
               className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
-              <Archive className="w-4 h-4" />
+              <Archive className="w-4 h-4" strokeWidth={1.5} />
               Archive
             </button>
           )}
@@ -287,7 +287,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
                 }}
                 className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                 Delete Board
               </button>
             </>

@@ -26,6 +26,7 @@ import {
   ChevronDown} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { boardsApi } from '@/services/trelloBoardsApi';
+import toast from 'react-hot-toast';
 
 // Types for Board Management
 export interface Board {
@@ -180,7 +181,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Product Roadmap, Marketing Campaign"
               required
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
             />
           </div>
 
@@ -194,7 +195,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What's this board about?"
               rows={3}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent transition-all resize-none"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
             />
           </div>
 
@@ -209,9 +210,9 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               <button
                 type="button"
                 onClick={() => setBackgroundType('color')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   backgroundType === 'color'
-                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                    ? 'bg-[#17b6b2] text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
@@ -220,9 +221,9 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               <button
                 type="button"
                 onClick={() => setBackgroundType('image')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   backgroundType === 'image'
-                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                    ? 'bg-[#17b6b2] text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
@@ -240,7 +241,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
                       type="button"
                       onClick={() => setFormData({ ...formData, background: color })}
                       className={`aspect-square rounded-md transition-all hover:scale-105 border-2 ${
-                        formData.background === color ? 'border-gray-900 dark:border-gray-100 scale-105' : 'border-transparent'
+                        formData.background === color ? 'border-[#17b6b2] scale-105' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: color }}
                     />
@@ -258,7 +259,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
                     value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
                     onChange={(e) => setFormData({ ...formData, background: e.target.value })}
                     placeholder="#6366f1"
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -347,7 +348,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
             <button
               type="submit"
               disabled={isSubmitting || !formData.name.trim()}
-              className="flex-1 px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="flex-1 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? 'Creating...' : 'Create Board'}
             </button>
@@ -810,7 +811,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+          <div className="w-16 h-16 border-2 border-gray-200 border-t-[#17b6b2] rounded-full animate-spin mx-auto"></div>
           <p className="text-gray-500 dark:text-gray-400">Loading boards...</p>
         </div>
       </div>
@@ -821,14 +822,14 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto border border-gray-200 dark:border-gray-700">
+            <AlertCircle className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Failed to load boards</h3>
           <p className="text-gray-500 dark:text-gray-400">{error}</p>
           <button
             onClick={loadBoards}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="px-6 py-2 bg-[#17b6b2] text-white rounded-lg hover:bg-[#15a09d] transition-colors"
           >
             Try Again
           </button>
@@ -842,25 +843,25 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-            <Layers className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-            Boards
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-3">
+            <Layers className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+            Board Management
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">Organize and manage your projects</p>
+          <p className="text-gray-500 dark:text-gray-400">Organize and manage your project boards</p>
         </div>
         {canCreateBoards && (
           <button
             onClick={handleCreateBoard}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] transition-colors"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-5 h-5" strokeWidth={1.5} />
             Create Board
           </button>
         )}
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -870,7 +871,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
               placeholder="Search boards by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
             />
           </div>
 
@@ -878,9 +879,9 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                 filterType === 'all'
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                  ? 'bg-[#17b6b2] text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
@@ -888,13 +889,13 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
             </button>
             <button
               onClick={() => setFilterType('starred')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-1 ${
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-1 ${
                 filterType === 'starred'
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                  ? 'bg-[#17b6b2] text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              <Star className="w-3.5 h-3.5" />
+              <Star className="w-3.5 h-3.5" strokeWidth={1.5} />
               Starred
             </button>
 
@@ -903,9 +904,9 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
               <>
                 <button
                   onClick={() => setFilterType('created')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                     filterType === 'created'
-                      ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                      ? 'bg-[#17b6b2] text-white'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -913,9 +914,9 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
                 </button>
                 <button
                   onClick={() => setFilterType('member')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                     filterType === 'member'
-                      ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                      ? 'bg-[#17b6b2] text-white'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -930,23 +931,23 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
             {/* View Mode Toggle */}
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-colors ${
                 viewMode === 'grid'
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                  ? 'bg-[#17b6b2] text-white'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
-              <Grid3X3 className="w-5 h-5" />
+              <Grid3X3 className="w-5 h-5" strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                  ? 'bg-[#17b6b2] text-white'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
-              <List className="w-5 h-5" />
+              <List className="w-5 h-5" strokeWidth={1.5} />
             </button>
 
             {/* Sort Dropdown */}
@@ -961,34 +962,34 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
               </button>
 
               {showFilters && (
-                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 z-10 animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 z-10 animate-in fade-in zoom-in-95 duration-200">
                   <button
                     onClick={() => { setSortBy('latest'); setShowFilters(false); }}
                     className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
                       sortBy === 'latest'
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                        ? 'bg-gray-100 dark:bg-gray-700 text-[#17b6b2] dark:text-[#17b6b2]'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-4 h-4" strokeWidth={1.5} />
                     Latest first
                   </button>
                   <button
                     onClick={() => { setSortBy('oldest'); setShowFilters(false); }}
                     className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
                       sortBy === 'oldest'
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                        ? 'bg-gray-100 dark:bg-gray-700 text-[#17b6b2] dark:text-[#17b6b2]'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <TrendingUp className="w-4 h-4" />
+                    <TrendingUp className="w-4 h-4" strokeWidth={1.5} />
                     Oldest first
                   </button>
                   <button
                     onClick={() => { setSortBy('name'); setShowFilters(false); }}
                     className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
                       sortBy === 'name'
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                        ? 'bg-gray-100 dark:bg-gray-700 text-[#17b6b2] dark:text-[#17b6b2]'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -1021,11 +1022,11 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       {/* Boards Display */}
       {filteredBoards.length === 0 ? (
         <div className="text-center py-20">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
             {filterType === 'starred' ? (
-              <Star className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+              <Star className="w-10 h-10 text-[#17b6b2]" strokeWidth={1.5} />
             ) : (
-              <Layers className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+              <Layers className="w-10 h-10 text-[#17b6b2]" strokeWidth={1.5} />
             )}
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -1047,9 +1048,9 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
           {canCreateBoards && !searchTerm && (
             <button
               onClick={handleCreateBoard}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#17b6b2] text-white font-semibold rounded-lg hover:bg-[#15a09d] transition-colors"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5" strokeWidth={1.5} />
               Create Your First Board
             </button>
           )}

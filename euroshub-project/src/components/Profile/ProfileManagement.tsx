@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User as AuthUser } from '@/lib/auth';
 import { profileService, UserProfile, ProfileUpdateRequest } from '@/lib/profileService';
+import { User, Key, Image, AlertCircle, CheckCircle } from 'lucide-react';
 import ProfileInformation from './ProfileInformation';
 import PasswordChange from './PasswordChange';
 import AvatarUpload from './AvatarUpload';
@@ -56,125 +57,150 @@ export default function ProfileManagement({ currentUser }: ProfileManagementProp
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-2 border-gray-200 border-t-[#17b6b2] rounded-full animate-spin mx-auto"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <div className="text-red-600 mb-2">
-          <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto border border-gray-200 dark:border-gray-700">
+            <AlertCircle className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Failed to load profile</h3>
+          <p className="text-gray-500 dark:text-gray-400">{error}</p>
+          <button
+            onClick={loadProfile}
+            className="px-6 py-2 bg-[#17b6b2] text-white rounded-lg hover:bg-[#15a09d] transition-colors"
+          >
+            Try Again
+          </button>
         </div>
-        <h3 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Profile</h3>
-        <p className="text-red-700 mb-4">{error}</p>
-        <button
-          onClick={loadProfile}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Try Again
-        </button>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="text-center py-12">
-        <h3 className="text-lg font-semibold text-gray-800">Profile not found</h3>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto border border-gray-200 dark:border-gray-700">
+            <User className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Profile not found</h3>
+        </div>
       </div>
     );
   }
 
   const tabs = [
-    { id: 'profile', label: 'Profile Information', icon: '👤' },
-    { id: 'password', label: 'Password & Security', icon: '🔒' },
-    { id: 'avatar', label: 'Profile Picture', icon: '📷' },
+    { id: 'profile', label: 'Profile Information', icon: User },
+    { id: 'password', label: 'Password & Security', icon: Key },
+    { id: 'avatar', label: 'Profile Picture', icon: Image },
   ] as const;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
-        <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-3">
+            <User className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+            Profile Management
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            {activeTab === 'profile'
+              ? 'Update your personal information and contact details'
+              : activeTab === 'password'
+              ? 'Change your password and manage security settings'
+              : 'Upload and manage your profile picture'
+            }
+          </p>
+        </div>
+      </div>
+
+      {/* Profile Summary Card */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
             {profile.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatar}
                 alt={`${profile.firstName} ${profile.lastName}`}
-                className="w-16 h-16 rounded-full object-cover"
+                className="w-16 h-16 rounded-lg object-cover"
               />
             ) : (
-              <span className="text-2xl font-bold">
-                {profile.firstName[0]}{profile.lastName[0]}
-              </span>
+              <User className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
             )}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">
+          <div className="flex-1">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {profile.firstName} {profile.lastName}
-            </h1>
-            <p className="text-blue-100">{profile.email}</p>
-            <div className="flex items-center space-x-4 mt-2">
-              <span className="px-3 py-1 bg-white/20 rounded-full text-sm capitalize">
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-2">{profile.email}</p>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium capitalize">
                 {profile.role}
               </span>
-              <span className={`px-3 py-1 rounded-full text-sm ${
-                profile.isActive ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
-              }`}>
-                {profile.isActive ? 'Active' : 'Inactive'}
-              </span>
+              <div className="flex items-center gap-1">
+                <CheckCircle className="w-4 h-4 text-[#17b6b2]" strokeWidth={1.5} />
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {profile.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {tabs.map((tab) => (
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+        <nav className="flex gap-1">
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-[#17b6b2] text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
               >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
+                <IconComponent className="w-5 h-5" strokeWidth={1.5} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
               </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-6">
-          {activeTab === 'profile' && (
-            <ProfileInformation
-              profile={profile}
-              onUpdateProfile={handleUpdateProfile}
-            />
-          )}
-          {activeTab === 'password' && (
-            <PasswordChange />
-          )}
-          {activeTab === 'avatar' && (
-            <AvatarUpload
-              profile={profile}
-              onAvatarUpdate={handleAvatarUpdate}
-              onAvatarDelete={handleAvatarDelete}
-            />
-          )}
-        </div>
+            );
+          })}
+        </nav>
       </div>
+
+      {/* Tab Content */}
+      {activeTab === 'profile' && (
+        <ProfileInformation
+          profile={profile}
+          onUpdateProfile={handleUpdateProfile}
+        />
+      )}
+      {activeTab === 'password' && (
+        <PasswordChange />
+      )}
+      {activeTab === 'avatar' && (
+        <AvatarUpload
+          profile={profile}
+          onAvatarUpdate={handleAvatarUpdate}
+          onAvatarDelete={handleAvatarDelete}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { UserProfile, ProfileUpdateRequest } from '@/lib/profileService';
+import { AlertCircle, CheckCircle, Save, RotateCcw, Info } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ProfileInformationProps {
   profile: UserProfile;
@@ -109,7 +111,7 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
       await onUpdateProfile(updateData);
 
       // Show success message
-      alert('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
     } catch (error: unknown) {
       const err = error as { message?: string; errors?: Array<{ field: string; message: string }> };
       if (err.errors) {
@@ -139,29 +141,27 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Personal Information</h3>
-        <p className="text-gray-600">Update your personal details and contact information.</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Personal Information</h3>
+        <p className="text-gray-500 dark:text-gray-400">Update your personal details and contact information.</p>
       </div>
 
       {errors.general && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
+        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2" strokeWidth={1.5} />
           {errors.general}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <div className="bg-gray-50 rounded-xl p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4">Basic Information</h4>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h4>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 First Name *
               </label>
               <input
@@ -171,20 +171,18 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('firstName')}
                 onBlur={handleBlur}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none transition-colors ${
                   errors.firstName
-                    ? 'border-red-300 focus:border-red-500 bg-red-50'
+                    ? 'border-red-300 focus:border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-800 dark:focus:border-red-500'
                     : focusedField === 'firstName'
-                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#17b6b2] bg-gray-50 dark:bg-gray-800 dark:border-[#17b6b2]'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder="Enter first name"
               />
               {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" strokeWidth={1.5} />
                   {errors.firstName}
                 </p>
               )}
@@ -344,38 +342,40 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
         </div>
 
         {/* Account Information (Read-only) */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h4 className="text-md font-semibold text-blue-900 mb-4">Account Information</h4>
+        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Account Information</h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-blue-700 font-medium">Email:</span>
-              <span className="ml-2 text-blue-900">{profile.email}</span>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Email:</span>
+              <span className="ml-2 text-gray-900 dark:text-white">{profile.email}</span>
             </div>
             <div>
-              <span className="text-blue-700 font-medium">Role:</span>
-              <span className="ml-2 text-blue-900 capitalize">{profile.role}</span>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Role:</span>
+              <span className="ml-2 text-gray-900 dark:text-white capitalize">{profile.role}</span>
             </div>
             {profile.employeeId && (
               <div>
-                <span className="text-blue-700 font-medium">Employee ID:</span>
-                <span className="ml-2 text-blue-900">{profile.employeeId}</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">Employee ID:</span>
+                <span className="ml-2 text-gray-900 dark:text-white">{profile.employeeId}</span>
               </div>
             )}
             <div>
-              <span className="text-blue-700 font-medium">Status:</span>
-              <span className={`ml-2 ${profile.isActive ? 'text-green-700' : 'text-red-700'}`}>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Status:</span>
+              <span className={`ml-2 flex items-center gap-1 ${profile.isActive ? 'text-[#17b6b2]' : 'text-red-600 dark:text-red-400'}`}>
+                <CheckCircle className="w-3 h-3" strokeWidth={1.5} />
                 {profile.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
             <div>
-              <span className="text-blue-700 font-medium">Email Verified:</span>
-              <span className={`ml-2 ${profile.isEmailVerified ? 'text-green-700' : 'text-yellow-700'}`}>
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Email Verified:</span>
+              <span className={`ml-2 flex items-center gap-1 ${profile.isEmailVerified ? 'text-[#17b6b2]' : 'text-orange-600 dark:text-orange-400'}`}>
+                <CheckCircle className="w-3 h-3" strokeWidth={1.5} />
                 {profile.isEmailVerified ? 'Yes' : 'Pending'}
               </span>
             </div>
             <div>
-              <span className="text-blue-700 font-medium">Member Since:</span>
-              <span className="ml-2 text-blue-900">
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Member Since:</span>
+              <span className="ml-2 text-gray-900 dark:text-white">
                 {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -384,8 +384,8 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
               </span>
             </div>
             <div>
-              <span className="text-blue-700 font-medium">Last Login:</span>
-              <span className="ml-2 text-blue-900">
+              <span className="text-gray-700 dark:text-gray-300 font-medium">Last Login:</span>
+              <span className="ml-2 text-gray-900 dark:text-white">
                 {profile.lastLogin ? new Date(profile.lastLogin).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'short',
@@ -397,13 +397,11 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+        <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             {hasChanges && (
-              <div className="flex items-center text-amber-600 text-sm mr-4">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
+              <div className="flex items-center text-[#17b6b2] text-sm mr-4">
+                <Info className="w-4 h-4 mr-1" strokeWidth={1.5} />
                 Unsaved changes
               </div>
             )}
@@ -414,29 +412,25 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
               type="button"
               onClick={handleReset}
               disabled={!hasChanges || loading}
-              className="px-6 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
+              <RotateCcw className="w-4 h-4" strokeWidth={1.5} />
               Reset
             </button>
 
             <button
               type="submit"
               disabled={loading || !hasChanges}
-              className="px-8 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all duration-200 flex items-center transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   Updating...
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Save className="w-4 h-4" strokeWidth={1.5} />
                   Save Changes
                 </>
               )}
