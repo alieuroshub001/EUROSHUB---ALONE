@@ -434,7 +434,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
 
   return (
     <div className="group relative">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
+      <div className="bg-white dark:bg-gray-900 overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
         {/* Board Preview/Background */}
         <div
           className="h-32 relative cursor-pointer overflow-hidden"
