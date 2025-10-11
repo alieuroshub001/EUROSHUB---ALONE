@@ -76,8 +76,9 @@ interface BoardCardProps {
   canArchive: boolean;
 }
 
-// Create Board Modal Component
-interface CreateBoardModalProps {
+// Edit Board Modal Component
+interface EditBoardModalProps {
+  board: Board;
   onClose: () => void;
   onSubmit: (data: {
     name: string;
@@ -86,15 +87,31 @@ interface CreateBoardModalProps {
   }) => Promise<void> | void;
 }
 
-const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }) => {
+// Create Board Form Component (Non-modal)
+interface CreateBoardFormProps {
+  onSubmit: (data: {
+    name: string;
+    description?: string;
+    background?: string;
+  }) => Promise<void> | void;
+  onCancel: () => void;
+}
+
+
+// Edit Board Modal Component
+const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    background: '#6366f1'
+    name: board.name,
+    description: board.description || '',
+    background: board.background
   });
-  const [backgroundType, setBackgroundType] = useState<'color' | 'image'>('color');
+  const [backgroundType, setBackgroundType] = useState<'color' | 'image'>(
+    board.background.startsWith('http') ? 'image' : 'color'
+  );
   const [, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imagePreview, setImagePreview] = useState<string>(
+    board.background.startsWith('http') ? board.background : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -122,12 +139,11 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
       try {
         const data = await boardsApi.uploadBackgroundImage(file);
         if (data.url) {
-          // Set the Cloudinary URL as background
           setFormData(prev => ({ ...prev, background: data.url }));
         }
       } catch (error) {
         console.error('Error uploading image:', error);
-        alert('Failed to upload image. Please try again.');
+        toast.error('Failed to upload image. Please try again.');
         setImageFile(null);
         setImagePreview('');
       } finally {
@@ -143,7 +159,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
       await onSubmit(formData);
       onClose();
     } catch (error) {
-      console.error('Error creating board:', error);
+      console.error('Error updating board:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,8 +172,8 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
         <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create New Board</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Set up a new board to organize your work</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Board</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Update your board details</p>
             </div>
             <button
               onClick={onClose}
@@ -350,7 +366,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
               disabled={isSubmitting || !formData.name.trim()}
               className="flex-1 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? 'Creating...' : 'Create Board'}
+              {isSubmitting ? 'Updating...' : 'Update Board'}
             </button>
           </div>
         </form>
@@ -359,42 +375,323 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({ onClose, onSubmit }
   );
 };
 
-// Modern Board Card Component
+// Create Board Form Component (Non-modal)
+const CreateBoardForm: React.FC<CreateBoardFormProps> = ({ onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    background: '#6366f1'
+  });
+  const [backgroundType, setBackgroundType] = useState<'color' | 'image'>('color');
+  const [, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const popularColors = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
+    '#f59e0b', '#10b981', '#14b8a6', '#3b82f6',
+    '#06b6d4', '#84cc16', '#a855f7', '#ef4444'
+  ];
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setImagePreview(result);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to server to get HTTP URL
+      setUploadingImage(true);
+      try {
+        const data = await boardsApi.uploadBackgroundImage(file);
+        if (data.url) {
+          setFormData(prev => ({ ...prev, background: data.url }));
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        toast.error('Failed to upload image. Please try again.');
+        setImageFile(null);
+        setImagePreview('');
+      } finally {
+        setUploadingImage(false);
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Error creating board:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form Header */}
+        <div className="border-b border-gray-200 dark:border-gray-800 pb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create New Board</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Set up a new board to organize your work</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Form Fields */}
+          <div className="space-y-5">
+            {/* Board Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Board Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Product Roadmap, Marketing Campaign"
+                required
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description (Optional)
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="What's this board about?"
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
+              />
+            </div>
+
+            {/* Background Type Toggle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Board Background
+              </label>
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setBackgroundType('color')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                    backgroundType === 'color'
+                      ? 'bg-[#17b6b2] text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Color
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBackgroundType('image')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                    backgroundType === 'image'
+                      ? 'bg-[#17b6b2] text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Image
+                </button>
+              </div>
+
+              {/* Color Picker */}
+              {backgroundType === 'color' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-6 gap-2">
+                    {popularColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, background: color })}
+                        className={`aspect-square rounded-md transition-all hover:scale-105 border-2 ${
+                          formData.background === color ? 'border-[#17b6b2] scale-105' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
+                      onChange={(e) => setFormData({ ...formData, background: e.target.value })}
+                      className="w-16 h-10 rounded-md cursor-pointer border border-gray-300 dark:border-gray-700"
+                    />
+                    <input
+                      type="text"
+                      value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
+                      onChange={(e) => setFormData({ ...formData, background: e.target.value })}
+                      placeholder="#6366f1"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Image Upload */}
+              {backgroundType === 'image' && (
+                <div>
+                  <label className="block w-full cursor-pointer">
+                    <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+                      uploadingImage ? 'border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800' :
+                      imagePreview
+                        ? 'border-gray-400 dark:border-gray-600 bg-gray-50 dark:bg-gray-800'
+                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
+                    }`}>
+                      {uploadingImage ? (
+                        <div className="space-y-2">
+                          <div className="w-12 h-12 mx-auto bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-gray-400 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin"></div>
+                          </div>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Uploading image...</p>
+                        </div>
+                      ) : imagePreview ? (
+                        <div className="space-y-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={imagePreview} alt="Preview" className="mx-auto h-32 rounded-md object-cover" />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Click to change image</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                            <Plus className="w-6 h-6 text-gray-400" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload background image</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG up to 5MB</p>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Preview */}
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Preview
+              </label>
+              <div
+                className="h-48 rounded-lg relative overflow-hidden border border-gray-200 dark:border-gray-700"
+                style={
+                  formData.background.startsWith('#')
+                    ? { backgroundColor: formData.background }
+                    : {
+                        backgroundImage: `url(${formData.background})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                      }
+                }
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <h3 className="font-semibold text-white text-lg mb-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                    {formData.name || 'Board Name'}
+                  </h3>
+                  {formData.description && (
+                    <p className="text-white/80 text-sm line-clamp-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
+                      {formData.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 px-6 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || !formData.name.trim()}
+            className="flex-1 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSubmitting ? 'Creating Board...' : 'Create Board'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// Modern Enterprise Board Card Component
 const BoardCard: React.FC<BoardCardProps> = ({
   board,
   onView,
   onEdit,
   onDelete,
-  onArchive,
   onStar,
   canEdit,
-  canDelete,
-  canArchive
-}) => {
+  canDelete}) => {
+  const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
 
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (buttonRef && !buttonRef.contains(e.target as Node)) {
-        setShowMenu(false);
+      const target = e.target as Node;
+      // Don't close if clicking on the button or inside the menu
+      if (buttonRef && !buttonRef.contains(target)) {
+        const menuElement = document.querySelector('[data-board-menu]');
+        if (!menuElement || !menuElement.contains(target)) {
+          setShowMenu(false);
+        }
       }
     };
 
     if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use setTimeout to prevent immediate closing
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showMenu, buttonRef]);
 
   const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    if (!showMenu && buttonRef) {
-      const rect = buttonRef.getBoundingClientRect();
+    const button = e.currentTarget;
+
+    if (!showMenu) {
+      const rect = button.getBoundingClientRect();
+      const menuTop = rect.bottom + 4;
+      const menuLeft = Math.max(8, rect.right - 176); // Position to the right of button, menu width ~176px
+
       setMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX - 120
+        top: menuTop,
+        left: menuLeft
       });
     }
     setShowMenu(!showMenu);
@@ -403,19 +700,19 @@ const BoardCard: React.FC<BoardCardProps> = ({
   const getVisibilityIcon = () => {
     switch (board.visibility) {
       case 'private':
-        return <Lock className="w-3.5 h-3.5" />;
+        return <Lock className="w-4 h-4 text-gray-500" strokeWidth={1.5} />;
       case 'team':
-        return <Users className="w-3.5 h-3.5" />;
+        return <Users className="w-4 h-4 text-blue-500" strokeWidth={1.5} />;
       case 'public':
-        return <Globe className="w-3.5 h-3.5" />;
+        return <Globe className="w-4 h-4 text-green-500" strokeWidth={1.5} />;
       default:
-        return <Lock className="w-3.5 h-3.5" />;
+        return <Lock className="w-4 h-4 text-gray-500" strokeWidth={1.5} />;
     }
   };
 
   const getBackgroundStyle = () => {
     if (!board.background) {
-      return { backgroundColor: '#6366f1' };
+      return { backgroundColor: '#f8fafc' };
     }
 
     if (board.background.startsWith('#')) {
@@ -429,130 +726,158 @@ const BoardCard: React.FC<BoardCardProps> = ({
       };
     }
 
-    return { backgroundColor: '#6366f1' };
+    return { backgroundColor: '#f8fafc' };
   };
 
   return (
     <div className="group relative">
-      <div className="bg-white dark:bg-gray-900 overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
-        {/* Board Preview/Background */}
-        <div
-          className="h-32 relative cursor-pointer overflow-hidden"
-          style={getBackgroundStyle()}
-          onClick={() => onView(board._id)}
-        >
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      <div
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200 hover:shadow-md cursor-pointer overflow-hidden h-72 flex flex-col"
+        onClick={() => onView(board._id)}
+      >
+        {/* Board Header with Visible Background */}
+        <div className="relative h-16 overflow-hidden border-b border-gray-100 dark:border-gray-800">
+          <div
+            className="absolute inset-0 opacity-20"
+            style={getBackgroundStyle()}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/40 to-transparent dark:from-gray-900/60 dark:via-gray-900/40 dark:to-transparent"></div>
+          <div className="relative p-4 flex items-center justify-between h-full">
+            {/* Board Status Indicator */}
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                board.isStarred ? 'bg-amber-400' : 'bg-gray-300 dark:bg-gray-600'
+              }`} />
+              {getVisibilityIcon()}
+            </div>
 
-          {/* Star Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStar(board._id);
-            }}
-            className="absolute top-3 left-3 p-2 rounded-lg bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 border border-white/20"
-          >
-            <Star className={`w-4 h-4 ${board.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-          </button>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStar(board._id);
+                }}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+              >
+                <Star className={`w-3.5 h-3.5 ${
+                  board.isStarred ? 'fill-amber-400 text-amber-400' : 'text-gray-400'
+                }`} strokeWidth={1.5} />
+              </button>
 
-          {/* Menu Button */}
-          {(canEdit || canDelete || canArchive) && (
-            <button
-              ref={setButtonRef}
-              onClick={handleMenuToggle}
-              className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 opacity-0 group-hover:opacity-100 border border-white/20"
-            >
-              <MoreVertical className="w-4 h-4 text-white" />
-            </button>
-          )}
 
-          {/* Board Name */}
-          <div className="absolute bottom-4 left-4 right-4">
-            <h3 className="font-bold text-white text-lg line-clamp-2 mb-1" style={{
-              textShadow: '0 2px 8px rgba(0,0,0,0.3)'
-            }}>
+              {/* Show menu button based on permissions */}
+              {(canEdit || canDelete) && (
+                <button
+                  ref={setButtonRef}
+                  onClick={handleMenuToggle}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+                  title="Board actions"
+                >
+                  <MoreVertical className="w-3.5 h-3.5 text-gray-400" strokeWidth={1.5} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="relative p-5 flex-1 flex flex-col">
+          {/* Subtle background for main content */}
+          <div
+            className="absolute inset-0 opacity-5"
+            style={getBackgroundStyle()}
+          />
+          <div className="relative z-10">
+          {/* Board Title */}
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white text-base line-clamp-1 leading-tight mb-1">
               {board.name}
             </h3>
             {board.description && (
-              <p className="text-white/80 text-sm line-clamp-1" style={{
-                textShadow: '0 1px 4px rgba(0,0,0,0.3)'
-              }}>
+              <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 leading-relaxed">
                 {board.description}
               </p>
             )}
           </div>
-        </div>
 
-        {/* Board Info */}
-        <div className="p-4 space-y-3">
-          {/* Stats Row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-sm">
-                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                <span className="text-gray-600 dark:text-gray-400">{board.listsCount || 0}</span>
-                <span className="text-gray-400 dark:text-gray-600 text-xs">lists</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-gray-600 dark:text-gray-400">{board.cardsCount || 0}</span>
-                <span className="text-gray-400 dark:text-gray-600 text-xs">cards</span>
-              </div>
+          {/* Statistics */}
+          <div className="flex items-center gap-6 mb-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{board.listsCount || 0}</span>
+              <span className="text-gray-400 dark:text-gray-500">lists</span>
             </div>
-
-            <div className="flex items-center gap-2 text-gray-400">
-              {getVisibilityIcon()}
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{board.cardsCount || 0}</span>
+              <span className="text-gray-400 dark:text-gray-500">cards</span>
             </div>
           </div>
 
-          {/* Members Row */}
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex -space-x-2">
-              {board.members?.slice(0, 3).map((member, index) => (
-                <div
-                  key={member.userId?._id || `member-${index}`}
-                  className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white dark:border-gray-900 flex items-center justify-center ring-2 ring-transparent hover:ring-indigo-400 transition-all"
-                  title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
-                >
-                  {member.userId?.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={member.userId.avatar}
-                      alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-white text-[10px] font-semibold">
-                      {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || ''}
-                    </span>
+          {/* Spacer to push footer to bottom */}
+          <div className="flex-1"></div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800 mt-auto">
+            {/* Team Members */}
+            <div className="flex items-center">
+              {board.members && board.members.length > 0 ? (
+                <div className="flex -space-x-1">
+                  {board.members.slice(0, 4).map((member, index) => (
+                    <div
+                      key={member.userId?._id || `member-${index}`}
+                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-xs font-medium text-white shadow-sm"
+                      style={{
+                        backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
+                      }}
+                      title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                    >
+                      {member.userId?.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={member.userId.avatar}
+                          alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <>
+                          {member.userId?.firstName?.charAt(0) || '?'}
+                          {member.userId?.lastName?.charAt(0) || ''}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {board.members.length > 4 && (
+                    <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-900 flex items-center justify-center">
+                      <span className="text-gray-600 dark:text-gray-300 text-xs font-medium">
+                        +{board.members.length - 4}
+                      </span>
+                    </div>
                   )}
                 </div>
-              ))}
-              {board.members && board.members.length > 3 && (
-                <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-900 flex items-center justify-center">
-                  <span className="text-gray-600 dark:text-gray-300 text-[10px] font-semibold">+{board.members.length - 3}</span>
-                </div>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500 text-xs">No members</span>
               )}
             </div>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onView(board._id);
-              }}
-              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1"
-            >
-              Open
-              <ChevronDown className="w-3 h-3 -rotate-90" />
-            </button>
+            {/* Last Updated */}
+            <div className="text-xs text-gray-400 dark:text-gray-500">
+              {new Date(board.updatedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+            </div>
+          </div>
           </div>
         </div>
       </div>
 
-      {/* Portal-based Dropdown Menu */}
+      {/* Modern Dropdown Menu */}
       {showMenu && typeof window !== 'undefined' && createPortal(
         <div
-          className="fixed bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 animate-in fade-in zoom-in-95 duration-200"
+          data-board-menu="true"
+          className="fixed bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg py-1 min-w-44 animate-in fade-in zoom-in-95 duration-150"
           style={{
             top: menuPosition.top,
             left: menuPosition.left,
@@ -566,49 +891,38 @@ const BoardCard: React.FC<BoardCardProps> = ({
               onView(board._id);
               setShowMenu(false);
             }}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-2.5"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
             Open Board
           </button>
           {canEdit && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onEdit(board._id);
+                e.preventDefault();
                 setShowMenu(false);
+                setTimeout(() => onEdit(board._id), 50);
               }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-2.5"
             >
-              <Edit className="w-4 h-4" />
+              <Edit className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
               Edit Details
-            </button>
-          )}
-          {canArchive && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive(board._id);
-                setShowMenu(false);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-            >
-              <Archive className="w-4 h-4" />
-              Archive
             </button>
           )}
           {canDelete && (
             <>
-              <div className="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(board._id);
+                  e.preventDefault();
                   setShowMenu(false);
+                  setTimeout(() => onDelete(board._id), 50);
                 }}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2.5"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 text-red-500" strokeWidth={1.5} />
                 Delete Board
               </button>
             </>
@@ -632,33 +946,143 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'created' | 'member' | 'starred'>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'oldest' | 'name'>('latest');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [editingBoard, setEditingBoard] = useState<Board | null>(null);
+  const [activeTab, setActiveTab] = useState<'boards' | 'create-board'>('boards');
 
   // Role-based permissions
   const canCreateBoards = ['superadmin', 'admin', 'hr'].includes(userRole);
   const canEditAllBoards = ['superadmin', 'admin'].includes(userRole);
   const canDeleteAllBoards = ['superadmin'].includes(userRole);
 
-  // Handle URL parameters on mount
+  // Handle URL parameters on mount and detect navigation back from boards
   useEffect(() => {
     const starred = searchParams.get('starred');
     const create = searchParams.get('create');
+    const refresh = searchParams.get('refresh');
 
     if (starred === 'true') {
       setFilterType('starred');
     }
 
     if (create === 'true' && canCreateBoards) {
-      setShowCreateModal(true);
+      setActiveTab('create-board');
       // Remove the query parameter from URL
       router.replace(baseUrl + '/boards');
     }
-  }, [searchParams, canCreateBoards, router, baseUrl]);
+
+    // If refresh parameter is present, refresh all board counts
+    if (refresh === 'true' && boards.length > 0) {
+      console.log('🔄 Navigation refresh triggered, updating all board counts...');
+      boards.forEach(board => {
+        refreshBoardCounts(board._id);
+      });
+      // Clean up URL
+      router.replace(baseUrl + '/boards');
+    }
+  }, [searchParams, canCreateBoards, router, baseUrl, boards.length]);
 
   useEffect(() => {
     loadBoards();
   }, []);
+
+  // Refresh counts for all boards after initial load
+  useEffect(() => {
+    if (boards.length > 0) {
+      console.log('🔄 Auto-refreshing counts for all boards...');
+      boards.forEach(board => {
+        // Only refresh if counts are missing or zero
+        if (!board.listsCount && !board.cardsCount) {
+          refreshBoardCounts(board._id);
+        }
+      });
+    }
+  }, [boards.length]); // Only run when boards are first loaded
+
+  // Real-time sync: Page Visibility API - refresh when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && boards.length > 0) {
+        console.log('📡 Page became visible, refreshing all board counts...');
+        boards.forEach(board => {
+          refreshBoardCounts(board._id);
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [boards]);
+
+  // Real-time sync: Focus event - refresh when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (boards.length > 0) {
+        console.log('🎯 Window focused, refreshing board counts...');
+        boards.forEach(board => {
+          refreshBoardCounts(board._id);
+        });
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [boards]);
+
+  // Real-time sync: Periodic background refresh every 30 seconds
+  useEffect(() => {
+    if (boards.length === 0) return;
+
+    const interval = setInterval(() => {
+      console.log('⏰ Periodic refresh of board counts...');
+      boards.forEach(board => {
+        refreshBoardCounts(board._id);
+      });
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [boards]);
+
+  // Real-time sync: Storage event listener for cross-tab communication
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'boardsUpdated' && boards.length > 0) {
+        console.log('💾 Cross-tab update detected, refreshing board counts...');
+        boards.forEach(board => {
+          refreshBoardCounts(board._id);
+        });
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [boards]);
+
+  // Helper function to notify other tabs when boards are updated
+  const notifyBoardsUpdated = () => {
+    localStorage.setItem('boardsUpdated', Date.now().toString());
+    setTimeout(() => localStorage.removeItem('boardsUpdated'), 1000);
+  };
+
+  // Real-time sync: Detect return from board navigation
+  useEffect(() => {
+    const navigationTime = sessionStorage.getItem('boardNavigationTime');
+    const lastVisitedBoard = sessionStorage.getItem('lastVisitedBoard');
+
+    if (navigationTime && lastVisitedBoard && boards.length > 0) {
+      const timeDiff = Date.now() - parseInt(navigationTime);
+
+      // If user spent more than 10 seconds on board view, refresh counts
+      if (timeDiff > 10000) {
+        console.log('🚪 User returned from board view, refreshing counts...');
+        refreshBoardCounts(lastVisitedBoard);
+
+        // Clear the navigation tracking
+        sessionStorage.removeItem('boardNavigationTime');
+        sessionStorage.removeItem('lastVisitedBoard');
+      }
+    }
+  }, [boards.length]); // Run when boards are loaded
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -678,13 +1102,42 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       setError(null);
 
       const boardsData = await boardsApi.getBoards();
-      console.log('Loaded boards:', boardsData.map(b => ({ id: b._id, name: b.name, isStarred: b.isStarred })));
+      console.log('📊 Loaded boards with counts:', boardsData.map(b => ({
+        id: b._id,
+        name: b.name,
+        listsCount: b.listsCount,
+        cardsCount: b.cardsCount,
+        isStarred: b.isStarred
+      })));
       setBoards(boardsData);
     } catch (err) {
       console.error('Error loading boards:', err);
       setError(err instanceof Error ? err.message : 'Failed to load boards');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Function to refresh board counts by fetching detailed board info
+  const refreshBoardCounts = async (boardId: string) => {
+    try {
+      console.log('🔄 Refreshing counts for board:', boardId);
+      const boardDetails = await boardsApi.getBoard(boardId);
+
+      // Calculate counts from the detailed board data
+      const listsCount = boardDetails.lists?.length || 0;
+      const cardsCount = boardDetails.lists?.reduce((total, list) => total + (list.cards?.length || 0), 0) || 0;
+
+      console.log('✅ Updated counts:', { boardId, listsCount, cardsCount });
+
+      // Update the specific board in the state
+      setBoards(prev => prev.map(board =>
+        board._id === boardId
+          ? { ...board, listsCount, cardsCount }
+          : board
+      ));
+    } catch (error) {
+      console.error('❌ Error refreshing board counts:', error);
     }
   };
 
@@ -733,7 +1186,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     });
 
   const handleCreateBoard = () => {
-    setShowCreateModal(true);
+    setActiveTab('create-board');
   };
 
   const handleCreateBoardSubmit = async (data: {
@@ -744,37 +1197,71 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     try {
       await boardsApi.createBoard(data);
       await loadBoards();
-      setShowCreateModal(false);
+      setActiveTab('boards');
+      toast.success('Board created successfully!');
     } catch (error) {
       console.error('Error creating board:', error);
+      toast.error('Failed to create board');
+      throw error;
+    }
+  };
+
+  const handleEditBoardSubmit = async (data: {
+    name: string;
+    description?: string;
+    background?: string;
+  }) => {
+    if (!editingBoard) return;
+
+    try {
+      await boardsApi.updateBoard(editingBoard._id, data);
+      await loadBoards();
+      setEditingBoard(null);
+      toast.success('Board updated successfully!');
+    } catch (error) {
+      console.error('Error updating board:', error);
+      toast.error('Failed to update board');
       throw error;
     }
   };
 
   const handleViewBoard = (boardId: string) => {
+    // Store the current timestamp to detect when user returns
+    sessionStorage.setItem('boardNavigationTime', Date.now().toString());
+    sessionStorage.setItem('lastVisitedBoard', boardId);
     router.push(`${baseUrl}/boards/${boardId}`);
   };
 
   const handleEditBoard = (boardId: string) => {
-    console.log('Edit board:', boardId);
+    const board = boards.find(b => b._id === boardId);
+    if (board) {
+      setEditingBoard(board);
+    }
   };
 
   const handleDeleteBoard = async (boardId: string) => {
-    if (!window.confirm('Are you sure you want to delete this board? This action cannot be undone.')) {
+    const board = boards.find(b => b._id === boardId);
+    const boardName = board?.name || 'this board';
+
+    if (!window.confirm(`Are you sure you want to delete "${boardName}"? This action cannot be undone.`)) {
       return;
     }
 
     try {
       await boardsApi.deleteBoard(boardId);
       setBoards(prev => prev.filter(board => board._id !== boardId));
+      toast.success(`Board "${boardName}" deleted successfully`);
     } catch (error) {
       console.error('Error deleting board:', error);
-      alert('Failed to delete board');
+      toast.error('Failed to delete board');
     }
   };
 
   const handleArchiveBoard = async (boardId: string) => {
-    if (!window.confirm('Are you sure you want to archive this board?')) {
+    const board = boards.find(b => b._id === boardId);
+    const boardName = board?.name || 'this board';
+
+    if (!window.confirm(`Are you sure you want to archive "${boardName}"?`)) {
       return;
     }
 
@@ -785,9 +1272,10 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
           ? { ...board, isArchived: true }
           : board
       ));
+      toast.success(`Board "${boardName}" archived successfully`);
     } catch (error) {
       console.error('Error archiving board:', error);
-      alert('Failed to archive board');
+      toast.error('Failed to archive board');
     }
   };
 
@@ -802,8 +1290,12 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       setBoards(prev => prev.map(b =>
         b._id === boardId ? { ...b, isStarred: newStarredStatus } : b
       ));
+
+      // Optional: Show feedback toast
+      // toast.success(newStarredStatus ? `"${board.name}" starred` : `"${board.name}" unstarred`);
     } catch (error) {
       console.error('Error toggling star:', error);
+      toast.error('Failed to update star status');
     }
   };
 
@@ -847,9 +1339,14 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
             <Layers className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
             Board Management
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">Organize and manage your project boards</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            {activeTab === 'boards'
+              ? 'Organize and manage your project boards'
+              : 'Create a new board to organize your work'
+            }
+          </p>
         </div>
-        {canCreateBoards && (
+        {canCreateBoards && activeTab === 'boards' && (
           <button
             onClick={handleCreateBoard}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] transition-colors"
@@ -860,7 +1357,43 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
         )}
       </div>
 
-      {/* Search and Filters Bar */}
+      {/* Tab Navigation */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+        <nav className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('boards')}
+            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
+              activeTab === 'boards'
+                ? 'bg-[#17b6b2] text-white'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Layers className="w-5 h-5" strokeWidth={1.5} />
+            <span className="hidden sm:inline">All Boards</span>
+            <span className="sm:hidden">Boards</span>
+          </button>
+
+          {canCreateBoards && (
+            <button
+              onClick={() => setActiveTab('create-board')}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
+                activeTab === 'create-board'
+                  ? 'bg-[#17b6b2] text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Plus className="w-5 h-5" strokeWidth={1.5} />
+              <span className="hidden sm:inline">Create Board</span>
+              <span className="sm:hidden">Create</span>
+            </button>
+          )}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'boards' && (
+        <>
+          {/* Search and Filters Bar */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
@@ -1069,19 +1602,29 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
               onDelete={handleDeleteBoard}
               onArchive={handleArchiveBoard}
               onStar={handleStarBoard}
-              canEdit={canEditAllBoards || board.createdBy?._id === user?.id}
-              canDelete={canDeleteAllBoards || board.createdBy?._id === user?.id}
-              canArchive={canEditAllBoards || board.createdBy?._id === user?.id}
+              canEdit={canEditAllBoards || board.createdBy?._id === user?._id}
+              canDelete={canDeleteAllBoards || board.createdBy?._id === user?._id}
+              canArchive={canEditAllBoards || board.createdBy?._id === user?._id}
             />
           ))}
         </div>
       )}
+        </>
+      )}
 
-      {/* Create Board Modal */}
-      {showCreateModal && (
-        <CreateBoardModal
-          onClose={() => setShowCreateModal(false)}
+      {activeTab === 'create-board' && canCreateBoards && (
+        <CreateBoardForm
           onSubmit={handleCreateBoardSubmit}
+          onCancel={() => setActiveTab('boards')}
+        />
+      )}
+
+      {/* Edit Board Modal */}
+      {editingBoard && (
+        <EditBoardModal
+          board={editingBoard}
+          onClose={() => setEditingBoard(null)}
+          onSubmit={handleEditBoardSubmit}
         />
       )}
     </div>
