@@ -2,6 +2,7 @@
 
 import { useState, useCallback, memo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -96,8 +97,14 @@ const Sidebar = memo<SidebarProps>(({
       <div className="flex items-center justify-between p-4 border-b border-white/10">
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-[#0fb8af] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">EH</span>
+            <div className="w-14 h-14 flex items-center justify-center">
+              <Image 
+                src="/logo.png" 
+                alt="EurosHub Logo" 
+                width={82} 
+                height={62} 
+                className="object-contain"
+              />
             </div>
             <div className="min-w-0">
               <h2 className="text-white font-semibold text-sm truncate">EurosHub</h2>

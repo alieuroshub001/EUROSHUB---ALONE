@@ -6,10 +6,9 @@ import {
   ArrowLeft,
   Star,
   Users,
-  Settings,
   MoreVertical,
-  Archive,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocketContext } from '@/contexts/SocketContext';
@@ -22,6 +21,92 @@ import { Board, UserRole } from './BoardManagement';
 import { boardsApi, listsApi, cardsApi } from '@/services/trelloBoardsApi';
 import BoardSwitcherDock from './BoardSwitcherDock';
 import BoardMembersModal from './BoardMembersModal';
+import toast from 'react-hot-toast';
+
+// Import the EditBoardModal component
+interface EditBoardModalProps {
+  board: Board;
+  onClose: () => void;
+  onSubmit: (data: {
+    name: string;
+    description?: string;
+    background?: string;
+  }) => Promise<void> | void;
+}
+
+// EditBoardModal component (simplified version for BoardView)
+const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: board.name,
+    description: board.description || '',
+    background: board.background
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+      onClose();
+    } catch (error) {
+      console.error('Error updating board:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-800">
+        <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Board</h2>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Board Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            />
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !formData.name.trim()}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Updating...' : 'Update Board'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 interface BoardViewProps {
   boardId: string;
@@ -44,6 +129,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Permission checks
   const getCurrentUserBoardRole = () => {
@@ -211,6 +297,52 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       }
     }
   };
+
+  // Board header menu actions
+  const handleEditBoard = () => {
+    setShowMenu(false);
+    setShowEditModal(true);
+  };
+
+  const handleEditBoardSubmit = async (data: {
+    name: string;
+    description?: string;
+    background?: string;
+  }) => {
+    if (!board) return;
+    
+    try {
+      await boardsApi.updateBoard(board._id, data);
+      // Reload board data to get updated information
+      await loadBoardData();
+      toast.success('Board updated successfully!');
+    } catch (error) {
+      console.error('Error updating board:', error);
+      toast.error('Failed to update board');
+      throw error;
+    }
+  };
+
+  const handleDeleteBoard = async () => {
+    if (!board) return;
+    
+    const boardName = board.name;
+    if (!window.confirm(`Are you sure you want to delete "${boardName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await boardsApi.deleteBoard(board._id);
+      toast.success(`Board "${boardName}" deleted successfully`);
+      // Navigate back to boards list
+      router.push(`${baseUrl}/boards`);
+    } catch (error) {
+      console.error('Error deleting board:', error);
+      toast.error('Failed to delete board');
+    }
+    setShowMenu(false);
+  };
+
 
   // List actions
   const handleCreateList = async (boardId: string, name: string) => {
@@ -917,15 +1049,14 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
                   <div className="absolute right-0 top-12 bg-white dark:bg-gray-900 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 py-1 z-50 min-w-52 animate-in fade-in zoom-in-95 duration-200">
                     {canEditBoard && (
                       <>
-                        <button className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors">
-                          <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                          <span>Board Settings</span>
+                        <button 
+                          onClick={handleEditBoard}
+                          className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors"
+                        >
+                          <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                          <span>Edit Board</span>
                         </button>
 
-                        <button className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors">
-                          <Archive className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                          <span>Archive Board</span>
-                        </button>
 
                         {canDeleteBoard && (
                           <div className="my-1 border-t border-gray-200 dark:border-gray-800"></div>
@@ -934,7 +1065,10 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
                     )}
 
                     {canDeleteBoard && (
-                      <button className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-sm transition-colors">
+                      <button 
+                        onClick={handleDeleteBoard}
+                        className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-sm transition-colors"
+                      >
                         <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                         <span className="text-red-600 dark:text-red-400">Delete Board</span>
                       </button>
@@ -1025,6 +1159,15 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
           onRemoveMember={handleRemoveBoardMember}
           onUpdateMemberRole={handleUpdateBoardMemberRole}
           currentUserId={user?.id}
+        />
+      )}
+
+      {/* Edit Board Modal */}
+      {board && showEditModal && (
+        <EditBoardModal
+          board={board}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={handleEditBoardSubmit}
         />
       )}
 
