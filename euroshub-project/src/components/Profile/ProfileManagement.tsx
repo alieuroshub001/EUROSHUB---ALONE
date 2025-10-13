@@ -128,16 +128,22 @@ export default function ProfileManagement({ currentUser }: ProfileManagementProp
       {/* Profile Summary Card */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
+          <div className="relative group">
             {profile.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.avatar}
-                alt={`${profile.firstName} ${profile.lastName}`}
-                className="w-16 h-16 rounded-lg object-cover"
-              />
+              // User has avatar - display image with enhanced visibility
+              <div className="w-20 h-20 rounded-xl border-3 border-white dark:border-gray-800 shadow-lg overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700 hover:ring-3 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profile.avatar}
+                  alt={`${profile.firstName} ${profile.lastName}`}
+                  className="w-full h-full rounded-xl object-cover filter brightness-105 contrast-110 saturate-110"
+                />
+              </div>
             ) : (
-              <User className="w-8 h-8 text-[#17b6b2]" strokeWidth={1.5} />
+              // User has no avatar - display icon with enhanced styling
+              <div className="w-20 h-20 rounded-xl border-3 border-white dark:border-gray-800 flex items-center justify-center shadow-lg ring-2 ring-gray-200 dark:ring-gray-700 hover:ring-3 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105 bg-gradient-to-br from-[#17b6b2] to-[#15a09d]">
+                <User className="w-10 h-10 text-white" strokeWidth={1.5} />
+              </div>
             )}
           </div>
           <div className="flex-1">

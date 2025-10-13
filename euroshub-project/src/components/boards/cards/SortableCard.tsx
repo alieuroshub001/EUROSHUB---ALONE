@@ -129,24 +129,29 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
                 {card.members.slice(0, 3).map((member, index) => (
                   <div
                     key={member.userId?._id || `sortable-member-${index}`}
-                    className="w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-white"
-                    style={{
-                      backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
-                    }}
                     title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
                   >
                     {member.userId?.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={member.userId.avatar}
-                        alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
-                        className="w-full h-full rounded-full object-cover"
-                      />
+                      // User has avatar - display image only without background
+                      <div className="w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={member.userId.avatar}
+                          alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
                     ) : (
-                      <>
+                      // User has no avatar - display initials with background color
+                      <div
+                        className="w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-white"
+                        style={{
+                          backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
+                        }}
+                      >
                         {member.userId?.firstName?.charAt(0) || '?'}
                         {member.userId?.lastName?.charAt(0) || ''}
-                      </>
+                      </div>
                     )}
                   </div>
                 ))}

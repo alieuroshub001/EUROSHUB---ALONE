@@ -245,7 +245,7 @@ router.post('/projects/:projectId/boards', protect, checkProjectAccess, checkPro
       description: description || '',
       project: projectId,
       createdBy: req.user.id,
-      color: color || '#4F46E5',
+      color: color || '#17b6b2',
       isDefault: isDefault || false,
       settings: settings || {}
     });

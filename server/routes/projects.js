@@ -909,7 +909,7 @@ router.post('/:projectId/boards', protect, checkProjectAccess, checkProjectPermi
       description: description || '',
       project: projectId,
       createdBy: req.user.id,
-      color: color || '#4F46E5',
+      color: color || '#17b6b2',
       isDefault: isDefault || false,
       settings: settings || {}
     });

@@ -979,7 +979,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60" />
 
       {/* Minimalistic Board Header */}
-      <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-6 py-4" style={{ zIndex: 1000 }}>
         <div className="flex items-center justify-between">
           {/* Left Section */}
           <div className="flex items-center gap-4">
@@ -1043,38 +1043,49 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
             {/* Team Members */}
             {board.members && board.members.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="flex -space-x-1">
+                <div className="flex -space-x-0.5">
                   {board.members.slice(0, 4).map((member, index) => (
                     <div
                       key={member.userId?._id || `board-member-${index}`}
-                      className="relative group"
+                      className="relative group cursor-pointer transition-all duration-200 hover:z-10 hover:scale-110"
                       title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''} - ${member.role}`}
                     >
-                      <div
-                        className="w-7 h-7 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-xs font-medium text-white shadow-sm"
-                        style={{
-                          backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
-                        }}
-                      >
-                        {member.userId?.avatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
+                      {member.userId?.avatar ? (
+                        // User has avatar - display image with enhanced visibility
+                        <div className="w-12 h-12 rounded-full border-3 border-white dark:border-gray-800 shadow-md overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={member.userId.avatar}
                             alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
-                            className="w-full h-full rounded-full object-cover"
+                            className="w-full h-full rounded-full object-cover filter brightness-105 contrast-110 saturate-110"
                           />
-                        ) : (
-                          <>
-                            {member.userId?.firstName?.charAt(0) || '?'}
-                            {member.userId?.lastName?.charAt(0) || ''}
-                          </>
-                        )}
+                        </div>
+                      ) : (
+                        // User has no avatar - display initials with background color
+                        <div
+                          className="w-12 h-12 rounded-full border-3 border-white dark:border-gray-800 flex items-center justify-center text-sm font-semibold text-white shadow-md ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200"
+                          style={{
+                            backgroundColor: `hsl(${(index * 137.5) % 360}, 50%, 50%)`
+                          }}
+                        >
+                          {member.userId?.firstName?.charAt(0) || '?'}
+                          {member.userId?.lastName?.charAt(0) || ''}
+                        </div>
+                      )}
+                      
+                      {/* Enhanced tooltip on hover */}
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" style={{ zIndex: 99999, position: 'absolute' }}>
+                        <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap border border-gray-700 dark:border-gray-600 mt-2">
+                          <div className="font-medium">{member.userId?.firstName} {member.userId?.lastName}</div>
+                          <div className="text-gray-300 dark:text-gray-400 capitalize text-xs">{member.role}</div>
+                          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"></div>
+                        </div>
                       </div>
                     </div>
                   ))}
                   {board.members.length > 4 && (
-                    <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-900 flex items-center justify-center">
-                      <span className="text-gray-600 dark:text-gray-300 text-xs font-medium">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 border-3 border-white dark:border-gray-800 flex items-center justify-center shadow-md ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 cursor-pointer hover:scale-110 group">
+                      <span className="text-gray-700 dark:text-gray-200 text-sm font-semibold">
                         +{board.members.length - 4}
                       </span>
                     </div>

@@ -113,21 +113,25 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
       <div className="bg-gray-50 rounded-xl p-6">
         {/* Current Avatar */}
         <div className="flex items-center space-x-6 mb-6">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-              {profile.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
+          <div className="relative group">
+            {profile.avatar ? (
+              // User has avatar - display image with enhanced visibility
+              <div className="w-28 h-28 rounded-full border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700 hover:ring-3 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={profile.avatar}
                   alt={`${profile.firstName} ${profile.lastName}`}
-                  className="w-24 h-24 rounded-full object-cover"
+                  className="w-full h-full rounded-full object-cover filter brightness-105 contrast-110 saturate-110"
                 />
-              ) : (
-                <span className="text-2xl font-bold text-gray-400">
+              </div>
+            ) : (
+              // User has no avatar - display initials with enhanced styling
+              <div className="w-28 h-28 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center shadow-xl ring-2 ring-gray-200 dark:ring-gray-700 hover:ring-3 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105 bg-gradient-to-br from-[#17b6b2] to-[#15a09d]">
+                <span className="text-2xl font-bold text-white">
                   {profile.firstName[0]}{profile.lastName[0]}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
             {loading && (
               <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
                 <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

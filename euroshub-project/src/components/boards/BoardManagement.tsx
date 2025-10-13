@@ -827,24 +827,30 @@ const BoardCard: React.FC<BoardCardProps> = ({
                   {board.members.slice(0, 4).map((member, index) => (
                     <div
                       key={member.userId?._id || `member-${index}`}
-                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-xs font-medium text-white shadow-sm"
-                      style={{
-                        backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
-                      }}
-                      title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                      className="transition-all duration-200 hover:scale-110"
+                      title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''} - ${member.role}`}
                     >
                       {member.userId?.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={member.userId.avatar}
-                          alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
-                          className="w-full h-full rounded-full object-cover"
-                        />
+                        // User has avatar - display image with enhanced visibility
+                        <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 shadow-md overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={member.userId.avatar}
+                            alt={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''}`}
+                            className="w-full h-full rounded-full object-cover filter brightness-105 contrast-110 saturate-110"
+                          />
+                        </div>
                       ) : (
-                        <>
+                        // User has no avatar - display initials with background color
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-semibold text-white shadow-md ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200"
+                          style={{
+                            backgroundColor: `hsl(${(index * 137.5) % 360}, 50%, 50%)`
+                          }}
+                        >
                           {member.userId?.firstName?.charAt(0) || '?'}
                           {member.userId?.lastName?.charAt(0) || ''}
-                        </>
+                        </div>
                       )}
                     </div>
                   ))}
