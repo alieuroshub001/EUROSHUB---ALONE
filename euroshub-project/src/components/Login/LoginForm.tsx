@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { authAPI, getRoleDashboardPath } from '@/lib/auth';
 
 interface LoginFormProps {
@@ -239,10 +240,13 @@ function LoginFormContent({ onSuccess }: LoginFormProps) {
         <div className="text-center mb-10">
           {/* Company Logo */}
           <div className="mx-auto w-16 h-16 mb-6 relative">
-            <img 
+            <Image 
               src="/logo.png" 
               alt="EurosHub Logo" 
-              className="w-full h-full object-contain filter drop-shadow-sm"
+              width={64}
+              height={64}
+              className="object-contain filter drop-shadow-sm"
+              priority
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">

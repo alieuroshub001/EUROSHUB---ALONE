@@ -23,6 +23,27 @@ import BoardSwitcherDock from './BoardSwitcherDock';
 import BoardMembersModal from './BoardMembersModal';
 import toast from 'react-hot-toast';
 
+// Task interface for socket events
+interface Task {
+  _id: string;
+  title: string;
+  completed: boolean;
+  assignedTo?: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  }>;
+  dueDate?: Date;
+  priority: 'low' | 'medium' | 'high';
+  description?: string;
+  createdAt: Date;
+  dependsOn?: string;
+  isLocked?: boolean;
+  lockedReason?: string;
+  unlockedAt?: Date;
+}
+
 // Import the EditBoardModal component
 interface EditBoardModalProps {
   board: Board;
@@ -173,7 +194,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     };
 
     // Listen for task creation
-    const handleTaskCreated = (data: { cardId: string; task: any }) => {
+    const handleTaskCreated = (data: { cardId: string; task: Task }) => {
       console.log('✅ Task created:', data);
       // Update the card in the cards state
       setCards(prev => {
@@ -190,7 +211,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     };
 
     // Listen for task updates
-    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: any }) => {
+    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: Task }) => {
       console.log('🔄 Task updated:', data);
       setCards(prev => {
         const newCards = { ...prev };
