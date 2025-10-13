@@ -23,7 +23,8 @@ const activitySchema = new mongoose.Schema({
       'card_image_added', 'card_label_added', 'card_label_removed',
       'card_checklist_item_completed', 'card_checklist_items_added',
       'card_file_uploaded', 'card_file_deleted', 'card_folder_created', 'card_folder_deleted',
-      'card_task_added', 'card_task_completed', 'card_task_deleted',
+      'card_task_added', 'card_task_completed', 'card_task_deleted', 'card_task_updated', 'card_task_unlocked',
+      'card_subtask_added', 'card_subtask_completed', 'card_subtask_updated', 'card_subtask_deleted',
       'card_member_added', 'card_member_removed', 'card_description_changed'
     ],
     required: true
@@ -125,6 +126,12 @@ activitySchema.virtual('description').get(function() {
     'card_task_added': 'added a task',
     'card_task_completed': 'completed a task',
     'card_task_deleted': 'deleted a task',
+    'card_task_updated': 'updated a task',
+    'card_task_unlocked': 'unlocked a task',
+    'card_subtask_added': 'added a subtask',
+    'card_subtask_completed': 'completed a subtask',
+    'card_subtask_updated': 'updated a subtask',
+    'card_subtask_deleted': 'deleted a subtask',
     'card_member_added': 'added a member',
     'card_member_removed': 'removed a member',
     'card_description_changed': 'changed the description'

@@ -515,6 +515,29 @@ export const cardsApi = {
 
     return response.data;
   },
+
+  // Subtask management
+  addSubtask: async (cardId: string, taskId: string, subtaskData: { title: string }) => {
+    const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}/subtasks`, {
+      method: 'POST',
+      body: JSON.stringify(subtaskData),
+    });
+    return response.data;
+  },
+
+  updateSubtask: async (cardId: string, taskId: string, subtaskId: string, updates: { title?: string; completed?: boolean }) => {
+    const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    return response.data;
+  },
+
+  deleteSubtask: async (cardId: string, taskId: string, subtaskId: string) => {
+    await apiCall(`/trello-cards/${cardId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Users API calls

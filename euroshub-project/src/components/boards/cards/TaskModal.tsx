@@ -2,43 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, AlertCircle, Save, Trash2 } from 'lucide-react';
+import { X, AlertCircle, Save, Trash2, Plus, Check, GripVertical } from 'lucide-react';
 import Portal from '../../shared/Portal';
-
-interface Task {
-  _id: string;
-  title: string;
-  completed: boolean;
-  assignedTo?: Array<{
-    _id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  }> | {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
-  dueDate?: Date;
-  priority: 'low' | 'medium' | 'high';
-  description?: string;
-  createdAt: Date;
-}
+import { Task, Subtask, User } from '../../../types/project';
+import toast from 'react-hot-toast';
 
 interface TaskModalProps {
   task: Task | null;
+  cardId: string;
   isOpen: boolean;
   onClose: () => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void | Promise<void>;
   onDeleteTask: (taskId: string) => void | Promise<void>;
+  onAddSubtask?: (taskId: string, subtaskData: { title: string }) => Promise<void>;
+  onUpdateSubtask?: (taskId: string, subtaskId: string, updates: Partial<Subtask>) => Promise<void>;
+  onDeleteSubtask?: (taskId: string, subtaskId: string) => Promise<void>;
   projectMembers: Array<{
-    userId: {
-      _id: string;
-      firstName: string;
-      lastName: string;
-      avatar?: string;
-    };
+    userId: User;
     role: string;
   }>;
   canEdit: boolean;
@@ -46,15 +26,21 @@ interface TaskModalProps {
 
 const TaskModal: React.FC<TaskModalProps> = ({
   task,
+  cardId,
   isOpen,
   onClose,
   onUpdateTask,
   onDeleteTask,
+  onAddSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
   projectMembers,
   canEdit
 }) => {
   const [editData, setEditData] = useState<Partial<Task>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -90,6 +76,55 @@ const TaskModal: React.FC<TaskModalProps> = ({
       onDeleteTask(task._id);
       onClose();
     }
+  };
+
+  const handleAddSubtask = async () => {
+    if (!newSubtaskTitle.trim() || !onAddSubtask || !task || isAddingSubtask) return;
+
+    setIsAddingSubtask(true);
+    try {
+      await onAddSubtask(task._id, { title: newSubtaskTitle.trim() });
+      setNewSubtaskTitle('');
+      toast.success('Subtask added successfully');
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+      toast.error('Failed to add subtask');
+    } finally {
+      setIsAddingSubtask(false);
+    }
+  };
+
+  const handleToggleSubtask = async (subtaskId: string, completed: boolean) => {
+    if (!onUpdateSubtask || !task) return;
+
+    try {
+      await onUpdateSubtask(task._id, subtaskId, { completed });
+      toast.success(completed ? 'Subtask completed' : 'Subtask marked incomplete');
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+      toast.error('Failed to update subtask');
+    }
+  };
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!onDeleteSubtask || !task) return;
+
+    if (window.confirm('Are you sure you want to delete this subtask?')) {
+      try {
+        await onDeleteSubtask(task._id, subtaskId);
+        toast.success('Subtask deleted successfully');
+      } catch (error) {
+        console.error('Error deleting subtask:', error);
+        toast.error('Failed to delete subtask');
+      }
+    }
+  };
+
+  // Calculate task progress based on subtasks
+  const getTaskProgress = () => {
+    if (!task?.subtasks || task.subtasks.length === 0) return 0;
+    const completedSubtasks = task.subtasks.filter(subtask => subtask.completed).length;
+    return Math.round((completedSubtasks / task.subtasks.length) * 100);
   };
 
   const priorityColors = {
@@ -302,20 +337,131 @@ const TaskModal: React.FC<TaskModalProps> = ({
             />
           </div>
 
-          {/* Task Status */}
+          {/* Task Status & Progress */}
           <div className="mb-6">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={task.completed}
-                onChange={(e) => canEdit && onUpdateTask(task._id, { completed: e.target.checked })}
-                disabled={!canEdit}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Mark as completed
-              </span>
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={(e) => canEdit && onUpdateTask(task._id, { completed: e.target.checked })}
+                  disabled={!canEdit}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Mark as completed
+                </span>
+              </label>
+              {task.subtasks && task.subtasks.length > 0 && (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {getTaskProgress()}% ({task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} subtasks)
+                </div>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {task.subtasks && task.subtasks.length > 0 && (
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${getTaskProgress()}%` }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Subtasks Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Subtasks ({task.subtasks?.length || 0})
+              </label>
+            </div>
+
+            {/* Add New Subtask */}
+            {canEdit && (
+              <div className="mb-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !isAddingSubtask && handleAddSubtask()}
+                    disabled={isAddingSubtask}
+                    placeholder="Add a subtask..."
+                    className="flex-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleAddSubtask}
+                    disabled={!newSubtaskTitle.trim() || isAddingSubtask}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    {isAddingSubtask ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs">Adding...</span>
+                      </>
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Subtasks List */}
+            {task.subtasks && task.subtasks.length > 0 && (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {task.subtasks.map((subtask, index) => (
+                  <div
+                    key={`${task._id}-${subtask._id}-${index}`}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      subtask.completed
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={subtask.completed}
+                        onChange={(e) => canEdit && handleToggleSubtask(subtask._id, e.target.checked)}
+                        disabled={!canEdit}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <span className={`text-sm ${
+                        subtask.completed
+                          ? 'line-through text-gray-500 dark:text-gray-400'
+                          : 'text-gray-900 dark:text-white'
+                      }`}>
+                        {subtask.title}
+                      </span>
+                    </div>
+
+                    {subtask.completed && subtask.completedAt && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(subtask.completedAt).toLocaleDateString()}
+                      </div>
+                    )}
+
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDeleteSubtask(subtask._id)}
+                        className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(!task.subtasks || task.subtasks.length === 0) && !canEdit && (
+              <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                No subtasks yet
+              </div>
+            )}
           </div>
 
           {/* Task Info */}
@@ -324,6 +470,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
             <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
               <div>Created: {new Date(task.createdAt).toLocaleString()}</div>
               <div>Status: {task.completed ? 'Completed' : 'In Progress'}</div>
+              {task.subtasks && task.subtasks.length > 0 && (
+                <div>Progress: {getTaskProgress()}% complete</div>
+              )}
             </div>
           </div>
         </div>

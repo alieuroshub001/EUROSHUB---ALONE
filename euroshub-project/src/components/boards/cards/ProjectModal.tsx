@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
+import { Task, Subtask } from '../../../types/project';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
@@ -730,6 +731,104 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       setError('Failed to delete task. Please try again.');
       // Revert on error
       setTasks(originalTasks);
+    }
+  };
+
+  // Subtask handlers
+  const handleAddSubtask = async (taskId: string, subtaskData: { title: string }) => {
+    try {
+      const newSubtask = await cardsApi.addSubtask(card._id, taskId, subtaskData);
+
+      // Update the task in the local state to include the new subtask
+      setTasks(prev => prev.map(task => {
+        if (task._id === taskId) {
+          return {
+            ...task,
+            subtasks: [...(task.subtasks || []), newSubtask]
+          };
+        }
+        return task;
+      }));
+
+      // Update the selected task if it's the one being modified
+      if (selectedTask && selectedTask._id === taskId) {
+        setSelectedTask(prev => prev ? {
+          ...prev,
+          subtasks: [...(prev.subtasks || []), newSubtask]
+        } : prev);
+      }
+
+      setError(null);
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+      setError('Failed to add subtask. Please try again.');
+      throw error; // Re-throw so TaskModal can handle toast
+    }
+  };
+
+  const handleUpdateSubtask = async (taskId: string, subtaskId: string, updates: { title?: string; completed?: boolean }) => {
+    try {
+      const updatedSubtask = await cardsApi.updateSubtask(card._id, taskId, subtaskId, updates);
+
+      // Update the task in the local state
+      setTasks(prev => prev.map(task => {
+        if (task._id === taskId) {
+          return {
+            ...task,
+            subtasks: (task.subtasks || []).map(subtask =>
+              subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
+            )
+          };
+        }
+        return task;
+      }));
+
+      // Update the selected task if it's the one being modified
+      if (selectedTask && selectedTask._id === taskId) {
+        setSelectedTask(prev => prev ? {
+          ...prev,
+          subtasks: (prev.subtasks || []).map(subtask =>
+            subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
+          )
+        } : prev);
+      }
+
+      setError(null);
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+      setError('Failed to update subtask. Please try again.');
+      throw error; // Re-throw so TaskModal can handle toast
+    }
+  };
+
+  const handleDeleteSubtask = async (taskId: string, subtaskId: string) => {
+    try {
+      await cardsApi.deleteSubtask(card._id, taskId, subtaskId);
+
+      // Update the task in the local state
+      setTasks(prev => prev.map(task => {
+        if (task._id === taskId) {
+          return {
+            ...task,
+            subtasks: (task.subtasks || []).filter(subtask => subtask._id !== subtaskId)
+          };
+        }
+        return task;
+      }));
+
+      // Update the selected task if it's the one being modified
+      if (selectedTask && selectedTask._id === taskId) {
+        setSelectedTask(prev => prev ? {
+          ...prev,
+          subtasks: (prev.subtasks || []).filter(subtask => subtask._id !== subtaskId)
+        } : prev);
+      }
+
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting subtask:', error);
+      setError('Failed to delete subtask. Please try again.');
+      throw error; // Re-throw so TaskModal can handle toast
     }
   };
 
@@ -2389,6 +2488,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       {/* Task Modal */}
       <TaskModal
         task={selectedTask}
+        cardId={card._id}
         isOpen={showTaskModal}
         onClose={() => {
           setShowTaskModal(false);
@@ -2396,6 +2496,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         }}
         onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<Task>) => void}
         onDeleteTask={handleDeleteTask as (taskId: string) => void}
+        onAddSubtask={handleAddSubtask}
+        onUpdateSubtask={handleUpdateSubtask}
+        onDeleteSubtask={handleDeleteSubtask}
         projectMembers={boardMembers.map(member => ({
           userId: {
             _id: member._id,

@@ -109,6 +109,37 @@ export interface ChecklistItem {
   updatedAt: string;
 }
 
+export interface Subtask {
+  _id: string;
+  title: string;
+  completed: boolean;
+  completedAt?: string;
+  completedBy?: User;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  completedAt?: string;
+  completedBy?: User;
+  assignedTo?: User[];
+  dueDate?: string;
+  priority: 'low' | 'medium' | 'high';
+  dependsOn?: string;
+  autoAssignOnUnlock: boolean;
+  assignToOnUnlock: string[];
+  isLocked: boolean;
+  position: number;
+  subtasks: Subtask[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Attachment {
   _id: string;
   filename: string;
@@ -172,6 +203,7 @@ export interface Card {
   completedBy?: User;
   labels: Label[];
   checklist: ChecklistItem[];
+  tasks: Task[];
   attachments: Attachment[];
   comments: Comment[];
   timeTracking?: TimeTracking;

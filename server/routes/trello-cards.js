@@ -1332,6 +1332,17 @@ router.post('/:cardId/tasks/:taskId/subtasks', protect, getCardWithAccess, async
     const addedSubtask = await card.addSubtask(taskId, subtaskData);
     await card.save();
 
+    console.log('Added subtask debug:', {
+      subtaskData,
+      addedSubtask: {
+        _id: addedSubtask._id,
+        title: addedSubtask.title,
+        completed: addedSubtask.completed
+      },
+      cardId: card._id,
+      taskId: taskId
+    });
+
     // Log activity for subtask creation
     const list = await List.findById(card.listId).select('boardId');
     await Activity.logActivity({

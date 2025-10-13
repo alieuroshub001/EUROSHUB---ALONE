@@ -827,7 +827,8 @@ cardSchema.methods.addSubtask = function(taskId, subtaskData) {
   };
 
   task.subtasks.push(subtaskToAdd);
-  return this;
+  // Return the newly added subtask
+  return task.subtasks[task.subtasks.length - 1];
 };
 
 // Instance method to update subtask
@@ -850,7 +851,7 @@ cardSchema.methods.updateSubtask = function(taskId, subtaskId, updates) {
     subtask.completedBy = updates.completed ? updates.completedBy : null;
   }
 
-  return this;
+  return subtask;
 };
 
 // Instance method to delete subtask
