@@ -86,10 +86,10 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background-color: #17b6b2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .credentials { background-color: white; padding: 15px; border-left: 4px solid #4F46E5; margin: 20px 0; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .credentials { background-color: white; padding: 15px; border-left: 4px solid #17b6b2; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
         </style>
       </head>
@@ -112,7 +112,7 @@ const sendWelcomeEmail = async ({ email, firstName, lastName, tempPassword, role
             <p>Before you can log in, please verify your email address by clicking the button below:</p>
 
             <div style="text-align: center;">
-              <a href="${verificationUrl}" class="button">Verify Email Address</a>
+              <a href="${verificationUrl}" class="button" style="display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0;">Verify Email Address</a>
             </div>
 
             <p style="margin-top: 20px;">After verifying your email, you can log in and change your password from your profile settings.</p>
@@ -162,9 +162,9 @@ const sendVerificationEmail = async ({ email, firstName, lastName, verificationT
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background-color: #17b6b2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
         </style>
       </head>
@@ -179,7 +179,7 @@ const sendVerificationEmail = async ({ email, firstName, lastName, verificationT
             <p>Please verify your email address by clicking the button below:</p>
 
             <div style="text-align: center;">
-              <a href="${verificationUrl}" class="button">Verify Email Address</a>
+              <a href="${verificationUrl}" class="button" style="display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0;">Verify Email Address</a>
             </div>
 
             <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
@@ -303,8 +303,8 @@ const notifyAdminsPasswordResetRequest = async ({ userEmail, userName, userRole,
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background-color: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .info-box { background-color: white; padding: 15px; border-left: 4px solid #4F46E5; margin: 20px 0; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .info-box { background-color: white; padding: 15px; border-left: 4px solid #17b6b2; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
         </style>
       </head>
@@ -326,7 +326,7 @@ const notifyAdminsPasswordResetRequest = async ({ userEmail, userName, userRole,
             <p>Please review and process this request:</p>
 
             <div style="text-align: center;">
-              <a href="${adminUrl}" class="button">View Requests</a>
+              <a href="${adminUrl}" class="button" style="display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0;">View Requests</a>
             </div>
 
             <div class="footer">
@@ -365,7 +365,7 @@ const sendPasswordResetSuccess = async ({ email, firstName, lastName, newPasswor
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background-color: #10b981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .credentials { background-color: white; padding: 15px; border-left: 4px solid #10b981; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
         </style>
@@ -389,7 +389,7 @@ const sendPasswordResetSuccess = async ({ email, firstName, lastName, newPasswor
             <p>You can now log in with your new password:</p>
 
             <div style="text-align: center;">
-              <a href="${loginUrl}" class="button">Log In</a>
+              <a href="${loginUrl}" class="button" style="display: inline-block; padding: 12px 24px; background-color: #17b6b2; color: white !important; text-decoration: none; border-radius: 6px; margin: 20px 0;">Log In</a>
             </div>
 
             <p style="color: #dc2626; font-size: 14px; margin-top: 20px;">⚠️ For security reasons, please change your password after logging in.</p>
