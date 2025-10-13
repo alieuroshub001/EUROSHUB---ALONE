@@ -59,7 +59,7 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
       <div className="w-80 flex-shrink-0">
         <button
           onClick={handleStartCreating}
-          className="w-full p-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600"
+          className="w-full p-4 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add another list
@@ -70,14 +70,14 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
 
   return (
     <div className="w-80 flex-shrink-0">
-      <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
         <input
           type="text"
           value={listName}
           onChange={(e) => setListName(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Enter list title..."
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
           autoFocus
           disabled={isLoading}
         />
@@ -86,7 +86,7 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
           <button
             type="submit"
             disabled={!listName.trim() || isLoading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+            className="px-4 py-2 bg-[#17b6b2] hover:bg-[#15a09d] disabled:bg-gray-400 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
           >
             {isLoading ? 'Adding...' : 'Add list'}
           </button>
@@ -95,7 +95,7 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
             type="button"
             onClick={handleCancel}
             disabled={isLoading}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
           >
             <X className="w-4 h-4" />
           </button>

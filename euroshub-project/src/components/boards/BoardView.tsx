@@ -58,9 +58,10 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-800">
         <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Board</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Board</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Update your board details</p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
@@ -72,7 +73,7 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
             />
           </div>
           <div>
@@ -83,21 +84,22 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="What's this board about?"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
             />
           </div>
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="flex-1 px-6 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !formData.name.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-2.5 bg-[#17b6b2] text-white font-medium rounded-lg hover:bg-[#15a09d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? 'Updating...' : 'Update Board'}
             </button>
@@ -289,10 +291,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         setBoard(prev => prev ? { ...prev, isStarred: result.isStarred } : null);
 
         console.log('Star status updated:', result.isStarred);
+        const action = result.isStarred ? 'starred' : 'unstarred';
+        toast.success(`Board "${board.name}" ${action} successfully`);
       } catch (err) {
         console.error('Error updating star status:', err);
         // Revert on error
         setBoard(prev => prev ? { ...prev, isStarred: !prev.isStarred } : null);
+        toast.error('Failed to update star status');
         setError(err instanceof Error ? err.message : 'Failed to update star status');
       }
     }
@@ -355,6 +360,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       setLists([...lists, newList]);
       setCards({ ...cards, [newList._id]: [] });
       console.log('Created list:', newList);
+      toast.success(`List "${name}" created successfully`);
     } catch (err) {
       // Check if it's a permission error
       const errorMsg = err instanceof Error ? err.message : 'Failed to create list';
@@ -364,11 +370,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         // For permission errors, only show the modal - no console logging
         setErrorMessage('You do not have permission to create lists in this board');
         setShowErrorModal(true);
+        toast.error('You do not have permission to create lists in this board');
       } else {
         // For other errors, log to console and show modal
         console.error('Error creating list:', err);
         setErrorMessage(errorMsg);
         setShowErrorModal(true);
+        toast.error('Failed to create list');
       }
 
       // Only set the general error state for non-permission errors
@@ -391,6 +399,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       }));
 
       console.log('Created card:', newCard);
+      toast.success(`Card "${title || 'New Card'}" created successfully`);
     } catch (err) {
       // Check if it's a permission error
       const errorMsg = err instanceof Error ? err.message : 'Failed to create card';
@@ -400,11 +409,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         // For permission errors, only show the modal - no console logging
         setErrorMessage('You do not have permission to create cards in this list');
         setShowErrorModal(true);
+        toast.error('You do not have permission to create cards in this list');
       } else {
         // For other errors, log to console and show modal
         console.error('Error creating card:', err);
         setErrorMessage(errorMsg);
         setShowErrorModal(true);
+        toast.error('Failed to create card');
       }
 
       // Only set general error state for non-permission errors
@@ -434,9 +445,11 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       ));
 
       console.log('Updated list:', updatedList);
+      toast.success(`List "${updates.name || updatedList.name}" updated successfully`);
     } catch (err) {
       console.error('Error updating list:', err);
       setError(err instanceof Error ? err.message : 'Failed to update list');
+      toast.error('Failed to update list');
       throw err; // Re-throw so the modal can handle it
     }
   };
@@ -451,6 +464,10 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       // Call backend API to delete the list
       await listsApi.deleteList(listId);
 
+      // Get list name before deletion for toast message
+      const deletedList = lists.find(list => list._id === listId);
+      const listName = deletedList?.name || 'List';
+
       // Update local state to remove the list and its cards
       setLists(lists.filter(list => list._id !== listId));
       const newCards = { ...cards };
@@ -458,6 +475,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       setCards(newCards);
 
       console.log('Deleted list:', listId);
+      toast.success(`List "${listName}" deleted successfully`);
     } catch (err) {
       // Check if it's a permission error
       const errorMsg = err instanceof Error ? err.message : 'Failed to delete list';
@@ -467,11 +485,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         // For permission errors, only show the modal - no console logging
         setErrorMessage('You do not have permission to delete this list');
         setShowErrorModal(true);
+        toast.error('You do not have permission to delete this list');
       } else {
         // For other errors, log to console and show modal
         console.error('Error deleting list:', err);
         setErrorMessage(errorMsg);
         setShowErrorModal(true);
+        toast.error('Failed to delete list');
       }
 
       // Only set general error state for non-permission errors
@@ -483,6 +503,10 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
   const handleArchiveList = async (listId: string) => {
     try {
+      // Get list name before archiving for toast message
+      const listToArchive = lists.find(list => list._id === listId);
+      const listName = listToArchive?.name || 'List';
+
       // Call backend API to archive the list
       const result = await listsApi.archiveList(listId);
 
@@ -494,9 +518,12 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       ));
 
       console.log('Archived list:', listId, result.isArchived);
+      const action = result.isArchived ? 'archived' : 'unarchived';
+      toast.success(`List "${listName}" ${action} successfully`);
     } catch (err) {
       console.error('Error archiving list:', err);
       setError(err instanceof Error ? err.message : 'Failed to archive list');
+      toast.error('Failed to archive list');
     }
   };
 
@@ -539,6 +566,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       }
 
       console.log('Updated card:', cardId, updatedCard);
+      toast.success(`Card "${updates.title || updatedCard.title || 'Card'}" updated successfully`);
     } catch (err) {
       // Check if it's a permission error
       const errorMsg = err instanceof Error ? err.message : 'Failed to update card';
@@ -548,11 +576,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         // For permission errors, only show the modal - no console logging
         setErrorMessage('You do not have permission to update this card');
         setShowErrorModal(true);
+        toast.error('You do not have permission to update this card');
       } else {
         // For other errors, log to console and show modal
         console.error('Error updating card:', err);
         setErrorMessage(errorMsg);
         setShowErrorModal(true);
+        toast.error('Failed to update card');
       }
 
       // Only set general error state for non-permission errors
@@ -564,6 +594,21 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
   const handleDeleteCard = async (cardId: string) => {
     try {
+      // Get card name before deletion for toast message
+      let cardName = 'Card';
+      if (selectedCard?._id === cardId) {
+        cardName = selectedCard.title;
+      } else {
+        // Find the card in the cards state
+        for (const listId in cards) {
+          const card = cards[listId].find(c => c._id === cardId);
+          if (card) {
+            cardName = card.title;
+            break;
+          }
+        }
+      }
+
       // Call backend API to delete the card
       await cardsApi.deleteCard(cardId);
 
@@ -579,6 +624,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       setShowCardModal(false);
       setSelectedCard(null);
       console.log('Deleted card:', cardId);
+      toast.success(`Card "${cardName}" deleted successfully`);
     } catch (err) {
       // Check if it's a permission error
       const errorMsg = err instanceof Error ? err.message : 'Failed to delete card';
@@ -588,11 +634,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         // For permission errors, only show the modal - no console logging
         setErrorMessage('You do not have permission to delete this card');
         setShowErrorModal(true);
+        toast.error('You do not have permission to delete this card');
       } else {
         // For other errors, log to console and show modal
         console.error('Error deleting card:', err);
         setErrorMessage(errorMsg);
         setShowErrorModal(true);
+        toast.error('Failed to delete card');
       }
 
       // Only set general error state for non-permission errors
@@ -831,56 +879,35 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-2 border-gray-200 border-t-[#17b6b2] rounded-full animate-spin mx-auto"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading board...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !board) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-        <div className="flex items-center">
-          <span className="text-red-700 dark:text-red-400">{error || 'Board not found'}</span>
+      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <span className="text-red-500 text-2xl">⚠️</span>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Board not found</h3>
+          <p className="text-gray-500 dark:text-gray-400">{error || 'The board you are looking for does not exist or you do not have permission to view it.'}</p>
+          <button
+            onClick={handleBack}
+            className="px-6 py-2 bg-[#17b6b2] text-white rounded-lg hover:bg-[#15a09d] transition-colors"
+          >
+            Back to Boards
+          </button>
         </div>
       </div>
     );
   }
 
-  const backgroundStyle = board.background?.startsWith('#')
-    ? { backgroundColor: board.background }
-    : board.background?.startsWith('http')
-    ? { backgroundImage: `url(${board.background})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : { backgroundColor: '#6366f1' };
-
-  // Extract primary color for scrollbar styling
-  const primaryColor = board.background?.startsWith('#')
-    ? board.background
-    : '#6366f1';
-
-  // Create hover color for scrollbar
-  const getHoverColor = (color: string) => {
-    if (color.startsWith('#')) {
-      // For hex colors, create a darker version
-      const hex = color.substring(1);
-      const num = parseInt(hex, 16);
-      const amt = -20;
-      const R = (num >> 16) + amt;
-      const G = (num >> 8 & 0x00FF) + amt;
-      const B = (num & 0x0000FF) + amt;
-      return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-        (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-    }
-    return color;
-  };
-
-  // Create dynamic scrollbar styles
-  const scrollbarStyle = {
-    '--scrollbar-thumb': primaryColor,
-    '--scrollbar-track': `${primaryColor}20`,
-    '--scrollbar-thumb-hover': getHoverColor(primaryColor),
-  } as React.CSSProperties;
 
   // Board member management functions
   const handleAddBoardMember = async (userId: string, role: string) => {
@@ -922,79 +949,113 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     }
   };
 
+  // Get background style for the board
+  const getBackgroundStyle = () => {
+    if (!board.background) {
+      return { backgroundColor: '#f8fafc' };
+    }
+
+    if (board.background.startsWith('#')) {
+      return { backgroundColor: board.background };
+    } else if (board.background.startsWith('http')) {
+      return {
+        backgroundImage: `url(${board.background})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      };
+    }
+
+    return { backgroundColor: '#f8fafc' };
+  };
+
   return (
-    <div className="h-full flex flex-col relative" style={backgroundStyle}>
-      {/* Animated Background Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/20 pointer-events-none"></div>
+    <div className="h-full flex flex-col relative">
+      {/* Subtle Board Background */}
+      <div
+        className="absolute inset-0 opacity-30"
+        style={getBackgroundStyle()}
+      />
+      <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60" />
 
-      {/* Modern Board Header */}
-      <div className="relative z-10">
-        {/* Header Background with Glass Effect */}
-        <div className="absolute inset-0 backdrop-blur-xl bg-white/10 dark:bg-black/30 border-b border-white/20 dark:border-white/10"></div>
+      {/* Minimalistic Board Header */}
+      <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Left Section */}
+          <div className="flex items-center gap-4">
+            {/* Back Button */}
+            <button
+              onClick={handleBack}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
 
-        {/* Header Content */}
-        <div className="relative px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left Section */}
-            <div className="flex items-center gap-6">
-              {/* Back Button */}
-              <button
-                onClick={handleBack}
-                className="group p-2.5 hover:bg-white/20 dark:hover:bg-white/10 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:border-white/30"
-              >
-                <ArrowLeft className="w-5 h-5 text-white group-hover:-translate-x-0.5 transition-transform duration-200" />
-              </button>
+            {/* Board Info */}
+            <div className="flex items-center gap-4">
+              {/* Board Title with Visible Background Indicator */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-10 rounded-md flex-shrink-0 overflow-hidden"
+                  style={
+                    board.background?.startsWith('#')
+                      ? { backgroundColor: board.background }
+                      : board.background?.startsWith('http')
+                      ? {
+                          backgroundImage: `url(${board.background})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat'
+                        }
+                      : { backgroundColor: '#17b6b2' }
+                  }
+                />
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {board.name}
+                </h1>
 
-              {/* Board Info */}
-              <div className="flex items-center gap-4">
-                {/* Board Title */}
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-white drop-shadow-lg">
-                    {board.name}
-                  </h1>
+                {/* Star Button */}
+                <button
+                  onClick={handleStarBoard}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+                >
+                  <Star
+                    className={`w-4 h-4 transition-colors ${
+                      board.isStarred
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-gray-400 hover:text-amber-400'
+                    }`}
+                  />
+                </button>
+              </div>
 
-                  {/* Star Button */}
-                  <button
-                    onClick={handleStarBoard}
-                    className="group p-2 hover:bg-white/15 dark:hover:bg-white/10 rounded-lg transition-all duration-200"
-                  >
-                    <Star
-                      className={`w-5 h-5 transition-all duration-200 ${
-                        board.isStarred
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-white/70 hover:text-yellow-300 group-hover:scale-110'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Board Stats Badges */}
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1.5 bg-white/15 dark:bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
-                    <span className="text-xs font-semibold text-white">
-                      {lists.length} {lists.length === 1 ? 'List' : 'Lists'}
-                    </span>
-                  </div>
-                  <div className="px-3 py-1.5 bg-white/15 dark:bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
-                    <span className="text-xs font-semibold text-white">
-                      {Object.values(cards).flat().length} Cards
-                    </span>
-                  </div>
-                </div>
+              {/* Board Stats */}
+              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                <span>{lists.length} {lists.length === 1 ? 'list' : 'lists'}</span>
+                <span>•</span>
+                <span>{Object.values(cards).flat().length} cards</span>
               </div>
             </div>
+          </div>
 
-            {/* Right Section */}
-            <div className="flex items-center gap-3">
-              {/* Team Members */}
+          {/* Right Section */}
+          <div className="flex items-center gap-3">
+            {/* Team Members */}
+            {board.members && board.members.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="flex -space-x-3">
-                  {board.members?.slice(0, 4).map((member, index) => (
+                <div className="flex -space-x-1">
+                  {board.members.slice(0, 4).map((member, index) => (
                     <div
                       key={member.userId?._id || `board-member-${index}`}
                       className="relative group"
+                      title={`${member.userId?.firstName || ''} ${member.userId?.lastName || ''} - ${member.role}`}
                     >
-                      <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-sm font-semibold hover:scale-110 hover:z-10 transition-all duration-200 cursor-pointer">
+                      <div
+                        className="w-7 h-7 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-xs font-medium text-white shadow-sm"
+                        style={{
+                          backgroundColor: `hsl(${(index * 137.5) % 360}, 45%, 55%)`
+                        }}
+                      >
                         {member.userId?.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -1003,79 +1064,74 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
                             className="w-full h-full rounded-full object-cover"
                           />
                         ) : (
-                          <span className="text-white text-xs font-bold">
-                            {member.userId?.firstName?.charAt(0) || '?'}{member.userId?.lastName?.charAt(0) || '?'}
-                          </span>
+                          <>
+                            {member.userId?.firstName?.charAt(0) || '?'}
+                            {member.userId?.lastName?.charAt(0) || ''}
+                          </>
                         )}
-                      </div>
-
-                                        {/* Tooltip */}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20 pointer-events-none">
-                        {member.userId?.firstName || ''} {member.userId?.lastName || ''}
-                        <div className="text-xs text-white/60 capitalize">{member.role}</div>
                       </div>
                     </div>
                   ))}
-                  {board.members && board.members.length > 4 && (
-                    <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-xs font-bold hover:scale-110 transition-all duration-200 cursor-pointer">
-                      <span className="text-white">+{board.members.length - 4}</span>
+                  {board.members.length > 4 && (
+                    <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-900 flex items-center justify-center">
+                      <span className="text-gray-600 dark:text-gray-300 text-xs font-medium">
+                        +{board.members.length - 4}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Action Buttons */}
-              {canManageMembers && (
-                <button
-                  onClick={() => setShowMembersModal(true)}
-                  className="group px-4 py-2 bg-white/15 dark:bg-white/10 backdrop-blur-md hover:bg-white/25 dark:hover:bg-white/20 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200 border border-white/20 hover:border-white/30"
-                >
-                  <Users className="w-4 h-4 text-white" />
-                  <span className="hidden sm:inline text-white">Members</span>
-                </button>
-              )}
+            {/* Action Buttons */}
+            {canManageMembers && (
+              <button
+                onClick={() => setShowMembersModal(true)}
+                className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Members</span>
+              </button>
+            )}
 
-              {/* Menu Button */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="group p-2 bg-white/15 dark:bg-white/10 backdrop-blur-md hover:bg-white/25 dark:hover:bg-white/20 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
-                >
-                  <MoreVertical className="w-5 h-5 text-white" />
-                </button>
+            {/* Menu Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
 
-                {/* Dropdown Menu */}
-                {showMenu && (
-                  <div className="absolute right-0 top-12 bg-white dark:bg-gray-900 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 py-1 z-50 min-w-52 animate-in fade-in zoom-in-95 duration-200">
-                    {canEditBoard && (
-                      <>
-                        <button 
-                          onClick={handleEditBoard}
-                          className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 text-sm text-gray-900 dark:text-white transition-colors"
-                        >
-                          <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                          <span>Edit Board</span>
-                        </button>
+              {/* Dropdown Menu */}
+              {showMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-44 animate-in fade-in zoom-in-95 duration-150">
+                  {canEditBoard && (
+                    <button
+                      onClick={handleEditBoard}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                      Edit Board
+                    </button>
+                  )}
 
-
-                        {canDeleteBoard && (
-                          <div className="my-1 border-t border-gray-200 dark:border-gray-800"></div>
-                        )}
-                      </>
-                    )}
-
-                    {canDeleteBoard && (
-                      <button 
+                  {canDeleteBoard && (
+                    <>
+                      {canEditBoard && (
+                        <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+                      )}
+                      <button
                         onClick={handleDeleteBoard}
-                        className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 text-sm transition-colors"
+                        className="w-full px-3 py-2 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 text-sm text-red-600 dark:text-red-400 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                        <span className="text-red-600 dark:text-red-400">Delete Board</span>
+                        <Trash2 className="w-4 h-4" />
+                        Delete Board
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1083,10 +1139,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
 
       {/* Board Content - Lists */}
-      <div
-        className="flex-1 p-5 overflow-x-auto custom-scrollbar-horizontal relative z-0"
-        style={scrollbarStyle}
-      >
+      <div className="relative flex-1 p-4 overflow-x-auto">
         <DragDropProvider
           lists={lists}
           cards={cards}

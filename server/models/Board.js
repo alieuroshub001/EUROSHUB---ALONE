@@ -290,7 +290,7 @@ boardSchema.pre('remove', async function(next) {
   const lists = await List.find({ board: this._id });
   for (const list of lists) {
     await Card.deleteMany({ list: list._id });
-    await list.remove();
+    await list.deleteOne();
   }
 
   next();

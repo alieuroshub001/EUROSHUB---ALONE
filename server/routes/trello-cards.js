@@ -1286,6 +1286,240 @@ router.put('/:cardId/tasks/:taskId/reorder', protect, getCardWithAccess, async (
   }
 });
 
+// ====== SUBTASK MANAGEMENT APIS ======
+
+/**
+ * @route   POST /api/cards/:cardId/tasks/:taskId/subtasks
+ * @desc    Add subtask to task
+ * @access  Private
+ */
+router.post('/:cardId/tasks/:taskId/subtasks', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId } = req.params;
+    const { title } = req.body;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add subtasks to this card'
+      });
+    }
+
+    // Validation
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subtask title is required'
+      });
+    }
+
+    // Find task
+    const task = card.tasks.id(taskId);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    const subtaskData = {
+      title: title.trim()
+    };
+
+    const addedSubtask = await card.addSubtask(taskId, subtaskData);
+    await card.save();
+
+    // Log activity for subtask creation
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_subtask_added',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        taskTitle: task.title,
+        taskId: task._id,
+        subtaskTitle: addedSubtask.title,
+        subtaskId: addedSubtask._id
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: addedSubtask,
+      message: 'Subtask added successfully'
+    });
+  } catch (error) {
+    console.error('Add subtask error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding subtask'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/cards/:cardId/tasks/:taskId/subtasks/:subtaskId
+ * @desc    Update subtask in task
+ * @access  Private
+ */
+router.put('/:cardId/tasks/:taskId/subtasks/:subtaskId', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId, subtaskId } = req.params;
+    const { title, completed } = req.body;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update subtasks in this card'
+      });
+    }
+
+    // Find task
+    const task = card.tasks.id(taskId);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Find subtask
+    const subtask = task.subtasks.id(subtaskId);
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    const updateData = {};
+    if (title !== undefined && title.trim()) updateData.title = title.trim();
+    if (completed !== undefined) {
+      updateData.completed = completed;
+      updateData.completedBy = req.user.id;
+    }
+
+    const updatedSubtask = await card.updateSubtask(taskId, subtaskId, updateData);
+    await card.save();
+
+    // Log activity for subtask update
+    const list = await List.findById(card.listId).select('boardId');
+    if (completed !== undefined && completed !== subtask.completed) {
+      await Activity.logActivity({
+        type: completed ? 'card_subtask_completed' : 'card_subtask_updated',
+        user: req.user.id,
+        project: card.project || null,
+        board: list ? list.boardId : null,
+        list: card.listId,
+        card: card._id,
+        metadata: {
+          entityName: card.title,
+          entityId: card._id,
+          taskTitle: task.title,
+          taskId: task._id,
+          subtaskTitle: subtask.title,
+          subtaskId: subtask._id
+        }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedSubtask,
+      message: 'Subtask updated successfully'
+    });
+  } catch (error) {
+    console.error('Update subtask error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating subtask'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/cards/:cardId/tasks/:taskId/subtasks/:subtaskId
+ * @desc    Delete subtask from task
+ * @access  Private
+ */
+router.delete('/:cardId/tasks/:taskId/subtasks/:subtaskId', protect, getCardWithAccess, async (req, res) => {
+  try {
+    const card = req.card;
+    const { taskId, subtaskId } = req.params;
+
+    // Check permission
+    const hasPermission = await card.hasPermission(req.user.id, 'write', req.user.role);
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete subtasks from this card'
+      });
+    }
+
+    // Find task
+    const task = card.tasks.id(taskId);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Find subtask
+    const subtask = task.subtasks.id(subtaskId);
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    const subtaskTitle = subtask.title;
+    await card.deleteSubtask(taskId, subtaskId);
+    await card.save();
+
+    // Log activity for subtask deletion
+    const list = await List.findById(card.listId).select('boardId');
+    await Activity.logActivity({
+      type: 'card_subtask_deleted',
+      user: req.user.id,
+      project: card.project || null,
+      board: list ? list.boardId : null,
+      list: card.listId,
+      card: card._id,
+      metadata: {
+        entityName: card.title,
+        entityId: card._id,
+        taskTitle: task.title,
+        taskId: task._id,
+        subtaskTitle: subtaskTitle
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Subtask deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete subtask error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting subtask'
+    });
+  }
+});
+
 // Upload cover image for card
 router.post('/upload-cover', protect, async (req, res) => {
   const { uploadImage } = require('../config/cloudinary');

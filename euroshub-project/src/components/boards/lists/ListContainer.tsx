@@ -346,14 +346,16 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
     // Calculate height needed:
     // - Chevron button: ~50px (button + space)
+    // - Drag handle: ~40px (when present)
     // - Text space: nameLength * 10px (character width becomes height when rotated)
     // - Dynamic margins based on text length
     // - Card count: ~40px (badge + minimal padding)
     const chevronSpace = 50;
+    const dragHandleSpace = 40; // Space for drag handle
     const textSpace = Math.max(nameLength * 10, 100);
     const cardCountSpace = 40; // Reduced to minimize bottom space
 
-    const totalHeight = chevronSpace + textSpace + topMargin + bottomMargin + cardCountSpace;
+    const totalHeight = chevronSpace + dragHandleSpace + textSpace + topMargin + bottomMargin + cardCountSpace;
 
     return {
       height: totalHeight,
@@ -367,12 +369,12 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
   return (
     <div
-      className={`bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
+      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
         isCollapsed ? 'w-16' : 'w-80'
-      } flex flex-col overflow-hidden`}
+      } flex flex-col overflow-hidden shadow-sm`}
       style={{
         height: height ? `${height}px` : 'auto',
-        borderTop: list.color ? `4px solid ${list.color}` : undefined,
+        borderTop: list.color ? `3px solid ${list.color}` : undefined,
       }}
       data-list-id={list._id}
     >
@@ -381,17 +383,29 @@ const ListContainer: React.FC<ListContainerProps> = ({
         {/* Collapse/Expand Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           title={isCollapsed ? 'Expand list' : 'Collapse list'}
         >
           {isCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-gray-500" />
+            <ChevronRight className="w-4 h-4 text-gray-400" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
+            <ChevronDown className="w-4 h-4 text-gray-400" />
           )}
         </button>
 
-        {/* Collapsed List Name - Centered between chevron and card count */}
+        {/* Drag Handle for collapsed lists - positioned after chevron */}
+        {isCollapsed && dragHandleProps && (
+          <div
+            className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors mt-2"
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+            title="Drag to reorder list"
+          >
+            <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          </div>
+        )}
+
+        {/* Collapsed List Name - Centered between drag handle and card count */}
         {isCollapsed && (
           <div
             className="flex items-center justify-center flex-1"
@@ -416,11 +430,11 @@ const ListContainer: React.FC<ListContainerProps> = ({
         {/* Drag Handle */}
         {dragHandleProps && !isCollapsed && (
           <div
-            className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors mr-2"
+            className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors mr-2"
             {...dragHandleProps.attributes}
             {...dragHandleProps.listeners}
           >
-            <GripVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
           </div>
         )}
 
@@ -440,8 +454,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
             ) : (
               <h3
                 onClick={canEdit ? handleTitleEdit : undefined}
-                className={`font-bold text-lg text-gray-900 dark:text-white ${
-                  canEdit ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : 'px-1'
+                className={`font-semibold text-base text-gray-900 dark:text-white ${
+                  canEdit ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1 -ml-2' : 'px-1'
                 }`}
                 title={canEdit ? 'Click to edit list name' : ''}
               >
@@ -462,9 +476,9 @@ const ListContainer: React.FC<ListContainerProps> = ({
             <button
               ref={setButtonRef}
               onClick={handleMenuToggle}
-              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             >
-              <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <MoreVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 
           </div>
@@ -492,7 +506,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
         {/* Empty state for dropping */}
         {cards.length === 0 && (
-          <div className="flex items-center justify-center h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm">
+          <div className="flex items-center justify-center h-20 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 dark:text-gray-500 text-sm">
             Drop cards here
           </div>
         )}
@@ -503,7 +517,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
       {!isCollapsed && (!showCreateForm ? (
         <button
           onClick={() => setShowCreateForm(true)}
-          className="w-full py-2 px-3 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+          className="w-full py-2 px-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm border border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
         >
           <Plus className="w-4 h-4" />
           Add a card
@@ -546,7 +560,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
                   setShowCreateForm(false);
                 }
               }}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+              className="px-4 py-1.5 bg-[#17b6b2] hover:bg-[#15a09d] text-white rounded text-sm transition-colors"
             >
               Add card
             </button>
@@ -563,7 +577,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
       {/* Card count at bottom when collapsed */}
       {isCollapsed && (
         <div className="mt-auto flex justify-center pb-2">
-          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 rounded-full w-6 h-6 flex items-center justify-center">
+          <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full w-6 h-6 flex items-center justify-center border border-gray-200 dark:border-gray-600">
             {cards?.length || 0}
           </div>
         </div>

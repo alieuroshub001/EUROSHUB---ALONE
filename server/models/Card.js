@@ -156,6 +156,31 @@ const timeTrackingSchema = new mongoose.Schema({
   }]
 });
 
+// Subtask schema for subtasks within tasks
+const subtaskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [150, 'Subtask title cannot be more than 150 characters']
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  },
+  completedAt: Date,
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  position: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
+
 // Task schema for tasks within cards (for project management)
 const taskSchema = new mongoose.Schema({
   title: {
@@ -228,7 +253,9 @@ const taskSchema = new mongoose.Schema({
   assignToOnUnlock: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }]
+  }],
+  // NEW: Subtasks within tasks
+  subtasks: [subtaskSchema]
 }, {
   timestamps: true
 });
@@ -573,7 +600,7 @@ cardSchema.methods.deleteComment = function(commentId, deleterId, deleterRole) {
     throw new Error('You can only delete your own comments');
   }
 
-  comment.remove();
+  this.comments.pull(commentId);
   return this;
 };
 
@@ -768,7 +795,7 @@ cardSchema.methods.deleteTask = function(taskId) {
     throw new Error('Task not found');
   }
 
-  task.remove();
+  this.tasks.pull(taskId);
   return this;
 };
 
@@ -781,6 +808,80 @@ cardSchema.methods.reorderTask = function(taskId, newPosition) {
 
   task.position = newPosition;
   return this;
+};
+
+// NEW: Subtask management methods
+// Instance method to add subtask to a task
+cardSchema.methods.addSubtask = function(taskId, subtaskData) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  // Set position for new subtask
+  const maxPosition = Math.max(...task.subtasks.map(s => s.position), 0);
+
+  const subtaskToAdd = {
+    ...subtaskData,
+    position: maxPosition + 1
+  };
+
+  task.subtasks.push(subtaskToAdd);
+  return this;
+};
+
+// Instance method to update subtask
+cardSchema.methods.updateSubtask = function(taskId, subtaskId, updates) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  const subtask = task.subtasks.id(subtaskId);
+  if (!subtask) {
+    throw new Error('Subtask not found');
+  }
+
+  Object.assign(subtask, updates);
+
+  // Update completion timestamp
+  if (updates.completed !== undefined) {
+    subtask.completedAt = updates.completed ? new Date() : null;
+    subtask.completedBy = updates.completed ? updates.completedBy : null;
+  }
+
+  return this;
+};
+
+// Instance method to delete subtask
+cardSchema.methods.deleteSubtask = function(taskId, subtaskId) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  const subtask = task.subtasks.id(subtaskId);
+  if (!subtask) {
+    throw new Error('Subtask not found');
+  }
+
+  task.subtasks.pull(subtaskId);
+  return this;
+};
+
+// Instance method to get task progress based on subtasks
+cardSchema.methods.getTaskProgress = function(taskId) {
+  const task = this.tasks.id(taskId);
+  if (!task) {
+    throw new Error('Task not found');
+  }
+
+  if (task.subtasks.length === 0) {
+    return task.completed ? 100 : 0;
+  }
+
+  const completedSubtasks = task.subtasks.filter(s => s.completed).length;
+  return Math.round((completedSubtasks / task.subtasks.length) * 100);
 };
 
 // NEW: Instance method to check if all tasks in a stage are completed

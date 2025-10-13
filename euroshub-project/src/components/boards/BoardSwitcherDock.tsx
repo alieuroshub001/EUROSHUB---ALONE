@@ -92,28 +92,28 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
       ? {
           backgroundImage: `url(${board.background})`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
         }
-      : { backgroundColor: '#6366f1' };
+      : { backgroundColor: '#17b6b2' };
 
     return (
       <div className="relative w-full h-full">
+        {/* Board background container */}
         <div
-          className="w-full h-full rounded-full flex items-center justify-center text-white font-semibold text-xs border-2 border-white/20 shadow-md transition-all duration-200 hover:border-white/40 hover:shadow-lg"
+          className="w-full h-full rounded-full border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
           style={bgStyle}
         >
-          {board.background?.startsWith('http') ? (
-            <div className="w-full h-full rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
-              {board.name.charAt(0).toUpperCase()}
-            </div>
-          ) : (
-            board.name.charAt(0).toUpperCase()
-          )}
+          {/* White circle with board initial */}
+          <div className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-700 dark:text-gray-300 font-medium text-xs shadow-sm">
+            {board.name.charAt(0).toUpperCase()}
+          </div>
         </div>
+
         {/* Star indicator */}
         {board.isStarred && (
-          <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-            <Star className="w-2 h-2 text-yellow-900 fill-yellow-900" />
+          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center border border-white dark:border-gray-800">
+            <Star className="w-1.5 h-1.5 text-amber-900 fill-amber-900" />
           </div>
         )}
       </div>
@@ -124,13 +124,21 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
     // Fixed: Home/Dashboard
     {
       title: "Dashboard",
-      icon: <Home className="h-full w-full text-gray-600 dark:text-gray-400" />,
+      icon: (
+        <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200">
+          <Home className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        </div>
+      ),
       href: baseUrl,
     },
     // Fixed: All Boards
     {
       title: "All Boards",
-      icon: <Grid3X3 className="h-full w-full text-gray-600 dark:text-gray-400" />,
+      icon: (
+        <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200">
+          <Grid3X3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        </div>
+      ),
       href: `${baseUrl}/boards`,
     },
     // Customizable: User-selected boards (up to 5)
@@ -142,17 +150,19 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
     // Fixed: Starred boards
     {
       title: "Starred Boards",
-      icon: <Star className="h-full w-full text-yellow-500 fill-yellow-500" />,
+      icon: (
+        <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200">
+          <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+        </div>
+      ),
       href: `${baseUrl}/boards?starred=true`,
     },
     // Fixed: Create new board (only for superadmin, admin, hr)
     ...(canCreateBoards ? [{
       title: "Create Board",
       icon: (
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div className="w-full h-full rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
-            <Plus className="w-5 h-5 text-white dark:text-gray-900" />
-          </div>
+        <div className="w-full h-full rounded-full bg-[#17b6b2] hover:bg-[#15a09d] border border-[#17b6b2] flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200">
+          <Plus className="w-5 h-5 text-white" />
         </div>
       ),
       href: `${baseUrl}/boards?create=true`,
@@ -168,39 +178,39 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
         <FloatingDock
           items={dockItems}
-          desktopClassName="backdrop-blur-2xl bg-white/90 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-800 shadow-xl"
-          mobileClassName="backdrop-blur-2xl bg-white/90 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-800 shadow-xl"
+          desktopClassName="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg"
+          mobileClassName="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg"
         />
       </div>
 
       {/* Settings Button */}
       <button
         onClick={() => setShowCustomizeModal(true)}
-        className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-xl bg-white dark:bg-gray-900 backdrop-blur-xl flex items-center justify-center shadow-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
+        className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
         title="Customize Dock"
       >
-        <Settings className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+        <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
       </button>
 
       {/* Customization Modal */}
       {showCustomizeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[80vh] overflow-hidden">
+          <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[80vh] overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Customize Dock
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Select boards to display in your dock
+                  Select up to 5 boards to display in your dock
                 </p>
               </div>
               <button
                 onClick={() => setShowCustomizeModal(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
@@ -213,8 +223,8 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
                     onClick={() => toggleBoardSelection(board._id)}
                     className={`flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
                       selectedBoardIds.includes(board._id)
-                        ? 'border-gray-900 dark:border-gray-100 bg-gray-50 dark:bg-gray-800'
-                        : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                        ? 'border-[#17b6b2] bg-[#17b6b2]/5 dark:bg-[#17b6b2]/10'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}
                   >
                     {/* Board Icon */}
@@ -241,12 +251,12 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
                     <div
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                         selectedBoardIds.includes(board._id)
-                          ? 'bg-gray-900 dark:bg-gray-100 border-gray-900 dark:border-gray-100'
+                          ? 'bg-[#17b6b2] border-[#17b6b2]'
                           : 'border-gray-300 dark:border-gray-600'
                       }`}
                     >
                       {selectedBoardIds.includes(board._id) && (
-                        <Check className="w-3 h-3 text-white dark:text-gray-900" />
+                        <Check className="w-3 h-3 text-white" />
                       )}
                     </div>
                   </div>
@@ -278,13 +288,13 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCustomizeModal(false)}
-                  className="px-5 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                  className="px-5 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium border border-gray-300 dark:border-gray-600"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveCustomization}
-                  className="px-5 py-2 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg transition-colors font-medium"
+                  className="px-5 py-2 bg-[#17b6b2] hover:bg-[#15a09d] text-white rounded-lg transition-colors font-medium"
                 >
                   Save Changes
                 </button>
