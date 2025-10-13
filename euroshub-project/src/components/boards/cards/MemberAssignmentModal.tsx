@@ -180,20 +180,24 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                       key={`${member.userId._id}-${index}`}
                       className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
-                        {member.userId.avatar ? (
+                      {member.userId.avatar ? (
+                        // User has avatar - display image only without background
+                        <div className="w-10 h-10 rounded-full overflow-hidden relative">
                           <Image
                             src={member.userId.avatar}
                             alt={`${member.userId.firstName} ${member.userId.lastName}`}
                             fill
                             className="object-cover"
                           />
-                        ) : (
+                        </div>
+                      ) : (
+                        // User has no avatar - display initials with background color
+                        <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
                           <span className="text-gray-600 dark:text-gray-300 font-medium">
                             {member.userId.firstName.charAt(0)}{member.userId.lastName.charAt(0)}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900 dark:text-white">
@@ -312,20 +316,24 @@ const MemberAssignmentModal: React.FC<MemberAssignmentModalProps> = ({
                     key={user._id}
                     className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden relative">
-                      {user.avatar ? (
+                    {user.avatar ? (
+                      // User has avatar - display image only without background
+                      <div className="w-8 h-8 rounded-full overflow-hidden relative">
                         <Image
                           src={user.avatar}
                           alt={`${user.firstName} ${user.lastName}`}
                           fill
                           className="object-cover"
                         />
-                      ) : (
+                      </div>
+                    ) : (
+                      // User has no avatar - display initials with background color
+                      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
                         <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">
                           {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900 dark:text-white">

@@ -343,14 +343,22 @@ const Header = memo<HeaderProps>(({
                 onClick={handleUserMenuToggle}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-[#0fb8af] flex items-center justify-center">
-                  {userAvatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover" />
-                  ) : (
-                    <User size={16} className="text-white" />
-                  )}
-                </div>
+                {userAvatar ? (
+                  // User has avatar - display image with enhanced visibility
+                  <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 shadow-md overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={userAvatar} 
+                      alt={userName} 
+                      className="w-full h-full rounded-full object-cover filter brightness-105 contrast-110 saturate-110" 
+                    />
+                  </div>
+                ) : (
+                  // User has no avatar - display icon with enhanced styling
+                  <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 bg-gradient-to-br from-[#0fb8af] to-[#0a9d96] flex items-center justify-center shadow-md ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-2 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all duration-200 hover:scale-105">
+                    <User size={18} className="text-white" />
+                  </div>
+                )}
                 <div className="hidden sm:block text-left">
                   <p className="text-sm font-medium text-gray-900 truncate max-w-24">{userName}</p>
                   <p className={`text-xs ${roleInfo.color} truncate max-w-24`}>{roleInfo.displayName}</p>
