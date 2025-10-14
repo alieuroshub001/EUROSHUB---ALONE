@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, AlertCircle, Save, Trash2, Plus, Check, GripVertical } from 'lucide-react';
+import { X, AlertCircle, Save, Trash2, Plus } from 'lucide-react';
 import Portal from '../../shared/Portal';
 import { Task, Subtask, User } from '../../../types/project';
 import toast from 'react-hot-toast';
@@ -26,7 +26,6 @@ interface TaskModalProps {
 
 const TaskModal: React.FC<TaskModalProps> = ({
   task,
-  cardId,
   isOpen,
   onClose,
   onUpdateTask,
@@ -330,7 +329,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
               value={editData.dueDate ? new Date(editData.dueDate).toISOString().slice(0, 16) : ''}
               onChange={(e) => setEditData(prev => ({
                 ...prev,
-                dueDate: e.target.value ? new Date(e.target.value) : undefined
+                dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined
               }))}
               disabled={!canEdit}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800"

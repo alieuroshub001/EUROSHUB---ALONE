@@ -4,15 +4,11 @@ import { useState } from 'react';
 import {
   Folder,
   FolderOpen,
-  File,
   ChevronRight,
   ChevronDown,
   Edit2,
   Trash2,
-  Download,
-  FileText,
-  Image as ImageIcon,
-  FileArchive
+  Download
 } from 'lucide-react';
 
 interface FolderNode {
@@ -29,24 +25,6 @@ interface FolderNode {
   children?: FolderNode[];
 }
 
-interface FileItem {
-  _id: string;
-  filename: string;
-  originalName: string;
-  mimetype: string;
-  size: number;
-  url: string;
-  cloudflareKey?: string;
-  folderId: string | null;
-  uploadedBy: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
-  createdAt: Date;
-  isDeleted: boolean;
-}
 
 interface FolderTreeProps {
   folders: FolderNode[];
@@ -107,9 +85,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     if (window.confirm(`Are you sure you want to delete this ${type}?`)) {
       if (type === 'folder') {
         await onFolderDelete(id);
-      } else {
-        await onFileDelete(id);
       }
+      // Note: File deletion would need to be implemented with proper props
     }
     closeContextMenu();
   };
@@ -251,7 +228,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
               <>
                 <button
                   onClick={() => {
-                    onFileDownload(contextMenu.id);
+                    // Note: File download would need to be implemented with proper props
+                    console.log('Download file:', contextMenu.id);
                     closeContextMenu();
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"

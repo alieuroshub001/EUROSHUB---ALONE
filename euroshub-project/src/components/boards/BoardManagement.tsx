@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import {
@@ -12,7 +12,6 @@ import {
   Eye,
   Edit,
   Trash2,
-  Archive,
   MoreVertical,
   Star,
   Lock,
@@ -653,7 +652,6 @@ const BoardCard: React.FC<BoardCardProps> = ({
   onStar,
   canEdit,
   canDelete}) => {
-  const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
@@ -961,6 +959,51 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
   const canEditAllBoards = ['superadmin', 'admin'].includes(userRole);
   const canDeleteAllBoards = ['superadmin'].includes(userRole);
 
+  const loadBoards = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const boardsData = await boardsApi.getBoards();
+      console.log('📊 Loaded boards with counts:', boardsData.map(b => ({
+        id: b._id,
+        name: b.name,
+        listsCount: b.listsCount,
+        cardsCount: b.cardsCount,
+        isStarred: b.isStarred
+      })));
+      setBoards(boardsData);
+    } catch (err) {
+      console.error('Error loading boards:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load boards');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to refresh board counts by fetching detailed board info
+  const refreshBoardCounts = useCallback(async (boardId: string) => {
+    try {
+      console.log('🔄 Refreshing counts for board:', boardId);
+      const boardDetails = await boardsApi.getBoard(boardId);
+
+      // Calculate counts from the detailed board data
+      const listsCount = boardDetails.lists?.length || 0;
+      const cardsCount = boardDetails.lists?.reduce((total, list) => total + (list.cards?.length || 0), 0) || 0;
+
+      console.log('✅ Updated counts:', { boardId, listsCount, cardsCount });
+
+      // Update the specific board in the state
+      setBoards(prev => prev.map(board =>
+        board._id === boardId
+          ? { ...board, listsCount, cardsCount }
+          : board
+      ));
+    } catch (error) {
+      console.error('❌ Error refreshing board counts:', error);
+    }
+  }, []);
+
   // Handle URL parameters on mount and detect navigation back from boards
   useEffect(() => {
     const starred = searchParams.get('starred');
@@ -986,7 +1029,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       // Clean up URL
       router.replace(baseUrl + '/boards');
     }
-  }, [searchParams, canCreateBoards, router, baseUrl, boards.length]);
+  }, [searchParams, canCreateBoards, router, baseUrl, boards, refreshBoardCounts]);
 
   useEffect(() => {
     loadBoards();
@@ -1003,7 +1046,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
         }
       });
     }
-  }, [boards.length]); // Only run when boards are first loaded
+  }, [boards, refreshBoardCounts]); // Only run when boards are first loaded
 
   // Real-time sync: Page Visibility API - refresh when tab becomes visible
   useEffect(() => {
@@ -1018,7 +1061,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [boards]);
+  }, [boards, refreshBoardCounts]);
 
   // Real-time sync: Focus event - refresh when window regains focus
   useEffect(() => {
@@ -1033,7 +1076,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [boards]);
+  }, [boards, refreshBoardCounts]);
 
   // Real-time sync: Periodic background refresh every 30 seconds
   useEffect(() => {
@@ -1047,7 +1090,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [boards]);
+  }, [boards, refreshBoardCounts]);
 
   // Real-time sync: Storage event listener for cross-tab communication
   useEffect(() => {
@@ -1062,13 +1105,8 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [boards]);
+  }, [boards, refreshBoardCounts]);
 
-  // Helper function to notify other tabs when boards are updated
-  const notifyBoardsUpdated = () => {
-    localStorage.setItem('boardsUpdated', Date.now().toString());
-    setTimeout(() => localStorage.removeItem('boardsUpdated'), 1000);
-  };
 
   // Real-time sync: Detect return from board navigation
   useEffect(() => {
@@ -1088,7 +1126,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
         sessionStorage.removeItem('lastVisitedBoard');
       }
     }
-  }, [boards.length]); // Run when boards are loaded
+  }, [boards.length, refreshBoardCounts]); // Run when boards are loaded
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1102,50 +1140,6 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFilters]);
 
-  const loadBoards = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const boardsData = await boardsApi.getBoards();
-      console.log('📊 Loaded boards with counts:', boardsData.map(b => ({
-        id: b._id,
-        name: b.name,
-        listsCount: b.listsCount,
-        cardsCount: b.cardsCount,
-        isStarred: b.isStarred
-      })));
-      setBoards(boardsData);
-    } catch (err) {
-      console.error('Error loading boards:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load boards');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function to refresh board counts by fetching detailed board info
-  const refreshBoardCounts = async (boardId: string) => {
-    try {
-      console.log('🔄 Refreshing counts for board:', boardId);
-      const boardDetails = await boardsApi.getBoard(boardId);
-
-      // Calculate counts from the detailed board data
-      const listsCount = boardDetails.lists?.length || 0;
-      const cardsCount = boardDetails.lists?.reduce((total, list) => total + (list.cards?.length || 0), 0) || 0;
-
-      console.log('✅ Updated counts:', { boardId, listsCount, cardsCount });
-
-      // Update the specific board in the state
-      setBoards(prev => prev.map(board =>
-        board._id === boardId
-          ? { ...board, listsCount, cardsCount }
-          : board
-      ));
-    } catch (error) {
-      console.error('❌ Error refreshing board counts:', error);
-    }
-  };
 
   // Filter boards based on search term and filters
   const filteredBoards = boards

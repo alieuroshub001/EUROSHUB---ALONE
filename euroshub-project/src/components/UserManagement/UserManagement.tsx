@@ -5,7 +5,7 @@ import { User, CreateUserRequest, UpdateUserRequest } from '@/lib/userService';
 import { getPermissions, hasUserManagementAccess } from '@/lib/permissions';
 import { User as AuthUser } from '@/lib/auth';
 import { userService } from '@/lib/userService';
-import { Users, UserPlus, Key, Shield, CheckCircle, AlertCircle, Crown } from 'lucide-react';
+import { Users, UserPlus, Key, Shield, CheckCircle, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import UserList from './UserList';
 import CreateUserForm from './CreateUserForm';

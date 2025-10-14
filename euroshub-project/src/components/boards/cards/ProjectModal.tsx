@@ -65,6 +65,17 @@ interface ProjectModalProps {
   boardMembers?: User[];
 }
 
+interface Subtask {
+  _id: string;
+  title: string;
+  completed: boolean;
+  completedAt?: string;
+  completedBy?: User;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Task {
   _id: string;
   title: string;
@@ -89,6 +100,9 @@ interface Task {
   isLocked?: boolean;
   lockedReason?: string;
   unlockedAt?: Date;
+  autoAssignOnUnlock?: boolean;
+  assignToOnUnlock?: string[];
+  subtasks?: Subtask[];
 }
 
 interface Comment {
@@ -270,7 +284,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     };
 
     // Listen for task creation (only update if it's for this card)
-    const handleTaskCreated = (data: { cardId: string; task: any }) => {
+    const handleTaskCreated = (data: { cardId: string; task: Task }) => {
       if (data.cardId === card._id) {
         console.log('✅ Task created in this card:', data.task);
         setTasks(prev => {
@@ -285,7 +299,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     };
 
     // Listen for task updates (only update if it's for this card)
-    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: any }) => {
+    const handleTaskUpdated = (data: { cardId: string; taskId: string; task: Task }) => {
       if (data.cardId === card._id) {
         console.log('🔄 Task updated in this card:', data.task);
         setTasks(prev => prev.map(task =>
@@ -569,7 +583,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
     setIsAddingTask(true);
     try {
-      const taskData: any = {
+      const taskData: {
+        title: string;
+        priority: 'low' | 'medium' | 'high';
+        description?: string;
+        assignedTo?: string;
+        dependsOn?: string;
+        autoAssignOnUnlock?: boolean;
+        assignToOnUnlock?: string[];
+      } = {
         title: newTask.trim(),
         priority: 'medium' as const
       };
@@ -590,7 +612,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         }
       }
 
-      const newTaskFromAPI = await cardsApi.addTask(card._id, taskData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newTaskFromAPI = await cardsApi.addTask(card._id, taskData as any);
 
       // Resolve assigned user IDs to full user objects
       let resolvedAssignedTo = [];
@@ -850,7 +873,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (task._id === taskId) {
           return {
             ...task,
-            subtasks: (task.subtasks || []).map(subtask =>
+            subtasks: (task.subtasks || []).map((subtask: Subtask) =>
               subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
             )
           };
@@ -862,7 +885,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       if (selectedTask && selectedTask._id === taskId) {
         setSelectedTask(prev => prev ? {
           ...prev,
-          subtasks: (prev.subtasks || []).map(subtask =>
+          subtasks: (prev.subtasks || []).map((subtask: Subtask) =>
             subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
           )
         } : prev);
@@ -885,7 +908,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (task._id === taskId) {
           return {
             ...task,
-            subtasks: (task.subtasks || []).filter(subtask => subtask._id !== subtaskId)
+            subtasks: (task.subtasks || []).filter((subtask: Subtask) => subtask._id !== subtaskId)
           };
         }
         return task;
@@ -895,7 +918,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       if (selectedTask && selectedTask._id === taskId) {
         setSelectedTask(prev => prev ? {
           ...prev,
-          subtasks: (prev.subtasks || []).filter(subtask => subtask._id !== subtaskId)
+          subtasks: (prev.subtasks || []).filter((subtask: Subtask) => subtask._id !== subtaskId)
         } : prev);
       }
 
@@ -2626,26 +2649,61 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       {/* Task Modal */}
       <TaskModal
-        task={selectedTask as ProjectTask | null}
+        task={selectedTask ? {
+          _id: selectedTask._id,
+          title: selectedTask.title,
+          description: selectedTask.description,
+          completed: selectedTask.completed,
+          completedAt: undefined,
+          completedBy: undefined,
+          assignedTo: selectedTask.assignedTo?.map(user => ({
+            _id: user._id,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            email: '',
+            role: 'employee' as const,
+            avatar: user.avatar
+          })),
+          dueDate: typeof selectedTask.dueDate === 'string' ? selectedTask.dueDate : selectedTask.dueDate?.toISOString(),
+          priority: selectedTask.priority,
+          dependsOn: selectedTask.dependsOn,
+          autoAssignOnUnlock: selectedTask.autoAssignOnUnlock || false,
+          assignToOnUnlock: selectedTask.assignToOnUnlock || [],
+          isLocked: selectedTask.isLocked || false,
+          position: 0,
+          subtasks: selectedTask.subtasks?.map(st => ({
+            ...st,
+            completedAt: st.completedAt,
+            completedBy: st.completedBy
+          })) || [],
+          createdAt: typeof selectedTask.createdAt === 'string' ? selectedTask.createdAt : selectedTask.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } as ProjectTask : null}
         cardId={card._id}
         isOpen={showTaskModal}
         onClose={() => {
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
-        onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<ProjectTask>) => void}
-        onDeleteTask={handleDeleteTask as (taskId: string) => void}
+        onUpdateTask={async (taskId: string, updates: Partial<ProjectTask>) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await handleUpdateTask(taskId, updates as any);
+        }}
+        onDeleteTask={async (taskId: string) => {
+          await handleDeleteTask(taskId);
+        }}
         onAddSubtask={handleAddSubtask}
         onUpdateSubtask={handleUpdateSubtask}
         onDeleteSubtask={handleDeleteSubtask}
         projectMembers={boardMembers.map(member => ({
           userId: {
             _id: member._id,
-            firstName: member.firstName,
-            lastName: member.lastName,
-            avatar: member.avatar,
+            firstName: member.firstName || '',
+            lastName: member.lastName || '',
             email: member.email || '',
-            role: (member.role as 'superadmin' | 'admin' | 'hr' | 'employee' | 'client') || 'employee'
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            role: member.role as any,
+            avatar: member.avatar
           },
           role: member.role
         }))}

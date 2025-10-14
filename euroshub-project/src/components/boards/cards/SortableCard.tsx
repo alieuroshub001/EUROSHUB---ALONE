@@ -38,10 +38,6 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
     }
   };
 
-  const cardStyle = {
-    ...style,
-    backgroundColor: card.color || undefined,
-  };
 
   // Get enhanced background for cards with colors/images
   const getCardBackground = () => {
