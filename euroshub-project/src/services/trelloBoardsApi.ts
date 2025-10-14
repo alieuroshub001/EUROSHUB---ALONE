@@ -464,8 +464,11 @@ export const cardsApi = {
   addTask: async (cardId: string, taskData: {
     title: string;
     description?: string;
-    assignedTo?: string;
+    assignedTo?: string | string[];
     priority?: 'low' | 'medium' | 'high';
+    dependsOn?: string;
+    autoAssignOnUnlock?: boolean;
+    assignToOnUnlock?: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): Promise<any> => {
     const response = await apiCall(`/trello-cards/${cardId}/tasks`, {
@@ -479,8 +482,9 @@ export const cardsApi = {
     title?: string;
     description?: string;
     completed?: boolean;
-    assignedTo?: string;
+    assignedTo?: string | string[];
     priority?: 'low' | 'medium' | 'high';
+    dueDate?: Date;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): Promise<any> => {
     const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}`, {

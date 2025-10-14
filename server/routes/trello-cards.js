@@ -838,9 +838,12 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       assignToOnUnlock = []
     } = req.body;
 
-    console.log('ADD TASK DEBUG:', {
+    console.log('ADD TASK DEBUG - RAW REQUEST:', {
       cardId: req.params.cardId,
-      taskData: { title, description, assignedTo, dueDate, priority, dependsOn, autoAssignOnUnlock, assignToOnUnlock }
+      body: req.body,
+      assignedToRaw: assignedTo,
+      assignedToType: typeof assignedTo,
+      isArray: Array.isArray(assignedTo)
     });
 
     // Check permission
@@ -871,15 +874,19 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       }
     }
 
-    // Verify assigned user exists if provided
+    // Verify assigned user(s) exist if provided
     const User = require('../models/User');
     if (assignedTo) {
-      const user = await User.findById(assignedTo);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Assigned user not found'
-        });
+      // Handle both single user (string) and multiple users (array)
+      const userIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+      for (const userId of userIds) {
+        const user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: `Assigned user ${userId} not found`
+          });
+        }
       }
     }
 
@@ -896,10 +903,16 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       }
     }
 
+    // Ensure assignedTo is an array (or empty array if not provided)
+    let assignedToArray = [];
+    if (assignedTo) {
+      assignedToArray = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+    }
+
     const taskData = {
       title: title.trim(),
       description: description || '',
-      assignedTo: assignedTo || null,
+      assignedTo: assignedToArray,
       dueDate: dueDate ? new Date(dueDate) : null,
       priority: priority,
       dependsOn: dependsOn,
@@ -907,15 +920,38 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       assignToOnUnlock: assignToOnUnlock
     };
 
+    console.log('Processed task data BEFORE addTask:', {
+      taskData,
+      assignedToArray,
+      assignedToLength: assignedToArray.length
+    });
+
     card.addTask(taskData, req.user.id);
+
+    console.log('Task added to card, BEFORE save:', {
+      lastTask: card.tasks[card.tasks.length - 1],
+      assignedToCount: card.tasks[card.tasks.length - 1].assignedTo?.length
+    });
+
     await card.save();
+
+    console.log('Card saved, BEFORE populate:', {
+      lastTask: card.tasks[card.tasks.length - 1],
+      assignedToCount: card.tasks[card.tasks.length - 1].assignedTo?.length
+    });
+
+    // Populate the card to get user details
+    await card.populate('tasks.assignedTo tasks.assignToOnUnlock');
 
     // Get the newly added task (it will be the last one)
     const addedTask = card.tasks[card.tasks.length - 1];
 
-    console.log('ADDED TASK RESULT:', {
+    console.log('AFTER populate - FINAL RESULT:', {
       taskId: addedTask._id,
       taskTitle: addedTask.title,
+      assignedTo: addedTask.assignedTo,
+      assignedToCount: addedTask.assignedTo?.length,
+      assignToOnUnlock: addedTask.assignToOnUnlock,
       totalTasks: card.tasks.length
     });
 
@@ -1004,10 +1040,13 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     const { taskId } = req.params;
     const { title, description, completed, assignedTo, dueDate, priority } = req.body;
 
-    console.log('UPDATE TASK DEBUG:', {
+    console.log('UPDATE TASK DEBUG - RAW REQUEST:', {
       cardId: req.params.cardId,
       taskId: taskId,
-      updateData: { title, description, completed, assignedTo, dueDate, priority }
+      updateData: { title, description, completed, assignedTo, dueDate, priority },
+      assignedToType: typeof assignedTo,
+      assignedToIsArray: Array.isArray(assignedTo),
+      assignedToLength: Array.isArray(assignedTo) ? assignedTo.length : 'N/A'
     });
 
     // Check permission
@@ -1062,8 +1101,25 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     }
     if (priority !== undefined) updateData.priority = priority;
 
+    console.log('BEFORE updateTask:', {
+      taskId,
+      updateData,
+      assignedToInUpdate: updateData.assignedTo
+    });
+
     await card.updateTask(taskId, updateData);
+
+    console.log('AFTER updateTask, BEFORE save:', {
+      updatedTask: card.tasks.id(taskId),
+      assignedToCount: card.tasks.id(taskId)?.assignedTo?.length
+    });
+
     await card.save();
+
+    console.log('AFTER save:', {
+      savedTask: card.tasks.id(taskId),
+      assignedToCount: card.tasks.id(taskId)?.assignedTo?.length
+    });
 
     // Check if workflow progressed (set by card.updateTask method)
     const workflowProgressed = card._workflowProgressed;
@@ -1115,6 +1171,13 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
 
     // Get the updated task
     const updatedTask = card.tasks.id(taskId);
+
+    console.log('AFTER populate - RETURNING TO CLIENT:', {
+      taskId: updatedTask._id,
+      title: updatedTask.title,
+      assignedTo: updatedTask.assignedTo,
+      assignedToCount: updatedTask.assignedTo?.length
+    });
 
     // Log activity for task completion
     const list = await List.findById(card.listId).select('boardId');
