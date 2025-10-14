@@ -1114,6 +1114,300 @@ const notifyBoardTaskUnlocked = async ({ taskTitle, assignedTo, boardName, cardN
   }
 };
 
+/**
+ * Send notification when password reset request is approved
+ */
+const notifyPasswordResetApproved = async ({ email, firstName, lastName, newPassword, processorName, requestId }) => {
+  try {
+    if (!slackWebhooks.users && !slackChannels.users) {
+      console.log('⚠️ Slack users channel not configured, skipping notification');
+      return null;
+    }
+
+    const loginUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+
+    // Channel notification for admins
+    const channelMessage = {
+      text: `Password Reset Approved: ${firstName} ${lastName} (${email})`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '✅ Password Reset Approved',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*User:*\n${firstName} ${lastName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Email:*\n${email}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Approved By:*\n${processorName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Request ID:*\n${requestId}`
+            }
+          ]
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*🔐 New credentials have been generated and sent to the user via email and Slack DM.*'
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send to users channel
+    const channelResult = await sendToChannel('users', channelMessage);
+
+    // Direct message to user with new credentials
+    const userMessage = {
+      text: `Your password reset request has been approved!`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '✅ Password Reset Approved',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `Hi *${firstName} ${lastName}*! 👋\n\nYour password reset request has been approved by *${processorName}*.`
+          }
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*🔐 Your New Login Credentials:*'
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Email:*\n\`${email}\``
+            },
+            {
+              type: 'mrkdwn',
+              text: `*New Password:*\n\`${newPassword}\``
+            }
+          ]
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🌐 *<${loginUrl}|Click here to login to EUROSHUB>*`
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: '⚠️ *Security Note:* Please change your password after logging in.'
+            }
+          ]
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `📧 A copy of these credentials has also been sent to your email: ${email}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send DM to user
+    const dmResult = await sendDirectMessage(email, userMessage);
+
+    return {
+      channelNotification: channelResult,
+      directMessage: dmResult
+    };
+  } catch (error) {
+    console.error('❌ Error sending password reset approved notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send notification when password reset request is rejected
+ */
+const notifyPasswordResetRejected = async ({ email, firstName, lastName, reason, processorName, requestId }) => {
+  try {
+    if (!slackWebhooks.users && !slackChannels.users) {
+      console.log('⚠️ Slack users channel not configured, skipping notification');
+      return null;
+    }
+
+    // Channel notification for admins
+    const channelMessage = {
+      text: `Password Reset Rejected: ${firstName} ${lastName} (${email})`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '❌ Password Reset Rejected',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*User:*\n${firstName} ${lastName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Email:*\n${email}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Rejected By:*\n${processorName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Request ID:*\n${requestId}`
+            }
+          ]
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Reason:*\n${reason || 'No reason provided'}`
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send to users channel
+    const channelResult = await sendToChannel('users', channelMessage);
+
+    // Direct message to user about rejection
+    const userMessage = {
+      text: `Your password reset request has been declined`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '❌ Password Reset Request Declined',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `Hi *${firstName} ${lastName}*,\n\nYour password reset request has been declined by *${processorName}*.`
+          }
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Reason for decline:*\n${reason || 'No specific reason provided'}`
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: 'If you believe this is a mistake or need further assistance, please contact your administrator directly.'
+          }
+        },
+        {
+          type: 'divider'
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `📧 A notification has also been sent to your email: ${email}`
+            }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send DM to user
+    const dmResult = await sendDirectMessage(email, userMessage);
+
+    return {
+      channelNotification: channelResult,
+      directMessage: dmResult
+    };
+  } catch (error) {
+    console.error('❌ Error sending password reset rejected notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   notifyNewUserSignup,
   notifyUserDeleted,
@@ -1128,5 +1422,7 @@ module.exports = {
   sendVerificationDM,
   notifyBoardMemberAdded,
   notifyBoardTaskAssigned,
-  notifyBoardTaskUnlocked
+  notifyBoardTaskUnlocked,
+  notifyPasswordResetApproved,
+  notifyPasswordResetRejected
 };

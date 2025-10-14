@@ -3,6 +3,7 @@ const PasswordResetRequest = require('../models/PasswordResetRequest');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const emailService = require('../utils/emailService');
+const slackService = require('../utils/slackService');
 const { getSocketUtils } = require('../utils/socketUtils');
 
 /**
@@ -253,8 +254,10 @@ exports.processResetRequest = async (req, res) => {
 
       await resetRequest.save();
 
-      // Send new password to user
+      // Send new password to user via both email and Slack
       let emailSent = false;
+      let slackSent = false;
+      
       try {
         await emailService.sendPasswordResetSuccess({
           email: resetRequest.userId.email,
@@ -264,11 +267,31 @@ exports.processResetRequest = async (req, res) => {
           processorName: `${currentUser.firstName} ${currentUser.lastName}`
         });
         emailSent = true;
-        resetRequest.emailSent = true;
-        await resetRequest.save();
+        console.log('✅ Password reset approval email sent successfully');
       } catch (emailError) {
-        console.error('Password reset email failed:', emailError);
+        console.error('❌ Password reset email failed:', emailError);
       }
+
+      // Send Slack notification (non-blocking)
+      try {
+        await slackService.notifyPasswordResetApproved({
+          email: resetRequest.userId.email,
+          firstName: resetRequest.userId.firstName,
+          lastName: resetRequest.userId.lastName,
+          newPassword: newPassword,
+          processorName: `${currentUser.firstName} ${currentUser.lastName}`,
+          requestId: resetRequest._id
+        });
+        slackSent = true;
+        console.log('✅ Password reset approval Slack notification sent successfully');
+      } catch (slackError) {
+        console.error('❌ Password reset Slack notification failed:', slackError);
+      }
+
+      // Update the request with notification status
+      resetRequest.emailSent = emailSent;
+      resetRequest.slackSent = slackSent;
+      await resetRequest.save();
 
       // Send real-time notification
       try {
@@ -278,10 +301,22 @@ exports.processResetRequest = async (req, res) => {
         console.error('Socket notification failed:', socketError);
       }
 
+      const successMessage = [];
+      if (emailSent) successMessage.push('email');
+      if (slackSent) successMessage.push('Slack');
+      
+      const notificationStatus = successMessage.length > 0 
+        ? `New credentials sent via ${successMessage.join(' and ')}.`
+        : 'Failed to send notifications - please provide credentials manually.';
+
       res.status(200).json({
         success: true,
-        message: `Password reset approved. ${emailSent ? 'New credentials sent to user.' : 'Failed to send email - please provide credentials manually.'}`,
-        newPassword: emailSent ? undefined : newPassword // Only include if email failed
+        message: `Password reset approved. ${notificationStatus}`,
+        newPassword: (!emailSent && !slackSent) ? newPassword : undefined, // Only include if both failed
+        notifications: {
+          email: emailSent,
+          slack: slackSent
+        }
       });
 
     } else if (action === 'reject') {
@@ -299,7 +334,10 @@ exports.processResetRequest = async (req, res) => {
 
       await resetRequest.save();
 
-      // Optionally notify user of rejection
+      // Notify user of rejection via both email and Slack
+      let rejectionEmailSent = false;
+      let rejectionSlackSent = false;
+      
       try {
         await emailService.sendPasswordResetRejected({
           email: resetRequest.userId.email,
@@ -308,9 +346,32 @@ exports.processResetRequest = async (req, res) => {
           reason: notes || 'No reason provided',
           processorName: `${currentUser.firstName} ${currentUser.lastName}`
         });
+        rejectionEmailSent = true;
+        console.log('✅ Password reset rejection email sent successfully');
       } catch (emailError) {
-        console.error('Password reset rejection email failed:', emailError);
+        console.error('❌ Password reset rejection email failed:', emailError);
       }
+
+      // Send Slack notification (non-blocking)
+      try {
+        await slackService.notifyPasswordResetRejected({
+          email: resetRequest.userId.email,
+          firstName: resetRequest.userId.firstName,
+          lastName: resetRequest.userId.lastName,
+          reason: notes || 'No reason provided',
+          processorName: `${currentUser.firstName} ${currentUser.lastName}`,
+          requestId: resetRequest._id
+        });
+        rejectionSlackSent = true;
+        console.log('✅ Password reset rejection Slack notification sent successfully');
+      } catch (slackError) {
+        console.error('❌ Password reset rejection Slack notification failed:', slackError);
+      }
+
+      // Update the request with notification status
+      resetRequest.rejectionEmailSent = rejectionEmailSent;
+      resetRequest.rejectionSlackSent = rejectionSlackSent;
+      await resetRequest.save();
 
       // Send real-time notification
       try {
@@ -320,9 +381,21 @@ exports.processResetRequest = async (req, res) => {
         console.error('Socket notification failed:', socketError);
       }
 
+      const rejectionSuccessMessage = [];
+      if (rejectionEmailSent) rejectionSuccessMessage.push('email');
+      if (rejectionSlackSent) rejectionSuccessMessage.push('Slack');
+      
+      const rejectionNotificationStatus = rejectionSuccessMessage.length > 0 
+        ? ` User notified via ${rejectionSuccessMessage.join(' and ')}.`
+        : ' Failed to send notifications to user.';
+
       res.status(200).json({
         success: true,
-        message: 'Password reset request rejected successfully.'
+        message: `Password reset request rejected successfully.${rejectionNotificationStatus}`,
+        notifications: {
+          email: rejectionEmailSent,
+          slack: rejectionSlackSent
+        }
       });
 
     } else {
