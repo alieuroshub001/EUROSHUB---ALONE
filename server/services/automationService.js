@@ -202,7 +202,7 @@ class AutomationService {
       })
         .populate('project', 'title')
         .populate('assignedTo', 'firstName lastName email')
-        .populate('list', 'title');
+        .populate('listId', 'name'); // Fixed: listId instead of list, and name instead of title
 
       for (const task of dueTasks) {
         // Skip tasks with missing required data

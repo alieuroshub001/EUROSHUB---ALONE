@@ -198,6 +198,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [newTaskDependsOn, setNewTaskDependsOn] = useState<string | null>(null);
   const [newTaskAutoAssign, setNewTaskAutoAssign] = useState(false);
   const [newTaskAssignTo, setNewTaskAssignTo] = useState<string[]>([]);
+  // Member search state
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
 
   // Extended project data
@@ -1483,37 +1486,148 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           />
 
           {/* Assign To - Always visible for all tasks */}
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Assign To (Optional)
             </label>
-            <select
-              multiple
-              value={newTaskAssignTo}
-              onChange={(e) => setNewTaskAssignTo(Array.from(e.target.selectedOptions, option => option.value))}
-              disabled={isAddingTask}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-              size={Math.min(boardMembers?.length || 3, 5)}
-            >
-              {boardMembers?.map(member => (
-                <option key={member._id} value={member._id}>
-                  {member.firstName} {member.lastName} ({member.role})
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Hold Ctrl/Cmd to select multiple users
-            </p>
+
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                onFocus={() => setShowMemberDropdown(true)}
+                placeholder="Search members..."
+                disabled={isAddingTask}
+                className="w-full p-2 pl-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-all focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+              <User className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
+            </div>
+
+            {/* Dropdown with members */}
+            {showMemberDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {boardMembers
+                  ?.filter(member => {
+                    const searchLower = memberSearchQuery.toLowerCase();
+                    return (
+                      member.firstName.toLowerCase().includes(searchLower) ||
+                      member.lastName.toLowerCase().includes(searchLower) ||
+                      member.role.toLowerCase().includes(searchLower)
+                    );
+                  })
+                  .map(member => {
+                    const isSelected = newTaskAssignTo.includes(member._id);
+                    return (
+                      <div
+                        key={member._id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setNewTaskAssignTo(prev => prev.filter(id => id !== member._id));
+                          } else {
+                            setNewTaskAssignTo(prev => [...prev, member._id]);
+                          }
+                        }}
+                        className={`flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-teal-50 dark:hover:bg-teal-900/20 ${
+                          isSelected ? 'bg-teal-50 dark:bg-teal-900/30' : ''
+                        }`}
+                      >
+                        <div className="flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          />
+                        </div>
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-400 to-teal-600">
+                          {member.avatar ? (
+                            <Image
+                              src={member.avatar}
+                              alt={`${member.firstName} ${member.lastName}`}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-semibold">
+                              {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {member.firstName} {member.lastName}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">
+                            {member.role}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {boardMembers?.filter(member => {
+                  const searchLower = memberSearchQuery.toLowerCase();
+                  return (
+                    member.firstName.toLowerCase().includes(searchLower) ||
+                    member.lastName.toLowerCase().includes(searchLower) ||
+                    member.role.toLowerCase().includes(searchLower)
+                  );
+                }).length === 0 && (
+                  <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No members found
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Close dropdown when clicking outside */}
+            {showMemberDropdown && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => {
+                  setShowMemberDropdown(false);
+                  setMemberSearchQuery('');
+                }}
+              />
+            )}
+
             {/* Show selected users */}
             {newTaskAssignTo.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
-                <span className="text-xs text-gray-600 dark:text-gray-400">Selected:</span>
                 {newTaskAssignTo.map(userId => {
                   const member = boardMembers.find(m => m._id === userId);
                   return member ? (
-                    <span key={userId} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs">
-                      {member.firstName} {member.lastName}
-                    </span>
+                    <div
+                      key={userId}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 rounded-lg group hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
+                    >
+                      <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-400 to-teal-600">
+                        {member.avatar ? (
+                          <Image
+                            src={member.avatar}
+                            alt={`${member.firstName} ${member.lastName}`}
+                            width={20}
+                            height={20}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white text-[10px] font-semibold">
+                            {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium text-teal-700 dark:text-teal-300">
+                        {member.firstName} {member.lastName}
+                      </span>
+                      <button
+                        onClick={() => setNewTaskAssignTo(prev => prev.filter(id => id !== userId))}
+                        className="ml-1 text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   ) : null;
                 })}
               </div>
@@ -1560,26 +1674,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               </label>
 
               {newTaskAutoAssign && (
-                <div className="pl-6 space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Assign to
-                  </label>
-                  <select
-                    multiple
-                    value={newTaskAssignTo}
-                    onChange={(e) => setNewTaskAssignTo(Array.from(e.target.selectedOptions, option => option.value))}
-                    disabled={isAddingTask}
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-                    size={Math.min(boardMembers?.length || 3, 5)}
-                  >
-                    {boardMembers?.map(member => (
-                      <option key={member._id} value={member._id}>
-                        {member.firstName} {member.lastName} ({member.role})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Hold Ctrl/Cmd to select multiple users
+                <div className="pl-6">
+                  <p className="text-xs text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 p-2 rounded border border-teal-200 dark:border-teal-800">
+                    💡 Users selected above will be auto-assigned when this task is unlocked
                   </p>
                 </div>
               )}

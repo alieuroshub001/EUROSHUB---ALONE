@@ -4,8 +4,8 @@ const User = require('../models/User');
 
 class SocketManager {
   constructor(server) {
-    // Build allowed origins for Socket.IO
-    const allowedOrigins = [
+    // Build allowed origins for Socket.IO - deduplicated
+    const allowedOrigins = [...new Set([
       'https://euroshub-alone.vercel.app',
       'http://localhost:3000',
       'http://localhost:3001',
@@ -13,7 +13,7 @@ class SocketManager {
       process.env.FRONTEND_URL,
       process.env.NEXT_PUBLIC_SITE_URL,
       process.env.CORS_ORIGIN
-    ].filter(Boolean);
+    ].filter(Boolean))];
 
     console.log('🔌 Socket.IO CORS origins:', allowedOrigins);
     console.log('🔌 Socket.IO Production mode:', process.env.NODE_ENV === 'production');

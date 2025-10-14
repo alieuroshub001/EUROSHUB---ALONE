@@ -127,7 +127,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
 // CORS configuration - Dynamic origin handling for Railway + Vercel
-const allowedOrigins = [
+const allowedOrigins = [...new Set([
   'https://euroshub-alone.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
@@ -135,7 +135,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.NEXT_PUBLIC_SITE_URL,
   process.env.CORS_ORIGIN
-].filter(Boolean); // Remove undefined values
+].filter(Boolean))]; // Remove undefined values and duplicates
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
