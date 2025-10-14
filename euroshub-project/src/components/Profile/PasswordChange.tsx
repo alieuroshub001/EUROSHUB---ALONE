@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { profileService, PasswordChangeRequest } from '@/lib/profileService';
+import toast from 'react-hot-toast';
 
 export default function PasswordChange() {
   const [formData, setFormData] = useState({
@@ -101,7 +102,7 @@ export default function PasswordChange() {
       });
 
       // Show success message
-      alert('Password changed successfully!');
+      toast.success('Password changed successfully!');
     } catch (error: unknown) {
       const err = error as { message?: string; errors?: Array<{ field: string; message: string }> };
       if (err.errors) {
@@ -110,8 +111,11 @@ export default function PasswordChange() {
           fieldErrors[apiErr.field] = apiErr.message;
         });
         setErrors(fieldErrors);
+        toast.error('Please check the form for errors');
       } else {
-        setErrors({ general: err.message || 'Failed to change password' });
+        const errorMessage = err.message || 'Failed to change password';
+        setErrors({ general: errorMessage });
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);

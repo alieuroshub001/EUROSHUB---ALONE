@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { UserProfile, profileService } from '@/lib/profileService';
+import toast from 'react-hot-toast';
 
 interface AvatarUploadProps {
   profile: UserProfile;
@@ -18,13 +19,17 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
   const handleFileSelect = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
+      const errorMsg = 'Please select an image file';
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
+      const errorMsg = 'File size must be less than 5MB';
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -34,10 +39,12 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
     try {
       const updatedProfile = await profileService.uploadAvatar(file);
       onAvatarUpdate(updatedProfile);
-      alert('Avatar uploaded successfully!');
+      toast.success('Profile picture uploaded successfully!');
     } catch (err: unknown) {
       const error = err as { message: string };
-      setError(error.message);
+      const errorMessage = error.message || 'Failed to upload profile picture';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -73,21 +80,62 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
   const handleDeleteAvatar = async () => {
     if (!profile.avatar) return;
 
-    if (!confirm('Are you sure you want to delete your profile picture?')) {
-      return;
-    }
+    // Show confirmation toast
+    const confirmDelete = () => {
+      setLoading(true);
+      const deletePromise = profileService.deleteAvatar();
+      
+      toast.promise(
+        deletePromise,
+        {
+          loading: 'Deleting profile picture...',
+          success: 'Profile picture deleted successfully!',
+          error: 'Failed to delete profile picture'
+        }
+      );
 
-    setLoading(true);
-    try {
-      const updatedProfile = await profileService.deleteAvatar();
-      onAvatarDelete(updatedProfile);
-      alert('Avatar deleted successfully!');
-    } catch (err: unknown) {
-      const error = err as { message: string };
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+      deletePromise
+        .then((updatedProfile) => {
+          onAvatarDelete(updatedProfile);
+        })
+        .catch((err: unknown) => {
+          const error = err as { message: string };
+          setError(error.message);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    // Custom confirmation toast
+    toast(
+      (t) => (
+        <div className="flex items-center gap-3">
+          <span>Delete your profile picture?</span>
+          <div className="flex gap-2">
+            <button
+              className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
+              onClick={() => {
+                toast.dismiss(t.id);
+                confirmDelete();
+              }}
+            >
+              Delete
+            </button>
+            <button
+              className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400 transition-colors"
+              onClick={() => toast.dismiss(t.id)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 5000,
+        icon: '🗑️',
+      }
+    );
   };
 
   const openFileDialog = () => {
