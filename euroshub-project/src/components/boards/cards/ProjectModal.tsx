@@ -721,7 +721,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         assignToOnUnlockUsers: resolvedAssignToOnUnlock
       };
 
-      console.log('Formatted task:', formattedTask);
+      console.log('✅ Formatted task with assignments:', {
+        _id: formattedTask._id,
+        title: formattedTask.title,
+        isLocked: formattedTask.isLocked,
+        autoAssignOnUnlock: formattedTask.autoAssignOnUnlock,
+        assignedToCount: formattedTask.assignedTo?.length || 0,
+        assignToOnUnlockCount: formattedTask.assignToOnUnlock?.length || 0,
+        assignToOnUnlockUsersCount: formattedTask.assignToOnUnlockUsers?.length || 0
+      });
 
       // Add new task to the list, ensuring no duplicates
       setTasks(prevTasks => {
@@ -1541,7 +1549,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                           />
                         </div>
-                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-400 to-teal-600">
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
                           {member.avatar ? (
                             <Image
                               src={member.avatar}
@@ -1551,7 +1559,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-semibold">
+                            <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-xs font-semibold">
                               {member.firstName.charAt(0)}{member.lastName.charAt(0)}
                             </div>
                           )}
@@ -1603,7 +1611,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                       key={userId}
                       className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 rounded-lg group hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
                     >
-                      <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-teal-400 to-teal-600">
+                      <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
                         {member.avatar ? (
                           <Image
                             src={member.avatar}
@@ -1613,7 +1621,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white text-[10px] font-semibold">
+                          <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-[10px] font-semibold">
                             {member.firstName.charAt(0)}{member.lastName.charAt(0)}
                           </div>
                         )}
@@ -1776,9 +1784,39 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 )}
 
                 {task.isLocked && task.autoAssignOnUnlock && task.assignToOnUnlockUsers && task.assignToOnUnlockUsers.length > 0 && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                    ⏰ Will auto-assign to: {task.assignToOnUnlockUsers.map(u => `${u.firstName} ${u.lastName}`).join(', ')} when unlocked
-                  </p>
+                  <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 rounded-lg">
+                    <div className="flex -space-x-2">
+                      {task.assignToOnUnlockUsers.slice(0, 3).map((user, index) => (
+                        <div
+                          key={user._id || index}
+                          className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 overflow-hidden bg-gray-200 dark:bg-gray-700"
+                          title={`${user.firstName} ${user.lastName}`}
+                        >
+                          {user.avatar ? (
+                            <Image
+                              src={user.avatar}
+                              alt={`${user.firstName} ${user.lastName}`}
+                              width={24}
+                              height={24}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-[10px] font-semibold">
+                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {task.assignToOnUnlockUsers.length > 3 && (
+                        <div className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 text-[10px] font-semibold">
+                          +{task.assignToOnUnlockUsers.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
+                      ⏰ Will auto-assign to {task.assignToOnUnlockUsers.map(u => `${u.firstName} ${u.lastName}`).join(', ')} when unlocked
+                    </p>
+                  </div>
                 )}
 
                 {task.description && (
