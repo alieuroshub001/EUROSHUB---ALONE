@@ -496,12 +496,15 @@ cardSchema.virtual('projectProgress').get(function() {
   const taskProgress = this.taskCompletion;
   const checklistProgress = this.checklistCompletion;
 
+  const tasksLength = this.tasks?.length || 0;
+  const checklistLength = this.checklist?.length || 0;
+
   // If both exist, average them; otherwise use the one that exists
-  if (this.tasks.length > 0 && this.checklist.length > 0) {
+  if (tasksLength > 0 && checklistLength > 0) {
     return Math.round((taskProgress + checklistProgress) / 2);
-  } else if (this.tasks.length > 0) {
+  } else if (tasksLength > 0) {
     return taskProgress;
-  } else if (this.checklist.length > 0) {
+  } else if (checklistLength > 0) {
     return checklistProgress;
   } else {
     return 0;

@@ -5,6 +5,8 @@ const Card = require('../models/Card');
 const List = require('../models/List');
 const Board = require('../models/Board');
 const Activity = require('../models/Activity');
+const User = require('../models/User');
+const slackService = require('../utils/slackService');
 const { protect } = require('../middleware/auth');
 
 // Middleware to get list and check access
@@ -829,6 +831,7 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       title,
       description,
       assignedTo,
+      dueDate,
       priority = 'medium',
       dependsOn = null,
       autoAssignOnUnlock = false,
@@ -837,7 +840,7 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
 
     console.log('ADD TASK DEBUG:', {
       cardId: req.params.cardId,
-      taskData: { title, description, assignedTo, priority, dependsOn, autoAssignOnUnlock, assignToOnUnlock }
+      taskData: { title, description, assignedTo, dueDate, priority, dependsOn, autoAssignOnUnlock, assignToOnUnlock }
     });
 
     // Check permission
@@ -897,6 +900,7 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
       title: title.trim(),
       description: description || '',
       assignedTo: assignedTo || null,
+      dueDate: dueDate ? new Date(dueDate) : null,
       priority: priority,
       dependsOn: dependsOn,
       autoAssignOnUnlock: autoAssignOnUnlock,
@@ -916,12 +920,12 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
     });
 
     // Log activity for task creation
-    const list = await List.findById(card.listId).select('boardId');
+    const list = await List.findById(card.listId).populate('boardId');
     await Activity.logActivity({
       type: 'card_task_added',
       user: req.user.id,
       project: card.project || null,
-      board: list ? list.boardId : null,
+      board: list ? list.boardId?._id : null,
       list: card.listId,
       card: card._id,
       metadata: {
@@ -931,6 +935,34 @@ router.post('/:cardId/tasks', protect, getCardWithAccess, async (req, res) => {
         taskId: addedTask._id
       }
     });
+
+    // Send Slack notification for initial task assignment
+    if (addedTask.assignedTo && addedTask.assignedTo.length > 0 && list && list.boardId) {
+      const board = list.boardId;
+      const createdByUser = await User.findById(req.user.id).select('firstName lastName');
+
+      for (const userId of addedTask.assignedTo) {
+        const assignedUser = await User.findById(userId).select('firstName lastName email');
+
+        if (assignedUser && createdByUser) {
+          const assignedUserName = `${assignedUser.firstName} ${assignedUser.lastName}`;
+          const createdByName = `${createdByUser.firstName} ${createdByUser.lastName}`;
+
+          // Send Slack notification asynchronously
+          slackService.notifyBoardTaskAssigned({
+            taskTitle: addedTask.title,
+            assignedTo: assignedUserName,
+            assignedBy: createdByName,
+            dueDate: addedTask.dueDate ? addedTask.dueDate.toLocaleDateString() : null,
+            boardName: board.name,
+            cardName: card.title,
+            assignedToEmail: assignedUser.email
+          }).catch(error => {
+            console.error('❌ Failed to send board task assignment notification:', error);
+          });
+        }
+      }
+    }
 
     // Emit socket event for real-time update
     if (req.io && list && list.boardId) {
@@ -970,12 +1002,12 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
   try {
     const card = req.card;
     const { taskId } = req.params;
-    const { title, description, completed, assignedTo, priority } = req.body;
+    const { title, description, completed, assignedTo, dueDate, priority } = req.body;
 
     console.log('UPDATE TASK DEBUG:', {
       cardId: req.params.cardId,
       taskId: taskId,
-      updateData: { title, description, completed, assignedTo, priority }
+      updateData: { title, description, completed, assignedTo, dueDate, priority }
     });
 
     // Check permission
@@ -1025,6 +1057,9 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
       // Convert to array if not already
       updateData.assignedTo = Array.isArray(assignedTo) ? assignedTo : (assignedTo ? [assignedTo] : []);
     }
+    if (dueDate !== undefined) {
+      updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    }
     if (priority !== undefined) updateData.priority = priority;
 
     await card.updateTask(taskId, updateData);
@@ -1033,6 +1068,44 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
     // Check if workflow progressed (set by card.updateTask method)
     const workflowProgressed = card._workflowProgressed;
     const unlockedTasks = card._unlockedTasks || [];
+
+    // Send Slack notifications for task assignments
+    if (assignedTo !== undefined && assignedTo && assignedTo.length > 0) {
+      const list = await List.findById(card.listId).populate('boardId');
+      const board = list ? list.boardId : null;
+      const assignedByUser = await User.findById(req.user.id).select('firstName lastName');
+
+      if (board && assignedByUser) {
+        const userIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+
+        for (const userId of userIds) {
+          if (userId) {
+            const assignedUser = await User.findById(userId).select('firstName lastName email');
+
+            if (assignedUser) {
+              const assignedUserName = `${assignedUser.firstName} ${assignedUser.lastName}`;
+              const assignedByName = `${assignedByUser.firstName} ${assignedByUser.lastName}`;
+
+              // Get the updated task for notification
+              const updatedTaskForNotification = card.tasks.id(taskId);
+
+              // Send Slack notification asynchronously
+              slackService.notifyBoardTaskAssigned({
+                taskTitle: updatedTaskForNotification.title,
+                assignedTo: assignedUserName,
+                assignedBy: assignedByName,
+                dueDate: updatedTaskForNotification.dueDate ? updatedTaskForNotification.dueDate.toLocaleDateString() : null,
+                boardName: board.name,
+                cardName: card.title,
+                assignedToEmail: assignedUser.email
+              }).catch(error => {
+                console.error('❌ Failed to send board task assignment notification:', error);
+              });
+            }
+          }
+        }
+      }
+    }
 
     // Populate assignedTo before returning
     await card.populate({
@@ -1064,6 +1137,9 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
 
     // NEW: Log and notify for unlocked tasks
     if (unlockedTasks.length > 0) {
+      const board = await Board.findById(list.boardId);
+      const unlockedByUser = await User.findById(req.user.id).select('firstName lastName');
+
       for (const unlockedTask of unlockedTasks) {
         await Activity.logActivity({
           type: 'card_task_unlocked',
@@ -1080,6 +1156,30 @@ router.put('/:cardId/tasks/:taskId', protect, getCardWithAccess, async (req, res
             unlockedBy: task.title
           }
         });
+
+        // Send Slack notifications for unlocked tasks
+        if (board && unlockedByUser && unlockedTask.assignedTo && unlockedTask.assignedTo.length > 0) {
+          const assignedUserIds = unlockedTask.assignedTo;
+          const assignedUsers = await User.find({ _id: { $in: assignedUserIds } }).select('firstName lastName email');
+
+          if (assignedUsers.length > 0) {
+            const assignedUserNames = assignedUsers.map(u => `${u.firstName} ${u.lastName}`);
+            const assignedUserEmails = assignedUsers.map(u => u.email);
+            const unlockedBy = `${unlockedByUser.firstName} ${unlockedByUser.lastName}`;
+
+            // Send Slack notification asynchronously
+            slackService.notifyBoardTaskUnlocked({
+              taskTitle: unlockedTask.title,
+              assignedTo: assignedUserNames,
+              boardName: board.name,
+              cardName: card.title,
+              unlockedBy: unlockedBy,
+              assignedToEmails: assignedUserEmails
+            }).catch(error => {
+              console.error('❌ Failed to send board task unlocked notification:', error);
+            });
+          }
+        }
       }
 
       // Emit socket event for unlocked tasks

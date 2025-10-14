@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
-import { Task, Subtask } from '../../../types/project';
+import { Task as ProjectTask, Subtask } from '../../../types/project';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
@@ -79,6 +79,11 @@ interface Task {
   priority: 'low' | 'medium' | 'high';
   description?: string;
   createdAt: Date;
+  subtasks?: Array<{
+    _id: string;
+    title: string;
+    completed: boolean;
+  }>;
   // NEW: Dependency fields
   dependsOn?: string;
   isLocked?: boolean;
@@ -161,6 +166,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'comments' | 'activity'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Card>>(card);
+  const [editTitle, setEditTitle] = useState(card.title);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -174,6 +180,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [newFolderName, setNewFolderName] = useState('');
   const [fileViewMode, setFileViewMode] = useState<'list' | 'grid'>('list');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTask, setNewTask] = useState('');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -468,8 +475,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   };
 
+  const handleSaveTitle = async () => {
+    if (editTitle.trim() && editTitle !== card.title) {
+      try {
+        await onUpdateCard(card._id, { title: editTitle.trim() });
+      } catch (error) {
+        console.error('Error updating title:', error);
+        setEditTitle(card.title); // Revert on error
+      }
+    }
+    setIsEditing(false);
+  };
+
   const handleCancel = () => {
     setEditData(card);
+    setEditTitle(card.title);
     setIsEditing(false);
   };
 
@@ -547,7 +567,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const handleAddTask = async () => {
     if (!newTask.trim()) return;
 
-    setIsLoading(true);
+    setIsAddingTask(true);
     try {
       const taskData: any = {
         title: newTask.trim(),
@@ -563,9 +583,41 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       if (newTaskAutoAssign && newTaskAssignTo.length > 0) {
         taskData.autoAssignOnUnlock = true;
         taskData.assignToOnUnlock = newTaskAssignTo;
+
+        // If no dependencies, assign immediately
+        if (!newTaskDependsOn) {
+          taskData.assignedTo = newTaskAssignTo;
+        }
       }
 
       const newTaskFromAPI = await cardsApi.addTask(card._id, taskData);
+
+      // Resolve assigned user IDs to full user objects
+      let resolvedAssignedTo = [];
+      if (newTaskFromAPI.assignedTo && Array.isArray(newTaskFromAPI.assignedTo)) {
+        resolvedAssignedTo = newTaskFromAPI.assignedTo.map((userId: string) => {
+          const member = boardMembers.find(m => m._id === userId);
+          return member ? {
+            _id: member._id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            avatar: member.avatar
+          } : null;
+        }).filter(Boolean);
+      } else if (newTaskFromAPI.assignedTo && typeof newTaskFromAPI.assignedTo === 'string') {
+        const member = boardMembers.find(m => m._id === newTaskFromAPI.assignedTo);
+        if (member) {
+          resolvedAssignedTo = [{
+            _id: member._id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            avatar: member.avatar
+          }];
+        }
+      } else if (newTaskFromAPI.assignedTo && Array.isArray(newTaskFromAPI.assignedTo) && newTaskFromAPI.assignedTo.length > 0 && typeof newTaskFromAPI.assignedTo[0] === 'object') {
+        // API already returned full user objects
+        resolvedAssignedTo = newTaskFromAPI.assignedTo;
+      }
 
       // Create properly structured task object
       const formattedTask = {
@@ -573,7 +625,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         title: newTaskFromAPI.title,
         description: newTaskFromAPI.description || '',
         completed: Boolean(newTaskFromAPI.completed),
-        assignedTo: newTaskFromAPI.assignedTo,
+        assignedTo: resolvedAssignedTo,
         dueDate: newTaskFromAPI.dueDate,
         priority: newTaskFromAPI.priority || 'medium',
         createdAt: newTaskFromAPI.createdAt || new Date(),
@@ -602,7 +654,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       console.error('Error adding task:', error);
       setError('Failed to add task. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsAddingTask(false);
     }
   };
 
@@ -694,11 +746,34 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       // Update with the response data which has populated assignedTo
       if (response) {
+        // Resolve assigned user IDs to full user objects (same logic as task creation)
+        let resolvedAssignedTo = [];
+        if (response.assignedTo && Array.isArray(response.assignedTo)) {
+          resolvedAssignedTo = response.assignedTo.map((userId: string) => {
+            if (typeof userId === 'object') return userId; // Already a user object
+            const member = boardMembers.find(m => m._id === userId);
+            return member ? {
+              _id: member._id,
+              firstName: member.firstName,
+              lastName: member.lastName,
+              avatar: member.avatar
+            } : null;
+          }).filter(Boolean);
+        } else if (response.assignedTo && typeof response.assignedTo === 'string') {
+          const member = boardMembers.find(m => m._id === response.assignedTo);
+          if (member) {
+            resolvedAssignedTo = [{
+              _id: member._id,
+              firstName: member.firstName,
+              lastName: member.lastName,
+              avatar: member.avatar
+            }];
+          }
+        }
+
         const updatedTaskData = {
           ...response,
-          assignedTo: response.assignedTo
-            ? (Array.isArray(response.assignedTo) ? response.assignedTo : [response.assignedTo])
-            : []
+          assignedTo: resolvedAssignedTo
         };
         console.log('UPDATING LOCAL STATE WITH:', updatedTaskData);
         setTasks(prev => prev.map(task =>
@@ -852,112 +927,132 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const progressPercentage = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
 
   const renderOverviewTab = () => (
-    <div className="space-y-6">
-      {/* Project Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          {isEditing ? (
-            <input
-              type="text"
-              value={editData.title || ''}
-              onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-              className="text-2xl font-bold w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{card.title}</h1>
-          )}
+    <div className="space-y-8">
+      {/* Clean Project Stats */}
+      <div className="grid grid-cols-3 gap-6">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            {tasks.length}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total Tasks</div>
+        </div>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+            {completedTasks}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Completed</div>
+        </div>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+            {progressPercentage.toFixed(0)}%
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Progress</div>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-            <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              Created {formatDate(card.createdAt)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Target className="w-4 h-4" />
-              {progressPercentage.toFixed(0)}% Complete
-            </span>
+      {/* Clean Progress Bar */}
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-medium text-gray-900 dark:text-white">Project Progress</h3>
+          <div className="flex items-center gap-3">
+            {isEditing ? (
+              <select
+                value={projectData.status}
+                onChange={(e) => setProjectData(prev => ({ ...prev, status: e.target.value as 'planning' | 'open' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'on_hold' }))}
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="planning">Planning</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Review</option>
+                <option value="blocked">Blocked</option>
+                <option value="completed">Completed</option>
+                <option value="on_hold">On Hold</option>
+              </select>
+            ) : (
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                projectData.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                projectData.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                projectData.status === 'on_hold' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
+                'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}>
+                {projectData.status.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              </span>
+            )}
+
+            {isEditing ? (
+              <select
+                value={projectData.priority}
+                onChange={(e) => setProjectData(prev => ({ ...prev, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' }))}
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            ) : (
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                projectData.priority === 'urgent' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+                projectData.priority === 'high' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' :
+                projectData.priority === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
+                'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+              }`}>
+                {projectData.priority.charAt(0).toUpperCase() + projectData.priority.slice(1)}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <select
-              value={projectData.status}
-              onChange={(e) => setProjectData(prev => ({ ...prev, status: e.target.value as 'planning' | 'open' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'on_hold' }))}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="planning">Planning</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="review">Review</option>
-              <option value="blocked">Blocked</option>
-              <option value="completed">Completed</option>
-              <option value="on_hold">On Hold</option>
-            </select>
-          ) : (
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              projectData.status === 'completed' ? 'bg-green-100 text-green-600' :
-              projectData.status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
-              projectData.status === 'on_hold' ? 'bg-yellow-100 text-yellow-600' :
-              'bg-gray-100 text-gray-600'
-            }`}>
-              {projectData.status.charAt(0).toUpperCase() + projectData.status.slice(1)}
-            </span>
-          )}
-
-          {isEditing ? (
-            <select
-              value={projectData.priority}
-              onChange={(e) => setProjectData(prev => ({ ...prev, priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' }))}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          ) : (
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              projectData.priority === 'high' ? 'bg-red-100 text-red-600' :
-              projectData.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-              'bg-green-100 text-green-600'
-            }`}>
-              {projectData.priority.charAt(0).toUpperCase() + projectData.priority.slice(1)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div>
-        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-          <span>Progress</span>
-          <span>{completedTasks}/{tasks.length} tasks completed</span>
-        </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
+        <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-2">
+          <span>0%</span>
+          <span>{completedTasks} of {tasks.length} tasks</span>
+          <span>100%</span>
+        </div>
       </div>
 
-      {/* Description */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+      {/* Clean Description */}
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+        <h3 className="font-medium text-gray-900 dark:text-white mb-4">Description</h3>
         {isEditing ? (
           <textarea
             value={editData.description || ''}
             onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="Add a detailed project description..."
+            placeholder="What's this project about?"
             rows={4}
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+            className="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
         ) : (
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-            {card.description || 'No description provided.'}
-          </p>
+          <div className="prose prose-sm max-w-none text-gray-600 dark:text-gray-400">
+            {card.description ? (
+              <p className="leading-relaxed">{card.description}</p>
+            ) : (
+              <p className="italic text-gray-500 dark:text-gray-500">No description provided yet.</p>
+            )}
+          </div>
         )}
+      </div>
+
+      {/* Project Meta */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span>Created {formatDate(card.createdAt)}</span>
+          </div>
+        </div>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+            <User className="w-4 h-4" />
+            <span>By {typeof card.createdBy === 'object' ? `${card.createdBy?.firstName} ${card.createdBy?.lastName}` : card.createdBy || 'Unknown'}</span>
+          </div>
+        </div>
       </div>
 
       {/* Card Appearance */}
@@ -1279,14 +1374,27 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       {/* Add Task Form */}
       {showTaskForm && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+        <div className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3 relative ${isAddingTask ? 'overflow-hidden' : ''}`}>
+          {/* Loading overlay */}
+          {isAddingTask && (
+            <div className="absolute inset-0 bg-gray-50/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-6 h-6 border-2 border-blue-200 dark:border-blue-700 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Creating task...
+                </p>
+              </div>
+            </div>
+          )}
+
           <input
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
             placeholder="Enter task title..."
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            onKeyPress={(e) => e.key === 'Enter' && !newTaskDependsOn && handleAddTask()}
+            disabled={isAddingTask}
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+            onKeyPress={(e) => e.key === 'Enter' && !newTaskDependsOn && !isAddingTask && handleAddTask()}
           />
 
           {/* Dependency Selection */}
@@ -1297,7 +1405,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <select
               value={newTaskDependsOn || ''}
               onChange={(e) => setNewTaskDependsOn(e.target.value || null)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              disabled={isAddingTask}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
             >
               <option value="">No dependency</option>
               {tasks.filter(t => !t.completed).map(task => (
@@ -1319,7 +1428,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                   type="checkbox"
                   checked={newTaskAutoAssign}
                   onChange={(e) => setNewTaskAutoAssign(e.target.checked)}
-                  className="rounded border-gray-300 dark:border-gray-600"
+                  disabled={isAddingTask}
+                  className="rounded border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Auto-assign when unlocked
@@ -1335,7 +1445,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                     multiple
                     value={newTaskAssignTo}
                     onChange={(e) => setNewTaskAssignTo(Array.from(e.target.selectedOptions, option => option.value))}
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    disabled={isAddingTask}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
                     size={Math.min(boardMembers?.length || 3, 5)}
                   >
                     {boardMembers?.map(member => (
@@ -1355,10 +1466,20 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="flex gap-2">
             <button
               onClick={handleAddTask}
-              disabled={!newTask.trim()}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded text-sm"
+              disabled={!newTask.trim() || isAddingTask}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-all duration-200"
             >
-              Add Task
+              {isAddingTask ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Add Task
+                </>
+              )}
             </button>
             <button
               onClick={() => {
@@ -1368,7 +1489,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 setNewTaskAutoAssign(false);
                 setNewTaskAssignTo([]);
               }}
-              className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm"
+              disabled={isAddingTask}
+              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-all duration-200"
             >
               Cancel
             </button>
@@ -1672,13 +1794,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
           <FolderTree
             folders={folders}
-            files={files}
             currentFolderId={currentFolderId}
             onFolderClick={setCurrentFolderId}
             onFolderRename={handleFolderRename}
             onFolderDelete={handleFolderDelete}
-            onFileDownload={handleFileDownload}
-            onFileDelete={handleFileDelete}
             canEdit={canEdit && canUploadFiles}
           />
         </div>
@@ -2340,161 +2459,181 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
   return (
     <Portal>
+      {/* Backdrop with prominent blur effect */}
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+        className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
         style={{ zIndex: 9999 }}
+        onClick={onClose}
       >
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col pointer-events-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Project Details
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Manage your project information, tasks, and team
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {canEdit && !isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                disabled={isLoading}
-              >
-                <Edit3 className="w-4 h-4" />
-              </button>
-            )}
-
-            {isEditing && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                >
-                  <Save className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  className="px-3 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
+        {/* Modal Container - Clean & Prominent */}
+        <div
+          className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 w-full max-w-7xl h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Minimalistic Header */}
+          <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200/70 dark:border-gray-700/70 bg-gray-50/30 dark:bg-gray-800/30">
+            <div className="flex items-center gap-4">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <div className="mx-4 h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
+              <div className="flex items-center gap-3">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="text-xl font-semibold bg-transparent text-gray-900 dark:text-white border-none outline-none focus:ring-0 p-0"
+                    autoFocus
+                  />
+                ) : (
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {card.title}
+                  </h1>
+                )}
               </div>
-            )}
-
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              disabled={isLoading}
-            >
-              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 text-red-600 dark:text-red-400">⚠</div>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-              <button
-                onClick={() => setError(null)}
-                className="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-              >
-                ×
-              </button>
             </div>
-          </div>
-        )}
 
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex px-6">
-            {[
-              { id: 'overview', label: 'Overview', icon: Target },
-              { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-              { id: 'files', label: 'Files', icon: FileText },
-              { id: 'comments', label: 'Comments', icon: MessageCircle },
-              { id: 'activity', label: 'Activity', icon: History },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'overview' | 'tasks' | 'files' | 'comments' | 'activity')}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {activeTab === 'overview' && renderOverviewTab()}
-          {activeTab === 'tasks' && renderTasksTab()}
-          {activeTab === 'files' && renderFilesTab()}
-          {activeTab === 'comments' && renderCommentsTab()}
-          {activeTab === 'activity' && renderActivityTab()}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
-          <div className="flex justify-between items-center">
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
               {canEdit && (
                 <>
-                  <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                    <Copy className="w-4 h-4" />
-                    Duplicate
-                  </button>
-                  <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </button>
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={handleSaveTitle}
+                        className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
+                        disabled={isLoading}
+                      >
+                        <Save className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditTitle(card.title);
+                        }}
+                        className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+                      disabled={isLoading}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  )}
                 </>
               )}
-            </div>
 
-            {canDelete && (
               <button
-                onClick={handleDelete}
+                onClick={onClose}
+                className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
                 disabled={isLoading}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
               >
-                <Trash2 className="w-4 h-4" />
-                Delete Project
+                <X className="w-5 h-5" />
               </button>
-            )}
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mx-8 mb-4 p-4 bg-red-50/80 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/50 rounded-xl backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <p className="text-sm text-red-700 dark:text-red-300 flex-1">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-red-500 hover:text-red-700 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Minimalistic Tab Navigation */}
+          <div className="px-8 mb-6">
+            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+              {[
+                { id: 'overview', label: 'Overview', icon: Target },
+                { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+                { id: 'files', label: 'Files', icon: FileText },
+                { id: 'comments', label: 'Comments', icon: MessageCircle },
+                { id: 'activity', label: 'Activity', icon: History },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as 'overview' | 'tasks' | 'files' | 'comments' | 'activity')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="px-8 pb-8 overflow-y-auto flex-1">
+            <div className="max-w-full">
+              {activeTab === 'overview' && renderOverviewTab()}
+              {activeTab === 'tasks' && renderTasksTab()}
+              {activeTab === 'files' && renderFilesTab()}
+              {activeTab === 'comments' && renderCommentsTab()}
+              {activeTab === 'activity' && renderActivityTab()}
+            </div>
+          </div>
+
+          {/* Clean Footer with Actions */}
+          <div className="px-8 py-6 border-t border-gray-200/50 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2">
+                {canEdit && (
+                  <>
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-200">
+                      <Copy className="w-4 h-4" />
+                      Duplicate
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-200">
+                      <Archive className="w-4 h-4" />
+                      Archive
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 transition-all duration-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-
       {/* Task Modal */}
       <TaskModal
-        task={selectedTask}
+        task={selectedTask as ProjectTask | null}
         cardId={card._id}
         isOpen={showTaskModal}
         onClose={() => {
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
-        onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<Task>) => void}
+        onUpdateTask={handleUpdateTask as (taskId: string, updates: Partial<ProjectTask>) => void}
         onDeleteTask={handleDeleteTask as (taskId: string) => void}
         onAddSubtask={handleAddSubtask}
         onUpdateSubtask={handleUpdateSubtask}
@@ -2504,13 +2643,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             _id: member._id,
             firstName: member.firstName,
             lastName: member.lastName,
-            avatar: member.avatar
+            avatar: member.avatar,
+            email: member.email || '',
+            role: (member.role as 'superadmin' | 'admin' | 'hr' | 'employee' | 'client') || 'employee'
           },
           role: member.role
         }))}
         canEdit={canEdit}
       />
-      </div>
     </Portal>
   );
 };

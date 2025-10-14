@@ -11,7 +11,9 @@ const slackChannels = {
   projects: process.env.SLACK_CHANNEL_PROJECTS || process.env.SLACK_CHANNEL_ID,
   tasks: process.env.SLACK_CHANNEL_TASKS || process.env.SLACK_CHANNEL_ID,
   alerts: process.env.SLACK_CHANNEL_ALERTS || process.env.SLACK_CHANNEL_ID,
-  reports: process.env.SLACK_CHANNEL_REPORTS || process.env.SLACK_CHANNEL_ID
+  reports: process.env.SLACK_CHANNEL_REPORTS || process.env.SLACK_CHANNEL_ID,
+  boards: process.env.SLACK_CHANNEL_BOARDS || process.env.SLACK_CHANNEL_ID,
+  'board-management': process.env.SLACK_CHANNEL_BOARD_MANAGEMENT || process.env.SLACK_CHANNEL_BOARDS || process.env.SLACK_CHANNEL_ID
 };
 
 // Support for multiple webhooks (fallback to default if specific webhook not set)
@@ -21,7 +23,9 @@ const slackWebhooks = {
   projects: process.env.SLACK_WEBHOOK_PROJECTS || process.env.SLACK_WEBHOOK_URL,
   tasks: process.env.SLACK_WEBHOOK_TASKS || process.env.SLACK_WEBHOOK_URL,
   alerts: process.env.SLACK_WEBHOOK_ALERTS || process.env.SLACK_WEBHOOK_URL,
-  reports: process.env.SLACK_WEBHOOK_REPORTS || process.env.SLACK_WEBHOOK_URL
+  reports: process.env.SLACK_WEBHOOK_REPORTS || process.env.SLACK_WEBHOOK_URL,
+  boards: process.env.SLACK_WEBHOOK_BOARDS || process.env.SLACK_WEBHOOK_URL,
+  'board-management': process.env.SLACK_WEBHOOK_BOARD_MANAGEMENT || process.env.SLACK_WEBHOOK_BOARDS || process.env.SLACK_WEBHOOK_URL
 };
 
 let slackClient = null;
@@ -716,6 +720,400 @@ const sendVerificationDM = async ({ email, firstName, lastName, verificationToke
   }
 };
 
+/**
+ * Send notification when a member is added to a board
+ */
+const notifyBoardMemberAdded = async ({ boardName, memberName, memberEmail, addedBy, role, boardId }) => {
+  try {
+    if (!slackWebhooks['board-management'] && !slackChannels['board-management']) {
+      console.log('⚠️ Slack board-management channel not configured, skipping notification');
+      return null;
+    }
+
+    const message = {
+      text: `New Member Added to Board: ${memberName} added to ${boardName}`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '👥 Board Member Added',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Board:*\n${boardName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Member:*\n${memberName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Email:*\n${memberEmail}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Role:*\n${role}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Added By:*\n${addedBy}`
+            }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send to board management channel
+    const channelResult = await sendToChannel('board-management', message);
+
+    // Also send DM to the new member if possible
+    if (memberEmail) {
+      const welcomeMessage = {
+        text: `Welcome to ${boardName}! You've been added as a ${role}.`,
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: '🎉 Added to Board',
+              emoji: true
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `Hi ${memberName}! 👋\n\nYou've been added to the board *${boardName}* as a *${role}* by *${addedBy}*.`
+            }
+          },
+          {
+            type: 'divider'
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: `🕒 ${new Date().toLocaleString()}`
+              }
+            ]
+          }
+        ]
+      };
+
+      const dmResult = await sendDirectMessage(memberEmail, welcomeMessage);
+
+      return {
+        channelNotification: channelResult,
+        directMessage: dmResult
+      };
+    }
+
+    return { channelNotification: channelResult, directMessage: null };
+  } catch (error) {
+    console.error('❌ Error sending board member added notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send notification when a task is assigned to a user in a board
+ */
+const notifyBoardTaskAssigned = async ({ taskTitle, assignedTo, assignedBy, dueDate, boardName, cardName, assignedToEmail }) => {
+  try {
+    if (!slackWebhooks['board-management'] && !slackChannels['board-management']) {
+      console.log('⚠️ Slack board-management channel not configured, skipping notification');
+      return null;
+    }
+
+    const message = {
+      text: `Task Assigned: ${taskTitle} assigned to ${assignedTo} in ${boardName}`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '📋 Board Task Assignment',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Task:*\n${taskTitle}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Card:*\n${cardName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Board:*\n${boardName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Assigned To:*\n${assignedTo}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Assigned By:*\n${assignedBy}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Due Date:*\n${dueDate || 'Not set'}`
+            }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send to board management channel
+    const channelResult = await sendToChannel('board-management', message);
+
+    // Also send DM to the assigned user
+    if (assignedToEmail) {
+      const taskNotificationMessage = {
+        text: `New task assigned: ${taskTitle}`,
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: '📋 New Task Assignment',
+              emoji: true
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `Hi ${assignedTo}! 👋\n\nYou've been assigned a new task: *${taskTitle}*`
+            }
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Card:*\n${cardName}`
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Board:*\n${boardName}`
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Due Date:*\n${dueDate || 'Not set'}`
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Assigned By:*\n${assignedBy}`
+              }
+            ]
+          },
+          {
+            type: 'divider'
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: `🕒 ${new Date().toLocaleString()}`
+              }
+            ]
+          }
+        ]
+      };
+
+      const dmResult = await sendDirectMessage(assignedToEmail, taskNotificationMessage);
+
+      return {
+        channelNotification: channelResult,
+        directMessage: dmResult
+      };
+    }
+
+    return { channelNotification: channelResult, directMessage: null };
+  } catch (error) {
+    console.error('❌ Error sending board task assignment notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send notification when a task is unlocked and assigned to users
+ */
+const notifyBoardTaskUnlocked = async ({ taskTitle, assignedTo, boardName, cardName, unlockedBy, assignedToEmails = [] }) => {
+  try {
+    if (!slackWebhooks['board-management'] && !slackChannels['board-management']) {
+      console.log('⚠️ Slack board-management channel not configured, skipping notification');
+      return null;
+    }
+
+    const assignedToNames = Array.isArray(assignedTo) ? assignedTo.join(', ') : assignedTo;
+
+    const message = {
+      text: `Task Unlocked: ${taskTitle} is now available for ${assignedToNames}`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '🔓 Task Unlocked & Assigned',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Task:*\n${taskTitle}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Card:*\n${cardName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Board:*\n${boardName}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Assigned To:*\n${assignedToNames}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Unlocked By:*\n${unlockedBy || 'System'}`
+            }
+          ]
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*✅ This task was automatically unlocked after its dependency was completed.*'
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `🕒 ${new Date().toLocaleString()}`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Send to board management channel
+    const channelResult = await sendToChannel('board-management', message);
+
+    // Send DMs to all assigned users
+    const dmResults = [];
+    if (assignedToEmails && assignedToEmails.length > 0) {
+      const assignedUsers = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+
+      for (let i = 0; i < assignedToEmails.length; i++) {
+        const email = assignedToEmails[i];
+        const name = assignedUsers[i] || assignedUsers[0];
+
+        const taskUnlockedMessage = {
+          text: `Task unlocked and assigned: ${taskTitle}`,
+          blocks: [
+            {
+              type: 'header',
+              text: {
+                type: 'plain_text',
+                text: '🔓 Task Unlocked!',
+                emoji: true
+              }
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `Hi ${name}! 👋\n\nA task that was waiting on dependencies is now available: *${taskTitle}*`
+              }
+            },
+            {
+              type: 'section',
+              fields: [
+                {
+                  type: 'mrkdwn',
+                  text: `*Card:*\n${cardName}`
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Board:*\n${boardName}`
+                }
+              ]
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: '*✅ All dependencies have been completed - you can now start working on this task!*'
+              }
+            },
+            {
+              type: 'divider'
+            },
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: `🕒 ${new Date().toLocaleString()}`
+                }
+              ]
+            }
+          ]
+        };
+
+        const dmResult = await sendDirectMessage(email, taskUnlockedMessage);
+        dmResults.push(dmResult);
+      }
+    }
+
+    return {
+      channelNotification: channelResult,
+      directMessages: dmResults
+    };
+  } catch (error) {
+    console.error('❌ Error sending board task unlocked notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   notifyNewUserSignup,
   notifyUserDeleted,
@@ -727,5 +1125,8 @@ module.exports = {
   sendWelcomeDM,
   notifyUserLogin,
   notifyUserLogout,
-  sendVerificationDM
+  sendVerificationDM,
+  notifyBoardMemberAdded,
+  notifyBoardTaskAssigned,
+  notifyBoardTaskUnlocked
 };

@@ -31,7 +31,7 @@ const boardSchema = new mongoose.Schema({
     },
     role: {
       type: String,
-      enum: ['owner', 'admin', 'member', 'viewer'],
+      enum: ['owner', 'admin', 'editor', 'member', 'viewer'],
       default: 'member'
     },
     joinedAt: {
@@ -167,6 +167,7 @@ boardSchema.methods.hasPermission = async function(userId, action, userRole) {
   const permissions = {
     owner: ['read', 'write', 'delete', 'manage_members', 'manage_settings'],
     admin: ['read', 'write', 'manage_members'],
+    editor: ['read', 'write'],
     member: ['read', 'write'],
     viewer: ['read']
   };

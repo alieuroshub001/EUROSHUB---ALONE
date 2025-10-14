@@ -8,6 +8,8 @@ const Board = require('../models/Board');
 const List = require('../models/List');
 const Card = require('../models/Card');
 const Activity = require('../models/Activity');
+const User = require('../models/User');
+const slackService = require('../utils/slackService');
 const { protect } = require('../middleware/auth');
 
 // Configure Cloudinary storage for board backgrounds
@@ -369,7 +371,36 @@ router.post('/:boardId/members', protect, getBoardWithAccess, async (req, res) =
       });
     }
 
+    // Get user details for notifications
+    const newMember = await User.findById(userId).select('firstName lastName email');
+    const addedByUser = await User.findById(req.user.id).select('firstName lastName');
+
+    if (!newMember) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     await board.addMember(userId, role);
+
+    // Send Slack notifications
+    if (newMember && addedByUser) {
+      const memberName = `${newMember.firstName} ${newMember.lastName}`;
+      const addedBy = `${addedByUser.firstName} ${addedByUser.lastName}`;
+
+      // Send notification asynchronously (don't block the response)
+      slackService.notifyBoardMemberAdded({
+        boardName: board.name,
+        memberName: memberName,
+        memberEmail: newMember.email,
+        addedBy: addedBy,
+        role: role,
+        boardId: board._id
+      }).catch(error => {
+        console.error('❌ Failed to send board member added notification:', error);
+      });
+    }
 
     res.status(200).json({
       success: true,
