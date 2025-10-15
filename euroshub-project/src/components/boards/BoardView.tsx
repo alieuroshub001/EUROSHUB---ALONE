@@ -8,7 +8,9 @@ import {
   Users,
   MoreVertical,
   Trash2,
-  Edit
+  Edit,
+  Archive,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocketContext } from '@/contexts/SocketContext';
@@ -153,6 +155,8 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showArchivedListsModal, setShowArchivedListsModal] = useState(false);
+  const [archivedLists, setArchivedLists] = useState<ListData[]>([]);
 
   // Permission checks
   const getCurrentUserBoardRole = () => {
@@ -252,16 +256,64 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       });
     };
 
+    // Listen for list archiving
+    const handleListArchived = (data: { listId: string; isArchived: boolean; list: ListData }) => {
+      console.log('📦 List archived - Full data:', data);
+      console.log('📦 List ID received:', data.listId);
+      console.log('📦 Current lists before filter:', lists.map(l => l._id));
+
+      // Move list from active to archived
+      setLists(prev => {
+        const filtered = prev.filter(list => list._id !== data.listId.toString());
+        console.log('📦 Lists after filter:', filtered.map(l => l._id));
+        return filtered;
+      });
+
+      setArchivedLists(prev => {
+        const updated = [...prev, { ...data.list, isArchived: true }];
+        console.log('📦 Archived lists updated:', updated.map(l => l._id));
+        return updated;
+      });
+
+      toast.success('List archived successfully');
+    };
+
+    // Listen for list unarchiving
+    const handleListUnarchived = (data: { listId: string; isArchived: boolean; list: ListData }) => {
+      console.log('📂 List unarchived - Full data:', data);
+      console.log('📂 List ID received:', data.listId);
+      console.log('📂 Current archived lists before filter:', archivedLists.map(l => l._id));
+
+      // Move list from archived to active
+      setArchivedLists(prev => {
+        const filtered = prev.filter(list => list._id !== data.listId.toString());
+        console.log('📂 Archived lists after filter:', filtered.map(l => l._id));
+        return filtered;
+      });
+
+      setLists(prev => {
+        const updated = [...prev, { ...data.list, isArchived: false }].sort((a, b) => a.position - b.position);
+        console.log('📂 Active lists updated:', updated.map(l => l._id));
+        return updated;
+      });
+
+      toast.success('List restored successfully');
+    };
+
     socket.on('card:created', handleCardCreated);
     socket.on('task:created', handleTaskCreated);
     socket.on('task:updated', handleTaskUpdated);
     socket.on('task:deleted', handleTaskDeleted);
+    socket.on('list:archived', handleListArchived);
+    socket.on('list:unarchived', handleListUnarchived);
 
     return () => {
       socket.off('card:created', handleCardCreated);
       socket.off('task:created', handleTaskCreated);
       socket.off('task:updated', handleTaskUpdated);
       socket.off('task:deleted', handleTaskDeleted);
+      socket.off('list:archived', handleListArchived);
+      socket.off('list:unarchived', handleListUnarchived);
       socket.emit('leave-board', boardId);
       console.log(`📡 Left board room: ${boardId}`);
     };
@@ -276,7 +328,13 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       const boardData = await boardsApi.getBoard(boardId);
 
       setBoard(boardData);
-      setLists(boardData.lists || []);
+
+      // Separate archived and active lists
+      const activeLists = (boardData.lists || []).filter(list => !list.isArchived);
+      const archived = (boardData.lists || []).filter(list => list.isArchived);
+
+      setLists(activeLists);
+      setArchivedLists(archived);
 
       // Transform lists data into cards grouped by list ID
       const cardsData: Record<string, Card[]> = {};
@@ -524,25 +582,34 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
   const handleArchiveList = async (listId: string) => {
     try {
-      // Get list name before archiving for toast message
+      // Find the list in either active or archived lists
       const listToArchive = lists.find(list => list._id === listId);
-      const listName = listToArchive?.name || 'List';
+      const listToRestore = archivedLists.find(list => list._id === listId);
+      const targetList = listToArchive || listToRestore;
+      const listName = targetList?.name || 'List';
+      const isCurrentlyArchived = targetList?.isArchived || false;
 
-      // Call backend API to archive the list
+      // Optimistically update UI
+      if (isCurrentlyArchived) {
+        // Restoring from archived
+        setArchivedLists(prev => prev.filter(list => list._id !== listId));
+        setLists(prev => [...prev, { ...targetList!, isArchived: false }].sort((a, b) => a.position - b.position));
+      } else {
+        // Archiving
+        setLists(prev => prev.filter(list => list._id !== listId));
+        setArchivedLists(prev => [...prev, { ...targetList!, isArchived: true }]);
+      }
+
+      // Call backend API to archive/unarchive the list
       const result = await listsApi.archiveList(listId);
 
-      // Update local state to mark the list as archived
-      setLists(lists.map(list =>
-        list._id === listId
-          ? { ...list, isArchived: result.isArchived }
-          : list
-      ));
-
-      console.log('Archived list:', listId, result.isArchived);
-      const action = result.isArchived ? 'archived' : 'unarchived';
+      console.log('Archived/Unarchived list:', listId, result.isArchived);
+      const action = result.isArchived ? 'archived' : 'restored';
       toast.success(`List "${listName}" ${action} successfully`);
     } catch (err) {
       console.error('Error archiving list:', err);
+      // Revert optimistic update on error
+      await loadBoardData();
       setError(err instanceof Error ? err.message : 'Failed to archive list');
       toast.error('Failed to archive list');
     }
@@ -1148,11 +1215,20 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
                     </button>
                   )}
 
+                  <button
+                    onClick={() => {
+                      setShowArchivedListsModal(true);
+                      setShowMenu(false);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                  >
+                    <Archive className="w-4 h-4 text-gray-500" />
+                    Archived Lists {archivedLists.length > 0 && `(${archivedLists.length})`}
+                  </button>
+
                   {canDeleteBoard && (
                     <>
-                      {canEditBoard && (
-                        <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
-                      )}
+                      <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
                       <button
                         onClick={handleDeleteBoard}
                         className="w-full px-3 py-2 text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 text-sm text-red-600 dark:text-red-400 transition-colors"
@@ -1321,6 +1397,70 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         baseUrl={baseUrl}
         userRole={userRole}
       />
+
+      {/* Archived Lists Modal */}
+      {showArchivedListsModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl border border-gray-200 dark:border-gray-800 max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Archive className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Archived Lists</h2>
+                <span className="text-sm text-gray-500 dark:text-gray-400">({archivedLists.length})</span>
+              </div>
+              <button
+                onClick={() => setShowArchivedListsModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {archivedLists.length === 0 ? (
+                <div className="text-center py-12">
+                  <Archive className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">No archived lists</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {archivedLists.map((list) => (
+                    <div
+                      key={list._id}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                      style={{ borderTop: list.color ? `3px solid ${list.color}` : undefined }}
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 dark:text-white mb-1">
+                          {list.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {cards[list._id]?.length || 0} cards
+                        </p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await handleArchiveList(list._id);
+                            setShowArchivedListsModal(false);
+                          } catch (err) {
+                            console.error('Error unarchiving list:', err);
+                          }
+                        }}
+                        className="px-4 py-2 bg-[#17b6b2] text-white rounded-lg hover:bg-[#15a09d] transition-colors text-sm font-medium"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
   );
 };

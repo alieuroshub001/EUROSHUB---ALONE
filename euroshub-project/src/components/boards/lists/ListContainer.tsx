@@ -13,7 +13,8 @@ import {
   X,
   GripVertical,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Filter
 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -40,6 +41,7 @@ export interface ListData {
     cardLimit?: number;
   };
   cardsCount?: number;
+  isArchived?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -269,6 +271,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [cardFilter, setCardFilter] = useState<'newest' | 'oldest' | 'title'>('newest');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   const handleTitleEdit = () => {
     setIsEditingTitle(true);
@@ -367,6 +371,33 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
   const { height, topMargin, bottomMargin, displayName } = getCollapsedDimensions();
 
+  // Check if WIP limit is reached
+  const isWIPLimitReached = list.settings.wipLimit?.enabled &&
+    cards.length >= (list.settings.wipLimit?.limit || 0);
+
+  // Filter and sort cards
+  const getFilteredCards = () => {
+    const sortedCards = [...cards];
+
+    switch (cardFilter) {
+      case 'newest':
+        sortedCards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      case 'oldest':
+        sortedCards.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        break;
+      case 'title':
+        sortedCards.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      default:
+        break;
+    }
+
+    return sortedCards;
+  };
+
+  const filteredCards = getFilteredCards();
+
   return (
     <div
       className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
@@ -461,11 +492,66 @@ const ListContainer: React.FC<ListContainerProps> = ({
               >
                 {list.name}
                 {list.settings.wipLimit?.enabled && (
-                  <span className="ml-2 px-2 py-0.5 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 rounded">
+                  <span className={`ml-2 px-2 py-0.5 text-xs rounded ${
+                    isWIPLimitReached
+                      ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300'
+                      : 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300'
+                  }`}>
                     {cards.length}/{list.settings.wipLimit.limit}
                   </span>
                 )}
               </h3>
+            )}
+          </div>
+        )}
+
+        {/* Filter Button - Only for expanded state */}
+        {!isCollapsed && (
+          <div className="relative mr-2">
+            <button
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Filter cards"
+            >
+              <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            </button>
+
+            {showFilterMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-32 z-50">
+                <button
+                  onClick={() => {
+                    setCardFilter('newest');
+                    setShowFilterMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    cardFilter === 'newest' ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : ''
+                  }`}
+                >
+                  Newest first
+                </button>
+                <button
+                  onClick={() => {
+                    setCardFilter('oldest');
+                    setShowFilterMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    cardFilter === 'oldest' ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : ''
+                  }`}
+                >
+                  Oldest first
+                </button>
+                <button
+                  onClick={() => {
+                    setCardFilter('title');
+                    setShowFilterMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    cardFilter === 'title' ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : ''
+                  }`}
+                >
+                  By title
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -492,10 +578,10 @@ const ListContainer: React.FC<ListContainerProps> = ({
           className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px] custom-scrollbar-vertical"
         >
         <SortableContext
-          items={cards.map(card => card._id)}
+          items={filteredCards.map(card => card._id)}
           strategy={verticalListSortingStrategy}
         >
-          {cards.map((card) => (
+          {filteredCards.map((card) => (
             <SortableCard
               key={card._id}
               card={card}
@@ -515,13 +601,21 @@ const ListContainer: React.FC<ListContainerProps> = ({
 
       {/* Add Card Button - Hide when collapsed */}
       {!isCollapsed && (!showCreateForm ? (
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="w-full py-2 px-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm border border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-        >
-          <Plus className="w-4 h-4" />
-          Add a card
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => !isWIPLimitReached && setShowCreateForm(true)}
+            disabled={isWIPLimitReached}
+            className={`w-full py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm border border-dashed ${
+              isWIPLimitReached
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 cursor-not-allowed'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+            }`}
+            title={isWIPLimitReached ? `WIP limit reached (${list.settings.wipLimit?.limit} cards maximum)` : 'Add a card'}
+          >
+            <Plus className="w-4 h-4" />
+            {isWIPLimitReached ? 'WIP Limit Reached' : 'Add a card'}
+          </button>
+        </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
           <textarea

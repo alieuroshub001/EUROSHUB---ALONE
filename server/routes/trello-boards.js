@@ -194,8 +194,8 @@ router.get('/:boardId', protect, getBoardWithAccess, async (req, res) => {
   try {
     const board = req.board;
 
-    // Get lists with cards
-    const lists = await List.find({ boardId: board._id, isArchived: false })
+    // Get all lists (including archived) - frontend will filter as needed
+    const lists = await List.find({ boardId: board._id })
       .populate('createdBy', 'firstName lastName avatar')
       .sort({ position: 1 });
 

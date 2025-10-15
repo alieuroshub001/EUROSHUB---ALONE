@@ -49,6 +49,7 @@ export interface List {
   name: string;
   position: number;
   color?: string;
+  isArchived?: boolean;
   settings: {
     wipLimit?: {
       enabled: boolean;

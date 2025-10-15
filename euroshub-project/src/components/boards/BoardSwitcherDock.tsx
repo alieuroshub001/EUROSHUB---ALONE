@@ -43,13 +43,17 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
       const savedSelection = localStorage.getItem('dockBoardIds');
       if (savedSelection) {
         const savedIds = JSON.parse(savedSelection);
-        const selectedBoards = otherBoards.filter(board => savedIds.includes(board._id)).slice(0, 5);
+        // Only keep IDs that still exist in available boards
+        const validIds = savedIds.filter((id: string) =>
+          otherBoards.some(board => board._id === id)
+        );
+        const selectedBoards = otherBoards.filter(board => validIds.includes(board._id)).slice(0, 5);
         setBoards(selectedBoards);
-        setSelectedBoardIds(savedIds.slice(0, 5));
+        setSelectedBoardIds(validIds.slice(0, 5));
       } else {
-        const defaultBoards = otherBoards.slice(0, 5);
-        setBoards(defaultBoards);
-        setSelectedBoardIds(defaultBoards.map(b => b._id));
+        // Default: no boards selected initially
+        setBoards([]);
+        setSelectedBoardIds([]);
       }
     } catch (error) {
       console.error('Error loading boards:', error);

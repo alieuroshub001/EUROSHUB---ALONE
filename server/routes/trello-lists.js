@@ -253,6 +253,16 @@ router.put('/:listId/archive', protect, async (req, res) => {
     list.isArchived = !list.isArchived;
     await list.save();
 
+    // Emit socket event for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(list.boardId.toString()).emit(list.isArchived ? 'list:archived' : 'list:unarchived', {
+        listId: list._id,
+        isArchived: list.isArchived,
+        list: list
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: { isArchived: list.isArchived },
