@@ -145,8 +145,8 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
   return (
     <div className="max-w-lg">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Profile Picture</h3>
-        <p className="text-gray-600">Upload a photo to personalize your profile.</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Profile Picture</h3>
+        <p className="text-gray-600 dark:text-gray-400">Upload a photo to personalize your profile.</p>
       </div>
 
       {error && (
@@ -201,7 +201,7 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
               <button
                 onClick={openFileDialog}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm flex items-center"
+                className="px-4 py-2 bg-[#17b6b2] hover:bg-[#15a09d] disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm flex items-center"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -263,29 +263,29 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
       </div>
 
       {/* Guidelines */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <h5 className="text-sm font-semibold text-blue-900 mb-2">Photo Guidelines:</h5>
-        <ul className="text-sm text-blue-800 space-y-1">
+      <div className="mt-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Photo Guidelines:</h5>
+        <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
           <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2 text-[#17b6b2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Use a clear, recent photo of yourself
           </li>
           <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2 text-[#17b6b2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Square images work best (will be cropped to circle)
           </li>
           <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2 text-[#17b6b2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Keep it professional and appropriate
           </li>
           <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2 text-[#17b6b2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Maximum file size: 5MB

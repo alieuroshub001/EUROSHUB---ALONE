@@ -171,11 +171,11 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('firstName')}
                 onBlur={handleBlur}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none transition-colors ${
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   errors.firstName
-                    ? 'border-red-300 focus:border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-800 dark:focus:border-red-500'
+                    ? 'border-red-300 focus:ring-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-800'
                     : focusedField === 'firstName'
-                    ? 'border-[#17b6b2] bg-gray-50 dark:bg-gray-800 dark:border-[#17b6b2]'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder="Enter first name"
@@ -199,12 +199,12 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('lastName')}
                 onBlur={handleBlur}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   errors.lastName
-                    ? 'border-red-300 focus:border-red-500 bg-red-50'
+                    ? 'border-red-300 focus:ring-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-800'
                     : focusedField === 'lastName'
-                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder="Enter last name"
               />
@@ -230,10 +230,10 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
               onChange={handleInputChange}
               onFocus={() => handleFocus('phone')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+              className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                 focusedField === 'phone'
-                  ? 'border-blue-500 bg-blue-50 shadow-lg'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
               }`}
               placeholder="Enter phone number"
             />
@@ -242,9 +242,9 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
           {/* Employee ID - Only visible to privileged users */}
           {isPrivilegedUser && (
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Employee ID
-                <span className="text-xs text-blue-600 ml-2">(Admin/HR only)</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Admin/HR only)</span>
               </label>
               <input
                 type="text"
@@ -253,10 +253,10 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('employeeId')}
                 onBlur={handleBlur}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   focusedField === 'employeeId'
-                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder="Enter employee ID"
                 maxLength={20}
@@ -266,11 +266,11 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
         </div>
 
         {/* Work Information */}
-        <div className="bg-gray-50 rounded-xl p-6">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Work Information</h4>
+            <h4 className="text-md font-semibold text-gray-900 dark:text-white">Work Information</h4>
             {!isPrivilegedUser && (
-              <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+              <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/20 px-2 py-1 rounded-full">
                 Read-only for employees
               </span>
             )}
@@ -278,9 +278,9 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
 
           <div className="grid grid-cols-2 gap-4">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Department
-                {!isPrivilegedUser && <span className="text-xs text-gray-500 ml-2">(Admin/HR only)</span>}
+                {!isPrivilegedUser && <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Admin/HR only)</span>}
               </label>
               <input
                 type="text"
@@ -290,21 +290,21 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onFocus={() => handleFocus('department')}
                 onBlur={handleBlur}
                 disabled={!isPrivilegedUser}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   !isPrivilegedUser
-                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                     : focusedField === 'department'
-                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder={isPrivilegedUser ? "e.g., Engineering, Marketing" : "Contact admin to update"}
               />
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Position
-                {!isPrivilegedUser && <span className="text-xs text-gray-500 ml-2">(Admin/HR only)</span>}
+                {!isPrivilegedUser && <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Admin/HR only)</span>}
               </label>
               <input
                 type="text"
@@ -314,12 +314,12 @@ export default function ProfileInformation({ profile, onUpdateProfile }: Profile
                 onFocus={() => handleFocus('position')}
                 onBlur={handleBlur}
                 disabled={!isPrivilegedUser}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   !isPrivilegedUser
-                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                    ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                     : focusedField === 'position'
-                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }`}
                 placeholder={isPrivilegedUser ? "e.g., Senior Developer" : "Contact admin to update"}
               />

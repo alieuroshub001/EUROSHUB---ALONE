@@ -96,7 +96,7 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none transition-colors"
             />
           </div>
           <div>
@@ -108,7 +108,7 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               placeholder="What's this board about?"
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
+className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none transition-colors resize-none"
             />
           </div>
           <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">

@@ -196,7 +196,7 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Product Roadmap, Marketing Campaign"
               required
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
             />
           </div>
 
@@ -210,7 +210,7 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What's this board about?"
               rows={3}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
+className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
             />
           </div>
 
@@ -267,14 +267,14 @@ const EditBoardModal: React.FC<EditBoardModalProps> = ({ board, onClose, onSubmi
                     type="color"
                     value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
                     onChange={(e) => setFormData({ ...formData, background: e.target.value })}
-                    className="w-16 h-10 rounded-md cursor-pointer border border-gray-300 dark:border-gray-700"
+className="w-16 h-10 rounded-md cursor-pointer border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
                   />
                   <input
                     type="text"
                     value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
                     onChange={(e) => setFormData({ ...formData, background: e.target.value })}
                     placeholder="#6366f1"
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
+className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -459,7 +459,7 @@ const CreateBoardForm: React.FC<CreateBoardFormProps> = ({ onSubmit, onCancel })
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Product Roadmap, Marketing Campaign"
                 required
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none transition-colors"
               />
             </div>
 
@@ -473,7 +473,7 @@ const CreateBoardForm: React.FC<CreateBoardFormProps> = ({ onSubmit, onCancel })
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="What's this board about?"
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors resize-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none transition-colors resize-none"
               />
             </div>
 
@@ -528,14 +528,14 @@ const CreateBoardForm: React.FC<CreateBoardFormProps> = ({ onSubmit, onCancel })
                       type="color"
                       value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
                       onChange={(e) => setFormData({ ...formData, background: e.target.value })}
-                      className="w-16 h-10 rounded-md cursor-pointer border border-gray-300 dark:border-gray-700"
+className="w-16 h-10 rounded-md cursor-pointer border border-gray-300 dark:border-gray-700 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none"
                     />
                     <input
                       type="text"
                       value={formData.background.startsWith('#') ? formData.background : '#6366f1'}
                       onChange={(e) => setFormData({ ...formData, background: e.target.value })}
                       placeholder="#6366f1"
-                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-[#17b6b2] focus:ring-offset-0 focus:border-transparent focus:shadow-none transition-colors"
                     />
                   </div>
                 </div>
@@ -1404,7 +1404,7 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
               placeholder="Search boards by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+              className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:outline-none focus:ring-[#17b6b2] focus:border-transparent transition-colors"
             />
           </div>
 

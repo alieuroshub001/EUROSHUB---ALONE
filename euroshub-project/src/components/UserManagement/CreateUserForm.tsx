@@ -250,7 +250,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('firstName')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                 errors.firstName
                   ? 'border-red-300 focus:ring-red-500'
                   : focusedField === 'firstName'
@@ -278,7 +278,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('lastName')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                 errors.lastName
                   ? 'border-red-300 focus:ring-red-500'
                   : focusedField === 'lastName'
@@ -308,7 +308,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('email')}
                 onBlur={handleBlur}
-                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors ${
+                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   errors.email
                     ? 'border-red-300 focus:ring-red-500'
                     : focusedField === 'email'
@@ -339,10 +339,10 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('phone')}
                 onBlur={handleBlur}
-                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   focusedField === 'phone'
-                    ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                    : 'border-gray-300 dark:border-gray-600'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                    : 'border-gray-200 dark:border-gray-700'
                 }`}
                 placeholder="+1 (555) 000-0000"
               />
@@ -352,14 +352,14 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
       </div>
 
       {/* Role & Access Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="w-10 h-10 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center">
+            <Shield className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Role & Permissions</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Define system access and privileges</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Role & Permissions</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Define system access and privileges</p>
           </div>
         </div>
 
@@ -374,21 +374,21 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               return (
                 <div
                   key={role}
-                  className={`relative rounded-lg p-4 cursor-pointer transition-all border-2 ${
+                  className={`relative rounded-lg p-4 cursor-pointer transition-all border ${
                     formData.role === role
-                      ? 'border-gray-900 dark:border-gray-300 bg-gray-50 dark:bg-gray-700'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                      ? 'border-[#17b6b2] bg-gray-50 dark:bg-gray-800'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-[#17b6b2] bg-white dark:bg-gray-900'
                   }`}
                   onClick={() => setFormData(prev => ({ ...prev, role }))}
                 >
                   <div className="flex items-start space-x-3">
                     <div className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                       formData.role === role
-                        ? 'border-gray-900 dark:border-gray-300 bg-gray-900 dark:bg-gray-300'
+                        ? 'border-[#17b6b2] bg-[#17b6b2]'
                         : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
                     }`}>
                       {formData.role === role && (
-                        <div className="w-2 h-2 rounded-full bg-white dark:bg-gray-900" />
+                        <div className="w-2 h-2 rounded-full bg-white" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -428,14 +428,14 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
       </div>
 
       {/* Work Information Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-            <Briefcase className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="w-10 h-10 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center">
+            <Briefcase className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Work Information</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Organizational details and position</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Work Information</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Organizational details and position</p>
           </div>
         </div>
 
@@ -451,10 +451,10 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('employeeId')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                 focusedField === 'employeeId'
-                  ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                  : 'border-gray-300 dark:border-gray-600'
+                  ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                  : 'border-gray-200 dark:border-gray-700'
               }`}
               placeholder="EMP001"
               maxLength={20}
@@ -474,10 +474,10 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
                 onChange={handleInputChange}
                 onFocus={() => handleFocus('department')}
                 onBlur={handleBlur}
-                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                   focusedField === 'department'
-                    ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                    : 'border-gray-300 dark:border-gray-600'
+                    ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                    : 'border-gray-200 dark:border-gray-700'
                 }`}
                 placeholder="Engineering"
               />
@@ -495,10 +495,10 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
               onChange={handleInputChange}
               onFocus={() => handleFocus('position')}
               onBlur={handleBlur}
-              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
+              className={`w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-colors ${
                 focusedField === 'position'
-                  ? 'border-gray-900 dark:border-gray-300 focus:ring-gray-900 dark:focus:ring-gray-300'
-                  : 'border-gray-300 dark:border-gray-600'
+                  ? 'border-[#17b6b2] focus:ring-[#17b6b2]'
+                  : 'border-gray-200 dark:border-gray-700'
               }`}
               placeholder="Senior Developer"
             />
@@ -507,24 +507,24 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
       </div>
 
       {/* Security Notice */}
-      <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
+      <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-5">
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0">
-            <Lock className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-0.5" />
+            <Lock className="w-5 h-5 text-[#17b6b2] mt-0.5" strokeWidth={1.5} />
           </div>
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Security & Account Setup</h4>
             <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
               <li className="flex items-start">
-                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-600 dark:text-gray-400" />
+                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-[#17b6b2]" strokeWidth={1.5} />
                 <span>Secure credentials will be automatically generated</span>
               </li>
               <li className="flex items-start">
-                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-600 dark:text-gray-400" />
+                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-[#17b6b2]" strokeWidth={1.5} />
                 <span>Welcome email with login details will be sent</span>
               </li>
               <li className="flex items-start">
-                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-600 dark:text-gray-400" />
+                <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-[#17b6b2]" strokeWidth={1.5} />
                 <span>User must verify email and set new password on first login</span>
               </li>
             </ul>
@@ -533,7 +533,7 @@ export default function CreateUserForm({ currentUser, onCreateUser, onCancel }: 
       </div>
 
       {/* Action Buttons */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
             <AlertCircle className="w-4 h-4" />

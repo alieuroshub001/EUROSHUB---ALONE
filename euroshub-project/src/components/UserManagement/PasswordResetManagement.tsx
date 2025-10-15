@@ -28,6 +28,7 @@ const ROLE_COLORS = {
 
 export default function PasswordResetManagement({ currentUser }: PasswordResetManagementProps) {
   const [requests, setRequests] = useState<PasswordResetRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<PasswordResetRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
@@ -44,6 +45,11 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
       setLoading(true);
       setError(null);
 
+      // Always load all requests for statistics
+      const allResult = await passwordResetService.getAllRequests(1, 100);
+      setAllRequests(allResult.requests);
+
+      // Load filtered requests for display
       let result;
       if (filter === 'pending') {
         result = await passwordResetService.getPendingRequests();
@@ -125,6 +131,13 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
     return true;
   });
 
+  const filteredAllRequests = allRequests.filter(request => {
+    // Apply role-based filtering to all requests for statistics
+    if (currentUser.role === 'hr' && request.user.role !== 'employee') return false;
+    if (currentUser.role === 'admin' && request.user.role === 'superadmin') return false;
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -172,10 +185,10 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
       <div className="border-b border-gray-200 dark:border-gray-800">
         <nav className="-mb-px flex space-x-8">
           {[
-            { key: 'pending', label: 'Pending', count: requests.filter(r => r.status === 'pending').length },
-            { key: 'all', label: 'All Requests', count: requests.length },
-            { key: 'approved', label: 'Approved', count: requests.filter(r => r.status === 'approved').length },
-            { key: 'rejected', label: 'Rejected', count: requests.filter(r => r.status === 'rejected').length }
+            { key: 'pending', label: 'Pending', count: filteredAllRequests.filter(r => r.status === 'pending').length },
+            { key: 'all', label: 'All Requests', count: filteredAllRequests.length },
+            { key: 'approved', label: 'Approved', count: filteredAllRequests.filter(r => r.status === 'approved').length },
+            { key: 'rejected', label: 'Rejected', count: filteredAllRequests.filter(r => r.status === 'rejected').length }
           ].map(tab => (
             <button
               key={tab.key}
@@ -208,7 +221,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
               <Clock className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
             <div className="text-right">
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'pending').length}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredAllRequests.filter(r => r.status === 'pending').length}</p>
             </div>
           </div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Requests</p>
@@ -220,7 +233,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
               <CheckCircle2 className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
             <div className="text-right">
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'approved').length}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredAllRequests.filter(r => r.status === 'approved').length}</p>
             </div>
           </div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Approved</p>
@@ -232,7 +245,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
               <XCircle className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
             <div className="text-right">
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.filter(r => r.status === 'rejected').length}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredAllRequests.filter(r => r.status === 'rejected').length}</p>
             </div>
           </div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Rejected</p>
@@ -244,7 +257,7 @@ export default function PasswordResetManagement({ currentUser }: PasswordResetMa
               <Users className="w-5 h-5 text-[#17b6b2]" strokeWidth={1.5} />
             </div>
             <div className="text-right">
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredRequests.length}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{filteredAllRequests.length}</p>
             </div>
           </div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Requests</p>
