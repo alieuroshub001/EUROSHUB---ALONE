@@ -1057,8 +1057,61 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     return { backgroundColor: '#f8fafc' };
   };
 
+  // Get scrollbar color based on board background (lighter/minimalistic version)
+  const getScrollbarColor = () => {
+    if (!board.background) {
+      return 'rgba(23, 182, 178, 0.3)'; // Light teal with transparency
+    }
+
+    if (board.background.startsWith('#')) {
+      // Convert hex to rgba with 30% opacity
+      const hex = board.background;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, 0.3)`;
+    }
+
+    return 'rgba(23, 182, 178, 0.3)';
+  };
+
+  const scrollbarColor = getScrollbarColor();
+  const scrollbarHoverColor = getScrollbarColor().replace('0.3)', '0.5)'); // Slightly more visible on hover
+
   return (
-    <div className="h-full flex flex-col relative">
+    <>
+      {/* Custom scrollbar styles - Minimalistic design */}
+      <style jsx global>{`
+        .board-scrollbar-${boardId}::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .board-scrollbar-${boardId}::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .board-scrollbar-${boardId}::-webkit-scrollbar-thumb {
+          background: ${scrollbarColor};
+          border-radius: 4px;
+          transition: background 0.2s ease;
+        }
+
+        .board-scrollbar-${boardId}::-webkit-scrollbar-thumb:hover {
+          background: ${scrollbarHoverColor};
+        }
+
+        /* Dark mode - slightly more visible */
+        .dark .board-scrollbar-${boardId}::-webkit-scrollbar-thumb {
+          background: ${scrollbarColor.replace('0.3)', '0.4)')};
+        }
+
+        .dark .board-scrollbar-${boardId}::-webkit-scrollbar-thumb:hover {
+          background: ${scrollbarHoverColor.replace('0.5)', '0.6)')};
+        }
+      `}</style>
+
+      <div className="h-full flex flex-col relative">
       {/* Subtle Board Background */}
       <div
         className="absolute inset-0 opacity-30"
@@ -1247,7 +1300,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
 
 
       {/* Board Content - Lists */}
-      <div className="relative flex-1 p-4 overflow-x-auto">
+      <div className={`relative flex-1 p-4 overflow-x-auto board-scrollbar-${boardId}`}>
         <DragDropProvider
           lists={lists}
           cards={cards}
@@ -1462,6 +1515,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         </div>
       )}
       </div>
+    </>
   );
 };
 
