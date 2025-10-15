@@ -38,6 +38,24 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
     }
   };
 
+  // Minimalistic color helpers for colored cards
+  const hexToRgb = (hex: string) => {
+    try {
+      const raw = hex.replace('#', '');
+      const r = parseInt(raw.substring(0, 2), 16);
+      const g = parseInt(raw.substring(2, 4), 16);
+      const b = parseInt(raw.substring(4, 6), 16);
+      if ([r, g, b].some(n => Number.isNaN(n))) return null;
+      return { r, g, b };
+    } catch {
+      return null;
+    }
+  };
+
+  const rgb = card.color ? hexToRgb(card.color) : null;
+  const tintedBg = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12)` : undefined;
+  const tintedBorder = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)` : undefined;
+  const hasMeta = (card.labels?.length || 0) > 0 || !!card.dueDate || (card.members?.length || 0) > 0;
 
   return (
     <div
@@ -70,28 +88,29 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onClick }) => {
         </>
       ) : card.color ? (
         <div
-          className="w-full h-24 px-4 py-3 flex items-center rounded-lg"
+          className="w-full p-4 rounded-lg border"
           style={{
-            background: `linear-gradient(135deg, ${card.color} 0%, ${card.color}ee 100%)`,
+            backgroundColor: tintedBg || undefined,
+            borderColor: tintedBorder,
           }}
         >
-          {/* Card Title inside colored card */}
-          <h4 className="font-medium text-white text-sm line-clamp-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
+          {/* Card Title inside lightly tinted card */}
+          <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2">
             {card.title}
           </h4>
         </div>
       ) : (
         <div className="p-4">
           {/* Card Title for cards without image or color */}
-          <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1 line-clamp-2">
+          <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2">
             {card.title}
           </h4>
         </div>
       )}
 
       {/* Content - Only show for cards without cover image/color */}
-      {!card.coverImage && !card.color && (
-        <div className="px-3 pb-3">
+      {!card.coverImage && !card.color && hasMeta && (
+        <div className="px-4 pt-2 pb-3">
           {/* Labels */}
           {card.labels.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3">

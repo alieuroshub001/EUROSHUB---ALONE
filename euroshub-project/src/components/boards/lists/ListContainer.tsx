@@ -274,6 +274,28 @@ const ListContainer: React.FC<ListContainerProps> = ({
   const [cardFilter, setCardFilter] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
+  // Helpers for minimal list color styling (similar to BoardView)
+  const hexToRgb = (hex: string) => {
+    try {
+      const raw = hex.replace('#', '');
+      const r = parseInt(raw.substring(0, 2), 16);
+      const g = parseInt(raw.substring(2, 4), 16);
+      const b = parseInt(raw.substring(4, 6), 16);
+      if ([r, g, b].some(n => Number.isNaN(n))) return null;
+      return { r, g, b };
+    } catch {
+      return null;
+    }
+  };
+
+  const rgb = list.color ? hexToRgb(list.color) : null;
+  const listBg = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)` : undefined;
+  const listBorder = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)` : undefined;
+  const sbThumb = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)` : 'rgba(156, 163, 175, 0.5)';
+  const sbThumbHover = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)` : 'rgba(156, 163, 175, 0.8)';
+  const sbThumbDark = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : 'rgba(156, 163, 175, 0.5)';
+  const sbThumbDarkHover = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : 'rgba(156, 163, 175, 0.8)';
+
   const handleTitleEdit = () => {
     setIsEditingTitle(true);
     setTempTitle(list.name); // Always use current list name
@@ -399,16 +421,30 @@ const ListContainer: React.FC<ListContainerProps> = ({
   const filteredCards = getFilteredCards();
 
   return (
-    <div
-      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
-        isCollapsed ? 'w-16' : 'w-80'
-      } flex flex-col overflow-hidden shadow-sm`}
-      style={{
-        height: height ? `${height}px` : 'auto',
-        borderTop: list.color ? `3px solid ${list.color}` : undefined,
-      }}
-      data-list-id={list._id}
-    >
+    <>
+      {/* Minimalistic per-list scrollbar using list color */}
+      <style jsx global>{`
+        .list-scrollbar-${list._id} { scrollbar-width: thin; scrollbar-color: ${sbThumb} transparent; scrollbar-gutter: stable both-edges; }
+        .list-scrollbar-${list._id}::-webkit-scrollbar { width: 6px; }
+        .list-scrollbar-${list._id}::-webkit-scrollbar-track { background: transparent; }
+        .list-scrollbar-${list._id}::-webkit-scrollbar-thumb { background: ${sbThumb}; border-radius: 3px; transition: background 0.2s ease; }
+        .list-scrollbar-${list._id}::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}; }
+        .dark .list-scrollbar-${list._id} { scrollbar-color: ${sbThumbDark} transparent; }
+        .dark .list-scrollbar-${list._id}::-webkit-scrollbar-thumb { background: ${sbThumbDark}; }
+        .dark .list-scrollbar-${list._id}::-webkit-scrollbar-thumb:hover { background: ${sbThumbDarkHover}; }
+      `}</style>
+
+      <div
+        className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-shrink-0 transition-all duration-300 ${
+          isCollapsed ? 'w-16' : 'w-80'
+        } flex flex-col overflow-hidden shadow-sm`}
+        style={{
+          height: height ? `${height}px` : 'auto',
+          backgroundColor: listBg,
+          borderColor: listBorder,
+        }}
+        data-list-id={list._id}
+      >
       {/* List Header */}
       <div className={`${isCollapsed ? 'flex-col items-center' : 'flex items-center justify-between'} mb-4`}>
         {/* Collapse/Expand Button */}
@@ -575,7 +611,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
       {!isCollapsed && (
         <div
           ref={setNodeRef}
-          className="space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px] custom-scrollbar-vertical"
+          className={`space-y-3 mb-4 max-h-96 overflow-y-auto min-h-[100px] pr-3 list-scrollbar-${list._id}`}
+          style={{ direction: 'ltr' }}
         >
         <SortableContext
           items={filteredCards.map(card => card._id)}
@@ -761,7 +798,8 @@ const ListContainer: React.FC<ListContainerProps> = ({
         onClose={() => setShowSettingsModal(false)}
         onUpdateList={onUpdateList}
       />
-    </div>
+      </div>
+    </>
   );
 };
 

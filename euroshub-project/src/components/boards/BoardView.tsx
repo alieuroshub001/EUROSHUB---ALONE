@@ -1078,6 +1078,22 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
   const scrollbarColor = getScrollbarColor();
   const scrollbarHoverColor = getScrollbarColor().replace('0.3)', '0.5)'); // Slightly more visible on hover
 
+  // Compute minimal floating dock tint/border based on board background color
+  const getDockColors = () => {
+    const fallback = { tintBg: 'rgba(23, 182, 178, 0.12)', border: 'rgba(23, 182, 178, 0.25)' };
+    if (!board.background) return fallback;
+    if (board.background.startsWith('#')) {
+      const hex = board.background;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      if ([r, g, b].some(n => Number.isNaN(n))) return fallback;
+      return { tintBg: `rgba(${r}, ${g}, ${b}, 0.12)`, border: `rgba(${r}, ${g}, ${b}, 0.25)` };
+    }
+    return fallback;
+  };
+  const dockColors = getDockColors();
+
   return (
     <>
       {/* Custom scrollbar styles - Minimalistic design */}
@@ -1449,6 +1465,8 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
         currentBoardId={boardId}
         baseUrl={baseUrl}
         userRole={userRole}
+        tintColor={dockColors.tintBg}
+        borderColor={dockColors.border}
       />
 
       {/* Archived Lists Modal */}

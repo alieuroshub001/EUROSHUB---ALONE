@@ -17,15 +17,19 @@ export const FloatingDock = ({
   items,
   desktopClassName,
   mobileClassName,
+  tintColor,
+  borderColor,
 }: {
   items: { title: string; icon: React.ReactNode; href: string }[];
   desktopClassName?: string;
   mobileClassName?: string;
+  tintColor?: string;
+  borderColor?: string;
 }) => {
   return (
     <>
-      <FloatingDockDesktop items={items} className={desktopClassName} />
-      <FloatingDockMobile items={items} className={mobileClassName} />
+      <FloatingDockDesktop items={items} className={desktopClassName} tintColor={tintColor} borderColor={borderColor} />
+      <FloatingDockMobile items={items} className={mobileClassName} tintColor={tintColor} borderColor={borderColor} />
     </>
   );
 };
@@ -33,9 +37,13 @@ export const FloatingDock = ({
 const FloatingDockMobile = ({
   items,
   className,
+  tintColor,
+  borderColor,
 }: {
   items: { title: string; icon: React.ReactNode; href: string }[];
   className?: string;
+  tintColor?: string;
+  borderColor?: string;
 }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -68,7 +76,8 @@ const FloatingDockMobile = ({
                 <Link
                   href={item.href}
                   key={item.title}
-                  className="h-12 w-12 rounded-2xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl flex items-center justify-center shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:scale-110 hover:shadow-xl transition-all duration-300"
+                  className="h-12 w-12 rounded-2xl backdrop-blur-xl flex items-center justify-center shadow-lg border hover:scale-110 hover:shadow-xl transition-all duration-300"
+                  style={{ backgroundColor: tintColor, borderColor: borderColor }}
                 >
                   <div className="h-5 w-5 text-gray-700 dark:text-gray-200">{item.icon}</div>
                 </Link>
@@ -79,7 +88,8 @@ const FloatingDockMobile = ({
       </AnimatePresence>
       <button
         onClick={() => setOpen(!open)}
-        className="h-12 w-12 rounded-2xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl flex items-center justify-center shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:scale-110 hover:shadow-xl transition-all duration-300"
+        className="h-12 w-12 rounded-2xl backdrop-blur-xl flex items-center justify-center shadow-lg border hover:scale-110 hover:shadow-xl transition-all duration-300"
+        style={{ backgroundColor: tintColor, borderColor: borderColor }}
       >
         <IconLayoutNavbarCollapse className="h-5 w-5 text-gray-700 dark:text-gray-200" />
       </button>
@@ -90,9 +100,13 @@ const FloatingDockMobile = ({
 const FloatingDockDesktop = ({
   items,
   className,
+  tintColor,
+  borderColor,
 }: {
   items: { title: string; icon: React.ReactNode; href: string }[];
   className?: string;
+  tintColor?: string;
+  borderColor?: string;
 }) => {
   const mouseX = useMotionValue(Infinity);
   return (
@@ -100,9 +114,10 @@ const FloatingDockDesktop = ({
       onMouseMove={(e) => mouseX.set(e.pageX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       className={cn(
-        "mx-auto hidden md:flex h-20 gap-3 items-end rounded-3xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl px-6 pb-4 shadow-2xl border border-gray-200/50 dark:border-gray-700/50",
+        "mx-auto hidden md:flex h-20 gap-3 items-end rounded-3xl backdrop-blur-2xl px-6 pb-4 shadow-2xl border",
         className
       )}
+      style={{ backgroundColor: tintColor, borderColor: borderColor }}
     >
       {items.map((item) => (
         <IconContainer mouseX={mouseX} key={item.title} {...item} />

@@ -17,12 +17,16 @@ interface BoardSwitcherDockProps {
   currentBoardId: string;
   baseUrl: string;
   userRole: string;
+  tintColor?: string;
+  borderColor?: string;
 }
 
 const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
   currentBoardId,
   baseUrl,
-  userRole
+  userRole,
+  tintColor,
+  borderColor,
 }) => {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,26 +34,33 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
   const [selectedBoardIds, setSelectedBoardIds] = useState<string[]>([]);
   const [availableBoards, setAvailableBoards] = useState<Board[]>([]);
 
+  const normalizeId = (id: unknown) => String(id ?? '');
+
   // Role-based permissions
   const canCreateBoards = ['superadmin', 'admin', 'hr'].includes(userRole);
 
   const loadBoards = useCallback(async () => {
     try {
       const allBoards = await boardsApi.getBoards();
-      const otherBoards = allBoards.filter(board => board._id !== currentBoardId);
+      const otherBoards = allBoards.filter(board => normalizeId(board._id) !== normalizeId(currentBoardId));
       setAvailableBoards(otherBoards);
 
       // Load saved selection from localStorage or use default (first 5 for customizable slots)
       const savedSelection = localStorage.getItem('dockBoardIds');
       if (savedSelection) {
-        const savedIds = JSON.parse(savedSelection);
-        // Only keep IDs that still exist in available boards
+        const savedIdsRaw = JSON.parse(savedSelection);
+        const savedIds: string[] = Array.isArray(savedIdsRaw) ? savedIdsRaw.map((id: unknown) => normalizeId(id)) : [];
+        // Only keep IDs that still exist in ALL boards (not just others)
         const validIds = savedIds.filter((id: string) =>
-          otherBoards.some(board => board._id === id)
-        );
-        const selectedBoards = otherBoards.filter(board => validIds.includes(board._id)).slice(0, 5);
-        setBoards(selectedBoards);
-        setSelectedBoardIds(validIds.slice(0, 5));
+          allBoards.some(board => normalizeId(board._id) === id)
+        ).slice(0, 5);
+        // Preserve order from savedIds and map to board objects from ALL boards
+        const selectedBoardsAll = validIds
+          .map(id => allBoards.find(board => normalizeId(board._id) === id))
+          .filter(Boolean) as Board[];
+        // Show all selected boards, including current, so items don't disappear on navigation
+        setBoards(selectedBoardsAll);
+        setSelectedBoardIds(validIds);
       } else {
         // Default: no boards selected initially
         setBoards([]);
@@ -67,24 +78,26 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
   }, [loadBoards]);
 
   const handleSaveCustomization = () => {
-    const selectedBoards = availableBoards.filter(board =>
-      selectedBoardIds.includes(board._id)
-    );
+    // Keep order based on selectedBoardIds
+    const selectedBoards = selectedBoardIds
+      .map(id => availableBoards.find(board => normalizeId(board._id) === id))
+      .filter(Boolean) as Board[];
     setBoards(selectedBoards);
     localStorage.setItem('dockBoardIds', JSON.stringify(selectedBoardIds));
     setShowCustomizeModal(false);
   };
 
   const toggleBoardSelection = (boardId: string) => {
+    const id = normalizeId(boardId);
     setSelectedBoardIds(prev => {
-      if (prev.includes(boardId)) {
-        return prev.filter(id => id !== boardId);
+      if (prev.includes(id)) {
+        return prev.filter(existing => existing !== id);
       } else {
         // Limit to 5 boards
         if (prev.length >= 5) {
           return prev;
         }
-        return [...prev, boardId];
+        return [...prev, id];
       }
     });
   };
@@ -182,8 +195,10 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
         <FloatingDock
           items={dockItems}
-          desktopClassName="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg"
-          mobileClassName="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg"
+          desktopClassName="backdrop-blur-sm shadow-lg"
+          mobileClassName="backdrop-blur-sm shadow-lg"
+          tintColor={tintColor}
+          borderColor={borderColor}
         />
       </div>
 
@@ -226,7 +241,7 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
                     key={board._id}
                     onClick={() => toggleBoardSelection(board._id)}
                     className={`flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                      selectedBoardIds.includes(board._id)
+                      selectedBoardIds.includes(normalizeId(board._id))
                         ? 'border-[#17b6b2] bg-[#17b6b2]/5 dark:bg-[#17b6b2]/10'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}
@@ -254,7 +269,7 @@ const BoardSwitcherDock: React.FC<BoardSwitcherDockProps> = ({
                     {/* Checkbox */}
                     <div
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        selectedBoardIds.includes(board._id)
+                        selectedBoardIds.includes(normalizeId(board._id))
                           ? 'bg-[#17b6b2] border-[#17b6b2]'
                           : 'border-gray-300 dark:border-gray-600'
                       }`}
