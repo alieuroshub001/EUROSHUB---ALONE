@@ -77,7 +77,7 @@ const CreateListForm: React.FC<CreateListFormProps> = ({
           onChange={(e) => setListName(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Enter list title..."
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#17b6b2] focus:border-transparent transition-colors"
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:outline-none focus:ring-[#17b6b2] focus:border-transparent transition-colors"
           autoFocus
           disabled={isLoading}
         />

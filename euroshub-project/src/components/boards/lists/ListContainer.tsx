@@ -664,7 +664,7 @@ const ListContainer: React.FC<ListContainerProps> = ({
               }
             }}
             placeholder="Enter a title for this card..."
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 resize-none focus:outline-none focus:border-[#17b6b2] bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded"
             rows={3}
             autoFocus
             onKeyDown={(e) => {
