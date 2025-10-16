@@ -24,6 +24,7 @@ import {
   X,
   ChevronDown} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useBoardStats } from '@/contexts/BoardStatsContext';
 import { boardsApi } from '@/services/trelloBoardsApi';
 import toast from 'react-hot-toast';
 
@@ -652,9 +653,15 @@ const BoardCard: React.FC<BoardCardProps> = ({
   onStar,
   canEdit,
   canDelete}) => {
+  const { getBoardStats } = useBoardStats();
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
+
+  // Get real-time stats from context, fallback to board data
+  const boardStats = getBoardStats(board._id);
+  const listsCount = boardStats?.listsCount ?? board.listsCount ?? 0;
+  const cardsCount = boardStats?.cardsCount ?? board.cardsCount ?? 0;
 
 
   useEffect(() => {
@@ -803,12 +810,12 @@ const BoardCard: React.FC<BoardCardProps> = ({
           <div className="flex items-center gap-6 mb-4 text-sm">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-              <span className="text-gray-600 dark:text-gray-400 font-medium">{board.listsCount || 0}</span>
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{listsCount}</span>
               <span className="text-gray-400 dark:text-gray-500">lists</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-              <span className="text-gray-600 dark:text-gray-400 font-medium">{board.cardsCount || 0}</span>
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{cardsCount}</span>
               <span className="text-gray-400 dark:text-gray-500">cards</span>
             </div>
           </div>
@@ -981,34 +988,10 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
     }
   };
 
-  // Function to refresh board counts by fetching detailed board info
-  const refreshBoardCounts = useCallback(async (boardId: string) => {
-    try {
-      console.log('🔄 Refreshing counts for board:', boardId);
-      const boardDetails = await boardsApi.getBoard(boardId);
-
-      // Calculate counts from the detailed board data
-      const listsCount = boardDetails.lists?.length || 0;
-      const cardsCount = boardDetails.lists?.reduce((total, list) => total + (list.cards?.length || 0), 0) || 0;
-
-      console.log('✅ Updated counts:', { boardId, listsCount, cardsCount });
-
-      // Update the specific board in the state
-      setBoards(prev => prev.map(board =>
-        board._id === boardId
-          ? { ...board, listsCount, cardsCount }
-          : board
-      ));
-    } catch (error) {
-      console.error('❌ Error refreshing board counts:', error);
-    }
-  }, []);
-
-  // Handle URL parameters on mount and detect navigation back from boards
+  // Handle URL parameters on mount
   useEffect(() => {
     const starred = searchParams.get('starred');
     const create = searchParams.get('create');
-    const refresh = searchParams.get('refresh');
 
     if (starred === 'true') {
       setFilterType('starred');
@@ -1019,114 +1002,11 @@ const BoardManagement: React.FC<BoardManagementProps> = ({ userRole, baseUrl }) 
       // Remove the query parameter from URL
       router.replace(baseUrl + '/boards');
     }
-
-    // If refresh parameter is present, refresh all board counts
-    if (refresh === 'true' && boards.length > 0) {
-      console.log('🔄 Navigation refresh triggered, updating all board counts...');
-      boards.forEach(board => {
-        refreshBoardCounts(board._id);
-      });
-      // Clean up URL
-      router.replace(baseUrl + '/boards');
-    }
-  }, [searchParams, canCreateBoards, router, baseUrl, boards, refreshBoardCounts]);
+  }, [searchParams, canCreateBoards, router, baseUrl]);
 
   useEffect(() => {
     loadBoards();
   }, []);
-
-  // Refresh counts for all boards after initial load
-  useEffect(() => {
-    if (boards.length > 0) {
-      console.log('🔄 Auto-refreshing counts for all boards...');
-      boards.forEach(board => {
-        // Only refresh if counts are missing or zero
-        if (!board.listsCount && !board.cardsCount) {
-          refreshBoardCounts(board._id);
-        }
-      });
-    }
-  }, [boards, refreshBoardCounts]); // Only run when boards are first loaded
-
-  // Real-time sync: Page Visibility API - refresh when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && boards.length > 0) {
-        console.log('📡 Page became visible, refreshing all board counts...');
-        boards.forEach(board => {
-          refreshBoardCounts(board._id);
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [boards, refreshBoardCounts]);
-
-  // Real-time sync: Focus event - refresh when window regains focus
-  useEffect(() => {
-    const handleFocus = () => {
-      if (boards.length > 0) {
-        console.log('🎯 Window focused, refreshing board counts...');
-        boards.forEach(board => {
-          refreshBoardCounts(board._id);
-        });
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [boards, refreshBoardCounts]);
-
-  // Real-time sync: Periodic background refresh every 30 seconds
-  useEffect(() => {
-    if (boards.length === 0) return;
-
-    const interval = setInterval(() => {
-      console.log('⏰ Periodic refresh of board counts...');
-      boards.forEach(board => {
-        refreshBoardCounts(board._id);
-      });
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [boards, refreshBoardCounts]);
-
-  // Real-time sync: Storage event listener for cross-tab communication
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'boardsUpdated' && boards.length > 0) {
-        console.log('💾 Cross-tab update detected, refreshing board counts...');
-        boards.forEach(board => {
-          refreshBoardCounts(board._id);
-        });
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [boards, refreshBoardCounts]);
-
-
-  // Real-time sync: Detect return from board navigation
-  useEffect(() => {
-    const navigationTime = sessionStorage.getItem('boardNavigationTime');
-    const lastVisitedBoard = sessionStorage.getItem('lastVisitedBoard');
-
-    if (navigationTime && lastVisitedBoard && boards.length > 0) {
-      const timeDiff = Date.now() - parseInt(navigationTime);
-
-      // If user spent more than 10 seconds on board view, refresh counts
-      if (timeDiff > 10000) {
-        console.log('🚪 User returned from board view, refreshing counts...');
-        refreshBoardCounts(lastVisitedBoard);
-
-        // Clear the navigation tracking
-        sessionStorage.removeItem('boardNavigationTime');
-        sessionStorage.removeItem('lastVisitedBoard');
-      }
-    }
-  }, [boards.length, refreshBoardCounts]); // Run when boards are loaded
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocketContext } from '@/contexts/SocketContext';
+import { useBoardStats } from '@/contexts/BoardStatsContext';
 import { ListData, Card } from './lists/ListContainer';
 import SortableListContainer from './lists/SortableListContainer';
 import CreateListForm from './lists/CreateListForm';
@@ -143,6 +144,7 @@ const BoardView: React.FC<BoardViewProps> = ({ boardId, userRole, baseUrl }) => 
   const router = useRouter();
   const { user } = useAuth();
   const { socket, isConnected } = useSocketContext();
+  const { updateBoardStats } = useBoardStats();
   const [board, setBoard] = useState<Board | null>(null);
   const [lists, setLists] = useState<ListData[]>([]);
   const [cards, setCards] = useState<Record<string, Card[]>>({});
@@ -179,6 +181,17 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
     loadBoardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
+
+  // Update board stats in context whenever lists or cards change
+  useEffect(() => {
+    if (lists.length > 0 || Object.keys(cards).length > 0) {
+      const listsCount = lists.length;
+      const cardsCount = Object.values(cards).reduce((total, listCards) => total + listCards.length, 0);
+
+      console.log('📊 Updating board stats in context:', { boardId, listsCount, cardsCount });
+      updateBoardStats(boardId, listsCount, cardsCount);
+    }
+  }, [lists, cards, boardId, updateBoardStats]);
 
   // Socket.IO real-time updates
   useEffect(() => {

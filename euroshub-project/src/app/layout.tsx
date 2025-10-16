@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SocketProvider } from "@/contexts/SocketContext";
+import { BoardStatsProvider } from "@/contexts/BoardStatsContext";
 import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
@@ -29,8 +30,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SocketProvider>
-          <Toaster
+        <BoardStatsProvider>
+          <SocketProvider>
+            <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
@@ -80,9 +82,10 @@ export default function RootLayout({
                 },
               },
             }}
-          />
-          {children}
-        </SocketProvider>
+            />
+            {children}
+          </SocketProvider>
+        </BoardStatsProvider>
       </body>
     </html>
   );
