@@ -175,7 +175,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </label>
             <textarea
               value={editData.description || ''}
-              onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => {
+                const newDescription = e.target.value;
+                setEditData(prev => ({ ...prev, description: newDescription }));
+              }}
+              onBlur={() => {
+                // Auto-save description when user leaves the field
+                if (editData.description !== task.description) {
+                  onUpdateTask(task._id, { description: editData.description });
+                }
+              }}
               disabled={!canEdit}
               rows={4}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 resize-none"
@@ -192,7 +201,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
               {(['low', 'medium', 'high'] as const).map((priority) => (
                 <button
                   key={priority}
-                  onClick={() => canEdit && setEditData(prev => ({ ...prev, priority }))}
+                  onClick={() => {
+                    if (!canEdit) return;
+                    setEditData(prev => ({ ...prev, priority }));
+                    // Auto-save priority immediately
+                    onUpdateTask(task._id, { priority });
+                  }}
                   disabled={!canEdit}
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                     editData.priority === priority
@@ -241,6 +255,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             ? prev.assignedTo
                             : (prev.assignedTo ? [prev.assignedTo] : []);
 
+                          let newAssignedTo;
                           if (e.target.checked) {
                             // Convert User to the simpler assignedTo format
                             const simplifiedUser = {
@@ -249,18 +264,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
                               lastName: member.userId.lastName || '',
                               avatar: member.userId.avatar
                             };
-                            return {
-                              ...prev,
-                              assignedTo: [...currentAssigned, simplifiedUser]
-                            };
+                            newAssignedTo = [...currentAssigned, simplifiedUser];
                           } else {
-                            return {
-                              ...prev,
-                              assignedTo: currentAssigned.filter(assigned =>
-                                assigned._id !== member.userId._id
-                              )
-                            };
+                            newAssignedTo = currentAssigned.filter(assigned =>
+                              assigned._id !== member.userId._id
+                            );
                           }
+
+                          // Auto-save assignedTo immediately
+                          onUpdateTask(task._id, { assignedTo: newAssignedTo });
+
+                          return {
+                            ...prev,
+                            assignedTo: newAssignedTo
+                          };
                         });
                       }}
                       disabled={!canEdit}
@@ -334,10 +351,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
             <input
               type="datetime-local"
               value={editData.dueDate ? new Date(editData.dueDate).toISOString().slice(0, 16) : ''}
-              onChange={(e) => setEditData(prev => ({
-                ...prev,
-                dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined
-              }))}
+              onChange={(e) => {
+                const newDueDate = e.target.value ? new Date(e.target.value).toISOString() : undefined;
+                setEditData(prev => ({ ...prev, dueDate: newDueDate }));
+                // Auto-save due date immediately
+                onUpdateTask(task._id, { dueDate: newDueDate });
+              }}
               disabled={!canEdit}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800"
             />
