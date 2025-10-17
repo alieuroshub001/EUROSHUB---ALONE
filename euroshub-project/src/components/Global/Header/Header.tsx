@@ -188,7 +188,7 @@ const Header = memo<HeaderProps>(({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 h-16">
+    <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 h-16">
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         {/* Left Section */}
         <div className="flex items-center space-x-4">
@@ -202,13 +202,13 @@ const Header = memo<HeaderProps>(({
 
           {/* Page title and breadcrumb */}
           <div className="hidden sm:block">
-            <h1 className="text-lg font-semibold text-gray-900">{getPageTitle()}</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{getPageTitle()}</h1>
             {showBreadcrumb && breadcrumbs.length > 0 && (
-              <nav className="flex items-center space-x-2 text-sm text-gray-500">
+              <nav className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
                 {breadcrumbs.map((crumb, index) => (
                   <div key={index} className="flex items-center">
                     {index > 0 && <span className="mx-2">/</span>}
-                    <span className={index === breadcrumbs.length - 1 ? 'text-gray-900' : 'hover:text-gray-700 cursor-pointer'}>
+                    <span className={index === breadcrumbs.length - 1 ? 'text-gray-900 dark:text-white' : 'hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer'}>
                       {crumb}
                     </span>
                   </div>
@@ -222,19 +222,19 @@ const Header = memo<HeaderProps>(({
         <div className="flex-1 max-w-xl mx-4 hidden md:block">
           <div className="relative" ref={searchRef}>
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16} className="text-gray-400 dark:text-gray-300" />
             </div>
             <input
               type="text"
               placeholder="Search anything..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-[#0fb8af]/20 focus:border-[#0fb8af] transition-colors text-sm placeholder-gray-400"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-800/70 focus:outline-none focus:ring-2 focus:ring-[#0fb8af]/20 focus:border-[#0fb8af] transition-colors text-sm placeholder-gray-400 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100"
               >
                 <X size={16} />
               </button>
@@ -245,12 +245,12 @@ const Header = memo<HeaderProps>(({
         {/* Right Section */}
         <div className="flex items-center space-x-2">
           {/* Date and Time */}
-          <div className="hidden lg:flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-50/50 text-sm">
-            <div className="flex items-center space-x-2 text-gray-600">
+          <div className="hidden lg:flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-50/50 dark:bg-gray-800/70 text-sm">
+            <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-300">
               <Calendar size={14} />
               <span>{formatDate(currentTime)}</span>
             </div>
-            <div className="flex items-center space-x-2 text-gray-900 font-medium">
+            <div className="flex items-center space-x-2 text-gray-900 dark:text-gray-100 font-medium">
               <Clock size={14} />
               <span>{formatTime(currentTime)}</span>
             </div>
@@ -259,7 +259,7 @@ const Header = memo<HeaderProps>(({
           {/* Mobile search toggle */}
           <button
             onClick={handleSearchToggle}
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
           >
             <Search size={18} />
           </button>
@@ -269,7 +269,7 @@ const Header = memo<HeaderProps>(({
             {/* Refresh */}
             <button
               onClick={handleRefresh}
-              className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               title="Refresh"
             >
               <RefreshCw size={16} />
@@ -278,7 +278,7 @@ const Header = memo<HeaderProps>(({
             {/* Fullscreen toggle */}
             <button
               onClick={toggleFullscreen}
-              className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -288,7 +288,7 @@ const Header = memo<HeaderProps>(({
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={handleNotificationToggle}
-                className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+                className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               >
                 <Bell size={16} />
                 {unreadCount > 0 && (
@@ -300,16 +300,16 @@ const Header = memo<HeaderProps>(({
 
               {/* Notifications dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <h3 className="font-semibold text-gray-900">Notifications</h3>
-                    <p className="text-xs text-gray-500">{unreadCount} unread</p>
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{unreadCount} unread</p>
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-2 ${
+                        className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-l-2 ${
                           notification.unread 
                             ? 'border-l-[#0fb8af] bg-blue-50/30' 
                             : 'border-l-transparent'
@@ -317,18 +317,18 @@ const Header = memo<HeaderProps>(({
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                            <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{notification.title}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{notification.message}</p>
                           </div>
                           {notification.unread && (
                             <div className="w-2 h-2 bg-[#0fb8af] rounded-full mt-1" />
                           )}
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">{notification.time}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{notification.time}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="px-4 py-2 border-t border-gray-100">
+                  <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800">
                     <button className="w-full text-sm text-[#0fb8af] hover:text-[#0a9d96] font-medium">
                       View all notifications
                     </button>
@@ -341,7 +341,7 @@ const Header = memo<HeaderProps>(({
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={handleUserMenuToggle}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
               >
                 {userAvatar ? (
                   // User has avatar - display image with enhanced visibility
@@ -360,42 +360,42 @@ const Header = memo<HeaderProps>(({
                   </div>
                 )}
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900 truncate max-w-24">{userName}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-24">{userName}</p>
                   <p className={`text-xs ${roleInfo.color} truncate max-w-24`}>{roleInfo.displayName}</p>
                 </div>
-                <ChevronDown size={14} className="text-gray-600" />
+                <ChevronDown size={14} className="text-gray-600 dark:text-gray-300" />
               </button>
 
               {/* User dropdown */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="font-medium text-gray-900">{userName}</p>
-                    <p className="text-sm text-gray-600">{userEmail}</p>
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="font-medium text-gray-900 dark:text-white">{userName}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{userEmail}</p>
                     <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleInfo.bgColor} ${roleInfo.color} mt-1`}>
                       {roleInfo.displayName}
                     </div>
                   </div>
                   
                   <div className="py-1">
-                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                       <User size={16} />
                       <span>My Profile</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                       <Settings size={16} />
                       <span>Settings</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                       <HelpCircle size={16} />
                       <span>Help & Support</span>
                     </button>
                   </div>
                   
-                  <div className="border-t border-gray-100 py-1">
+                  <div className="border-t border-gray-100 dark:border-gray-800 py-1">
                     <button 
                       onClick={handleLogout}
-                      className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                     >
                       <LogOut size={16} />
                       <span>Sign Out</span>

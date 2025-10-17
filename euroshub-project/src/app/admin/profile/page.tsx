@@ -41,15 +41,6 @@ export default function AdminProfilePage() {
       breadcrumbs={['Dashboard', 'Profile']}
     >
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-            <p className="mt-2 text-gray-600">
-              Manage your account information, security settings, and profile picture
-            </p>
-          </div>
-        </div>
-
         <ProfileManagement currentUser={currentUser} />
       </div>
     </DashboardLayout>

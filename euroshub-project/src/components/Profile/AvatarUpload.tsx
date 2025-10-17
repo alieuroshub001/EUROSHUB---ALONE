@@ -158,7 +158,7 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
         </div>
       )}
 
-      <div className="bg-gray-50 rounded-xl p-6">
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         {/* Current Avatar */}
         <div className="flex items-center space-x-6 mb-6">
           <div className="relative group">
@@ -191,10 +191,10 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
           </div>
 
           <div className="flex-1">
-            <h4 className="text-md font-semibold text-gray-900 mb-2">
+            <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-2">
               {profile.firstName} {profile.lastName}
             </h4>
-            <p className="text-gray-600 text-sm mb-3">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
               {profile.avatar ? 'Click to update your profile picture' : 'No profile picture set'}
             </p>
             <div className="flex space-x-3">
@@ -228,8 +228,8 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
         <div
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
             dragOver
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -237,16 +237,16 @@ export default function AvatarUpload({ profile, onAvatarUpdate, onAvatarDelete }
           onClick={openFileDialog}
         >
           <div className="cursor-pointer">
-            <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+            <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <p className="text-lg font-medium text-gray-900 mb-2">
+            <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               {dragOver ? 'Drop your image here' : 'Drag and drop your image'}
             </p>
-            <p className="text-gray-600 mb-4">
-              or <span className="text-blue-600 font-medium">click to browse</span>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              or <span className="text-blue-600 dark:text-blue-400 font-medium">click to browse</span>
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               PNG, JPG, GIF up to 5MB
             </p>
           </div>

@@ -24,7 +24,6 @@ import {
   X,
   ChevronDown} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useBoardStats } from '@/contexts/BoardStatsContext';
 import { boardsApi } from '@/services/trelloBoardsApi';
 import toast from 'react-hot-toast';
 
@@ -653,15 +652,10 @@ const BoardCard: React.FC<BoardCardProps> = ({
   onStar,
   canEdit,
   canDelete}) => {
-  const { getBoardStats } = useBoardStats();
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
 
-  // Get real-time stats from context, fallback to board data
-  const boardStats = getBoardStats(board._id);
-  const listsCount = boardStats?.listsCount ?? board.listsCount ?? 0;
-  const cardsCount = boardStats?.cardsCount ?? board.cardsCount ?? 0;
 
 
   useEffect(() => {
@@ -806,19 +800,6 @@ const BoardCard: React.FC<BoardCardProps> = ({
             )}
           </div>
 
-          {/* Statistics */}
-          <div className="flex items-center gap-6 mb-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-              <span className="text-gray-600 dark:text-gray-400 font-medium">{listsCount}</span>
-              <span className="text-gray-400 dark:text-gray-500">lists</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-              <span className="text-gray-600 dark:text-gray-400 font-medium">{cardsCount}</span>
-              <span className="text-gray-400 dark:text-gray-500">cards</span>
-            </div>
-          </div>
 
           {/* Spacer to push footer to bottom */}
           <div className="flex-1"></div>

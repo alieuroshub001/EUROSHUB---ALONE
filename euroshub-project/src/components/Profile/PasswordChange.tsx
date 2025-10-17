@@ -160,12 +160,12 @@ export default function PasswordChange() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-gray-50 rounded-xl p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4">Change Password</h4>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Change Password</h4>
 
           {/* Current Password */}
           <div className="relative mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Current Password *
             </label>
             <div className="relative">
@@ -209,7 +209,7 @@ export default function PasswordChange() {
 
           {/* New Password */}
           <div className="relative mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               New Password *
             </label>
             <div className="relative">
@@ -246,12 +246,12 @@ export default function PasswordChange() {
             {formData.newPassword && (
               <div className="mt-2">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600">Password Strength:</span>
+                  <span className="text-gray-600 dark:text-gray-300">Password Strength:</span>
                   <span className={`font-medium ${passwordStrength.color}`}>
                     {passwordStrength.label}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.bg}`}
                     style={{
@@ -276,7 +276,7 @@ export default function PasswordChange() {
 
           {/* Confirm Password */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Confirm New Password *
             </label>
             <div className="relative">
@@ -360,7 +360,7 @@ export default function PasswordChange() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end pt-6 border-t border-gray-200">
+        <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="submit"
             disabled={loading}
