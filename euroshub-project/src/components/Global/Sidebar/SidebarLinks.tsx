@@ -3,9 +3,8 @@
 import {
   LayoutDashboard,
   Users,
-  Settings,
   Shield,
-  HelpCircle,
+  HardDrive,
   LogOut,
   User,
   FolderKanban,
@@ -53,6 +52,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       description: 'Overview and analytics'
     },
     {
+      title: 'Storage',
+      icon: HardDrive,
+      path: '/superadmin/storage',
+      description: 'Manage storage and files'
+    },
+    {
       title: 'User Management',
       icon: Shield,
       path: '/superadmin/user-management',
@@ -84,6 +89,12 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       icon: LayoutDashboard,
       path: '/admin',
       description: 'Company overview'
+    },
+    {
+      title: 'Storage',
+      icon: HardDrive,
+      path: '/admin/storage',
+      description: 'Manage storage and files'
     },
     {
       title: 'User Management',
@@ -195,18 +206,6 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
 
 // Common footer links for all roles
 export const footerLinks: FooterLink[] = [
-  {
-    title: 'Help & Support',
-    icon: HelpCircle,
-    path: '/help',
-    description: 'Get help and support'
-  },
-  {
-    title: 'Settings',
-    icon: Settings,
-    path: '/account/settings',
-    description: 'Account settings'
-  },
   {
     title: 'Logout',
     icon: LogOut,
