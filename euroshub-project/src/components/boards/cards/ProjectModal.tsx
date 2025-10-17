@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
-import { Task as ProjectTask, Subtask as ProjectSubtask } from '../../../types/project';
+import { Task as ProjectTask, Subtask } from '../../../types/project';
 import TaskModal from './TaskModal';
 import Portal from '../../shared/Portal';
 import { cardsApi } from '../../../services/trelloBoardsApi';
@@ -75,10 +75,10 @@ interface LocalTask {
     lastName: string;
     avatar?: string;
   }>;
-  dueDate?: Date;
+  dueDate?: Date | string;
   priority: 'low' | 'medium' | 'high';
   description?: string;
-  createdAt: Date;
+  createdAt: Date | string;
   subtasks?: Array<{
     _id: string;
     title: string;
@@ -87,10 +87,9 @@ interface LocalTask {
   dependsOn?: string;
   isLocked?: boolean;
   lockedReason?: string;
-  unlockedAt?: Date;
+  unlockedAt?: Date | string;
   autoAssignOnUnlock?: boolean;
   assignToOnUnlock?: string[];
-  // Resolved users for display
   assignToOnUnlockUsers?: Array<{
     _id: string;
     firstName: string;
@@ -476,7 +475,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [card._id]);
+  }, [card._id, boardMembers]);
 
   if (!isOpen) return null;
 
@@ -509,17 +508,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   };
 
-  const handleSaveTitle = async () => {
-    if (editTitle.trim() && editTitle !== card.title) {
-      try {
-        await onUpdateCard(card._id, { title: editTitle.trim() });
-      } catch (error) {
-        console.error('Error updating title:', error);
-        setEditTitle(card.title); // Revert on error
-      }
-    }
-    setIsEditing(false);
-  };
 
   const handleCancel = () => {
     setEditData(card);
@@ -666,7 +654,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       // Resolve assignedTo to full user objects
       const resolvedAssignedTo = Array.isArray(newTaskFromAPI.assignedTo)
-        ? newTaskFromAPI.assignedTo.map((userOrId: any) => {
+        ? newTaskFromAPI.assignedTo.map((userOrId: string | { _id: string; firstName: string; lastName: string; avatar?: string }) => {
             // Handle both User objects and string IDs
             if (typeof userOrId === 'string') {
               const member = boardMembers.find(m => m._id === userOrId);
@@ -689,36 +677,22 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           }).filter(Boolean)
         : [];
 
-      // Resolve assignToOnUnlock to full user objects for display
-      const resolvedAssignToOnUnlock = (Array.isArray(newTaskFromAPI.assignToOnUnlock)
-        ? newTaskFromAPI.assignToOnUnlock.map((userId: string) => {
-            const member = boardMembers.find(m => m._id === userId);
-            return member ? {
-              _id: member._id,
-              firstName: member.firstName,
-              lastName: member.lastName,
-              avatar: member.avatar
-            } : null;
-          }).filter((u: any) => u !== null)
-        : []) as Array<{ _id: string; firstName: string; lastName: string; avatar?: string }>;
-
       // Create properly structured task object
-      const formattedTask = {
+      const formattedTask: ProjectTask = {
         _id: newTaskFromAPI._id,
         title: newTaskFromAPI.title,
         description: newTaskFromAPI.description || '',
         completed: Boolean(newTaskFromAPI.completed),
         assignedTo: resolvedAssignedTo,
         dueDate: newTaskFromAPI.dueDate,
-        priority: newTaskFromAPI.priority || 'medium',
+        priority: (newTaskFromAPI.priority as 'low' | 'medium' | 'high') || 'medium',
         createdAt: newTaskFromAPI.createdAt || new Date(),
         dependsOn: newTaskFromAPI.dependsOn,
         isLocked: newTaskFromAPI.isLocked,
         lockedReason: newTaskFromAPI.lockedReason,
         unlockedAt: newTaskFromAPI.unlockedAt,
         autoAssignOnUnlock: newTaskFromAPI.autoAssignOnUnlock,
-        assignToOnUnlock: newTaskFromAPI.assignToOnUnlock,
-        assignToOnUnlockUsers: resolvedAssignToOnUnlock
+        assignToOnUnlock: newTaskFromAPI.assignToOnUnlock
       };
 
       console.log('✅ Formatted task with assignments:', {
@@ -727,8 +701,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         isLocked: formattedTask.isLocked,
         autoAssignOnUnlock: formattedTask.autoAssignOnUnlock,
         assignedToCount: formattedTask.assignedTo?.length || 0,
-        assignToOnUnlockCount: formattedTask.assignToOnUnlock?.length || 0,
-        assignToOnUnlockUsersCount: formattedTask.assignToOnUnlockUsers?.length || 0
+        assignToOnUnlockCount: formattedTask.assignToOnUnlock?.length || 0
       });
 
       // Add new task to the list, ensuring no duplicates
@@ -737,7 +710,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (existingIds.includes(formattedTask._id)) {
           return prevTasks; // Task already exists
         }
-        return [...prevTasks, formattedTask];
+        // Convert ProjectTask to LocalTask format
+        const localTask: LocalTask = {
+          ...formattedTask,
+          dueDate: formattedTask.dueDate ? formattedTask.dueDate : undefined,
+          createdAt: formattedTask.createdAt || new Date(),
+          unlockedAt: formattedTask.unlockedAt ? formattedTask.unlockedAt : undefined
+        };
+        return [...prevTasks, localTask];
       });
 
       setNewTask('');
@@ -792,7 +772,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     setShowTaskModal(true);
   };
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<LocalTask>) => {
+  const handleUpdateTask = async (taskId: string, updates: Partial<ProjectTask>) => {
     console.log('UPDATE TASK DEBUG:', {
       taskId,
       cardId: card._id,
@@ -813,7 +793,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       completed?: boolean;
       assignedTo?: string[];
       priority?: 'low' | 'medium' | 'high';
-      dueDate?: Date;
+      dueDate?: Date | string;
     } = {
       title: updates.title,
       description: updates.description,
@@ -946,7 +926,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (task._id === taskId) {
           return {
             ...task,
-            subtasks: (task.subtasks || []).map((subtask: any) =>
+            subtasks: (task.subtasks || []).map(subtask =>
               subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
             )
           };
@@ -958,7 +938,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       if (selectedTask && selectedTask._id === taskId) {
         setSelectedTask(prev => prev ? {
           ...prev,
-          subtasks: (prev.subtasks || []).map((subtask: any) =>
+          subtasks: prev.subtasks?.map(subtask =>
             subtask._id === subtaskId ? { ...subtask, ...updatedSubtask } : subtask
           )
         } : prev);
@@ -981,7 +961,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (task._id === taskId) {
           return {
             ...task,
-            subtasks: (task.subtasks || []).filter((subtask: any) => subtask._id !== subtaskId)
+            subtasks: (task.subtasks || []).filter(subtask => subtask._id !== subtaskId)
           };
         }
         return task;
@@ -991,7 +971,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       if (selectedTask && selectedTask._id === taskId) {
         setSelectedTask(prev => prev ? {
           ...prev,
-          subtasks: (prev.subtasks || []).filter((subtask: any) => subtask._id !== subtaskId)
+          subtasks: prev.subtasks?.filter(subtask => subtask._id !== subtaskId)
         } : prev);
       }
 
@@ -1011,11 +991,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString();
   };
 
-  const formatDateTime = (date: Date) => {
+  const formatDateTime = (date: Date | string) => {
     return new Date(date).toLocaleString();
   };
 
@@ -2937,7 +2917,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           setSelectedTask(null);
         }}
         onUpdateTask={async (taskId: string, updates: Partial<ProjectTask>) => {
-          await handleUpdateTask(taskId, updates as any);
+          await handleUpdateTask(taskId, updates);
         }}
         onDeleteTask={async (taskId: string) => {
           await handleDeleteTask(taskId);
@@ -2945,7 +2925,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         onAddSubtask={handleAddSubtask}
         onUpdateSubtask={handleUpdateSubtask}
         onDeleteSubtask={handleDeleteSubtask}
-        projectMembers={boardMembers.map(member => ({
+        projectMembers={boardMembers.map((member: { _id: string; firstName?: string; lastName?: string; email?: string; role: string; avatar?: string }) => ({
           userId: {
             _id: member._id,
             firstName: member.firstName || '',

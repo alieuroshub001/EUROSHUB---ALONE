@@ -330,7 +330,7 @@ board?.createdBy?._id === user?.id ||                          ['owner', 'admin'
       socket.emit('leave-board', boardId);
       console.log(`📡 Left board room: ${boardId}`);
     };
-  }, [socket, isConnected, boardId]);
+  }, [socket, isConnected, boardId, lists, archivedLists]);
 
   const loadBoardData = async () => {
     try {

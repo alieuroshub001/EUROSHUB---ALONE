@@ -127,17 +127,19 @@ export interface Task {
   completed: boolean;
   completedAt?: string;
   completedBy?: User;
-  assignedTo?: User[];
+  assignedTo?: Array<{ _id: string; firstName: string; lastName: string; avatar?: string }>;
   dueDate?: string;
   priority: 'low' | 'medium' | 'high';
   dependsOn?: string;
-  autoAssignOnUnlock: boolean;
-  assignToOnUnlock: string[];
-  isLocked: boolean;
-  position: number;
-  subtasks: Subtask[];
-  createdAt: string;
-  updatedAt: string;
+  autoAssignOnUnlock?: boolean;
+  assignToOnUnlock?: string[];
+  isLocked?: boolean;
+  lockedReason?: string;
+  unlockedAt?: string;
+  position?: number;
+  subtasks?: Subtask[];
+  createdAt?: string | Date;
+  updatedAt?: string;
 }
 
 export interface Attachment {

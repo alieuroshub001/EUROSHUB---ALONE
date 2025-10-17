@@ -46,6 +46,8 @@ const folderRoutes = require('./routes/folders');
 const fileRoutes = require('./routes/files');
 // Comment routes
 const commentRoutes = require('./routes/comments');
+// Storage routes
+const storageRoutes = require('./routes/storage');
 const SocketManager = require('./config/socket');
 const ProjectSocketManager = require('./config/projectSocket');
 // Initialize automation service with error handling
@@ -257,6 +259,9 @@ app.use('/api/test', testEmailRoutes);
 // File and folder management routes
 app.use('/api', folderRoutes);
 app.use('/api', fileRoutes);
+
+// Storage routes
+app.use('/api/storage', storageRoutes);
 
 // Comment routes (integrated into cards routes, so commented out to avoid duplicates)
 // app.use('/api', commentRoutes);

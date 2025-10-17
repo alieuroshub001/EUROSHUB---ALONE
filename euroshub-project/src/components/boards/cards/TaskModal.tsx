@@ -242,15 +242,22 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             : (prev.assignedTo ? [prev.assignedTo] : []);
 
                           if (e.target.checked) {
+                            // Convert User to the simpler assignedTo format
+                            const simplifiedUser = {
+                              _id: member.userId._id,
+                              firstName: member.userId.firstName || '',
+                              lastName: member.userId.lastName || '',
+                              avatar: member.userId.avatar
+                            };
                             return {
                               ...prev,
-                              assignedTo: [...currentAssigned, member.userId]
+                              assignedTo: [...currentAssigned, simplifiedUser]
                             };
                           } else {
                             return {
                               ...prev,
                               assignedTo: currentAssigned.filter(assigned =>
-                                (typeof assigned === 'string' ? assigned : assigned._id) !== member.userId._id
+                                assigned._id !== member.userId._id
                               )
                             };
                           }
@@ -467,7 +474,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Task Info</h4>
             <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-              <div>Created: {new Date(task.createdAt).toLocaleString()}</div>
+              <div>Created: {task.createdAt ? new Date(task.createdAt).toLocaleString() : 'N/A'}</div>
               <div>Status: {task.completed ? 'Completed' : 'In Progress'}</div>
               {task.subtasks && task.subtasks.length > 0 && (
                 <div>Progress: {getTaskProgress()}% complete</div>

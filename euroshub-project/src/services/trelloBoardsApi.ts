@@ -485,7 +485,7 @@ export const cardsApi = {
     completed?: boolean;
     assignedTo?: string | string[];
     priority?: 'low' | 'medium' | 'high';
-    dueDate?: Date;
+    dueDate?: Date | string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): Promise<any> => {
     const response = await apiCall(`/trello-cards/${cardId}/tasks/${taskId}`, {

@@ -55,7 +55,7 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Storage',
       icon: HardDrive,
       path: '/superadmin/storage',
-      description: 'Manage storage and files'
+      description: 'Storage Analysis'
     },
     {
       title: 'User Management',
@@ -94,7 +94,7 @@ export const navigationLinks: Record<UserRole, NavigationItem[]> = {
       title: 'Storage',
       icon: HardDrive,
       path: '/admin/storage',
-      description: 'Manage storage and files'
+      description: 'Storage Analysis'
     },
     {
       title: 'User Management',
