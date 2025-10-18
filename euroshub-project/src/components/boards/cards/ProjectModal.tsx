@@ -30,7 +30,8 @@ import {
   MessageCircle,
   Smile,
   SmilePlus,
-  Lock
+  Lock,
+  Lightbulb
 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Card } from '../lists/ListContainer';
@@ -346,6 +347,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           unlockedAt?: Date;
           autoAssignOnUnlock?: boolean;
           assignToOnUnlock?: string[];
+          subtasks?: Array<{
+            _id: string;
+            title: string;
+            completed: boolean;
+            completedAt?: Date;
+            position?: number;
+            createdAt?: Date;
+            updatedAt?: Date;
+          }>;
         }>;
         attachments?: Array<{
           _id: string;
@@ -399,7 +409,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             unlockedAt: task.unlockedAt,
             autoAssignOnUnlock: task.autoAssignOnUnlock,
             assignToOnUnlock: task.assignToOnUnlock,
-            assignToOnUnlockUsers: resolvedAssignToOnUnlock
+            assignToOnUnlockUsers: resolvedAssignToOnUnlock,
+            subtasks: task.subtasks || []
           };
         });
 
@@ -1663,8 +1674,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
               {newTaskAutoAssign && (
                 <div className="pl-6">
-                  <p className="text-xs text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 p-2 rounded border border-teal-200 dark:border-teal-800">
-                    💡 Users selected above will be auto-assigned when this task is unlocked
+                  <p className="text-xs text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 p-2 rounded border border-teal-200 dark:border-teal-800 flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5" />
+                    Users selected above will be auto-assigned when this task is unlocked
                   </p>
                 </div>
               )}
@@ -1758,8 +1770,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 </div>
 
                 {task.isLocked && task.lockedReason && (
-                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                    🔒 {task.lockedReason}
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    {task.lockedReason}
                   </p>
                 )}
 
@@ -1793,8 +1806,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                         </div>
                       )}
                     </div>
-                    <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
-                      ⏰ Will auto-assign to {task.assignToOnUnlockUsers.map(u => `${u.firstName} ${u.lastName}`).join(', ')} when unlocked
+                    <p className="text-xs font-medium text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      Will auto-assign to {task.assignToOnUnlockUsers.map(u => `${u.firstName} ${u.lastName}`).join(', ')} when unlocked
                     </p>
                   </div>
                 )}

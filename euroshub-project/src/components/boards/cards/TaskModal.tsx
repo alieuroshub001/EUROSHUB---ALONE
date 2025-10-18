@@ -42,7 +42,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   useEffect(() => {
-    if (task) {
+    if (task && isOpen) {
       setEditData({
         title: task.title,
         description: task.description,
@@ -51,20 +51,22 @@ const TaskModal: React.FC<TaskModalProps> = ({
         assignedTo: task.assignedTo
       });
     }
-  }, [task]);
+  }, [task?._id, isOpen]); // Only reset when modal opens or task ID changes
 
   if (!isOpen || !task) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editData.title?.trim()) return;
 
     setIsLoading(true);
     try {
       // Keep assignedTo as the Task type expects (array of user objects)
-      onUpdateTask(task._id, editData);
+      await onUpdateTask(task._id, editData);
+      toast.success('Task saved successfully');
       onClose();
     } catch (error) {
       console.error('Error updating task:', error);
+      toast.error('Failed to save task');
     } finally {
       setIsLoading(false);
     }
@@ -179,12 +181,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 const newDescription = e.target.value;
                 setEditData(prev => ({ ...prev, description: newDescription }));
               }}
-              onBlur={() => {
-                // Auto-save description when user leaves the field
-                if (editData.description !== task.description) {
-                  onUpdateTask(task._id, { description: editData.description });
-                }
-              }}
               disabled={!canEdit}
               rows={4}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 resize-none"
@@ -204,8 +200,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   onClick={() => {
                     if (!canEdit) return;
                     setEditData(prev => ({ ...prev, priority }));
-                    // Auto-save priority immediately
-                    onUpdateTask(task._id, { priority });
                   }}
                   disabled={!canEdit}
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
@@ -270,9 +264,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                               assigned._id !== member.userId._id
                             );
                           }
-
-                          // Auto-save assignedTo immediately
-                          onUpdateTask(task._id, { assignedTo: newAssignedTo });
 
                           return {
                             ...prev,
@@ -354,8 +345,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
               onChange={(e) => {
                 const newDueDate = e.target.value ? new Date(e.target.value).toISOString() : undefined;
                 setEditData(prev => ({ ...prev, dueDate: newDueDate }));
-                // Auto-save due date immediately
-                onUpdateTask(task._id, { dueDate: newDueDate });
               }}
               disabled={!canEdit}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800"
